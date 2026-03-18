@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>E&C Route Planner</title>
+  <link rel="manifest" href="route-planner-manifest.json">
+  <meta name="theme-color" content="#facc15">
+  <link href="//fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: #facc15;
+      --bg: #111827;
+      --card: #1f2937;
+      --text: #f9fafb;
+      --card-text: #e5e7eb;
+      --active-green: #22c55e;
+      --header-bg: #030712;
+      --input-bg: #374151;
+      --border: #4b5563;
+      --shadow-soft: 0 10px 15px -3px rgba(0,0,0,0.3), 0 4px 6px -4px rgba(0,0,0,0.3);
+      --route-blue: #3b82f6;
+    }
+    
+    body.light-mode {
+      --bg: #f3f4f6;
+      --card: #ffffff;
+      --text: #111827;
+      --card-text: #374151;
+      --header-bg: #ffffff;
+      --input-bg: #f9fafb;
+      --border: #e5e7eb;
+      --accent: #2563eb;
+      --active-green: #16a34a;
+      --route-blue: #2563eb;
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    
+    header {
+      padding: 16px 24px;
+      background: var(--header-bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow-soft);
+    }
+    
+    .header-logo-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .header-logo {
+      height: 32px;
+      width: auto;
+      filter: drop-shadow(0 0 3px var(--accent));
+    }
+    
+    .shiny-text {
+      background: linear-gradient(to right, var(--accent) 20%, #ccc 50%, var(--accent) 80%);
+      background-size: 200% auto;
+      color: transparent;
+      -webkit-background-clip: text;
+      background-clip: text;
+      animation: text-shine 3s linear infinite;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    
+    @keyframes text-shine {
+      to { background-position: 200% center; }
+    }
+    
+    #route-btn {
+      background: var(--route-blue);
+      color: white;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 30px;
+      font-weight: 700;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      box-shadow: var(--shadow-soft);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    #route-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 20px -5px rgba(59, 130, 246, 0.4);
+    }
+    
+    #route-btn:active {
+      transform: translateY(1px);
+    }
+    
+    .main-container {
+      padding: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 20px;
+    }
+    
+    @media (max-width: 900px) {
+      .main-container {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .input-section {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-soft);
+    }
+    
+    .input-section h2 {
+      color: var(--accent);
+      font-size: 16px;
+      margin-bottom: 15px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .input-wrap {
+      position: relative;
+      width: 100%;
+      margin-bottom: 15px;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 14px 16px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    
+    input:focus, select:focus {
+      border-color: var(--accent);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.2);
+    }
+    
+    .suggestions-box {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      z-index: 1000;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      border-radius: 0 0 8px 8px;
+    }
+    
+    .suggestion-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      color: var(--text);
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+    
+    .suggestion-item:hover {
+      background: var(--accent);
+      color: #000;
+    }
+    
+    .suggestion-reset {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #888;
+      text-transform: uppercase;
+      z-index: 10;
+    }
+    
+    .add-stop-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--active-green);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      text-transform: uppercase;
+      cursor: pointer;
+      margin: 20px 0 10px;
+      transition: transform 0.2s;
+    }
+    
+    .add-stop-btn:hover {
+      transform: translateY(-2px);
+    }
+    
+    .add-stop-btn:active {
+      transform: translateY(1px);
+    }
+    
+    .stops-list-section {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-soft);
+    }
+    
+    .stops-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .stops-header h2 {
+      color: var(--accent);
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .stops-count {
+      background: var(--input-bg);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      border: 1px solid var(--border);
+    }
+    
+    .stops-container {
+      max-height: 500px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+    }
+    
+    .stop-item {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.2s;
+    }
+    
+    .stop-item:hover {
+      border-color: var(--accent);
+    }
+    
+    .stop-number {
+      background: var(--accent);
+      color: #000;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    
+    .stop-info {
+      flex: 1;
+    }
+    
+    .stop-name {
+      font-weight: 700;
+      font-size: 14px;
+      margin-bottom: 2px;
+    }
+    
+    .stop-address {
+      font-size: 12px;
+      color: #aaa;
+    }
+    
+    .stop-remove {
+      background: transparent;
+      border: 1px solid #f44336;
+      color: #f44336;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    
+    .stop-remove:hover {
+      background: #f44336;
+      color: #fff;
+    }
+    
+    .clear-all-btn {
+      background: transparent;
+      border: 1px solid #f44336;
+      color: #f44336;
+      padding: 10px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.2s;
+    }
+    
+    .clear-all-btn:hover {
+      background: #f44336;
+      color: #fff;
+    }
+    
+    #map-modal {
+      display: none;
+      position: fixed;
+      z-index: 2000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+    }
+    
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .close-map {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 2005;
+      background: #b71c1c;
+      color: #fff;
+      border: none;
+      width: 120px;
+      height: 40px;
+      font-weight: 700;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: var(--shadow-soft);
+    }
+    
+    #zoom-out-btn {
+      top: 80px;
+      background: #2e7d32;
+    }
+    
+    .route-list {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 300px;
+      max-height: calc(100vh - 100px);
+      overflow-y: auto;
+      background: rgba(0,0,0,0.85);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 15px;
+      z-index: 2001;
+      color: var(--text);
+      backdrop-filter: blur(5px);
+    }
+    
+    .route-list h3 {
+      color: var(--accent);
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .route-stop-item {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .route-stop-item:last-child {
+      border-bottom: none;
+    }
+    
+    .route-stop-num {
+      background: var(--accent);
+      color: #000;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+    
+    .route-stop-info {
+      flex: 1;
+    }
+    
+    .route-stop-name {
+      font-weight: 700;
+      font-size: 13px;
+    }
+    
+    .route-stop-address {
+      font-size: 11px;
+      color: #aaa;
+    }
+    
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: var(--accent);
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .empty-state {
+      text-align: center;
+      color: #888;
+      padding: 30px;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-logo-group">
+      <img src="icon2.png" class="header-logo" alt="E&C Logo">
+      <span class="shiny-text">E&C ROUTE PLANNER</span>
+    </div>
+    <button id="route-btn" onclick="generateAndShowRoute()">
+      <span id="route-btn-text">ROUTE</span>
+      <span id="route-spinner" class="loading-spinner" style="display: none;"></span>
+    </button>
+  </header>
+
+  <div class="main-container">
+    <!-- Input Section -->
+    <div class="input-section">
+      <h2>Add Stop</h2>
+      <div class="rel" style="position: relative;">
+        <input type="text" id="stop-name" class="glow-field" placeholder="Contact/Business Name" autocomplete="off" oninput="handleNameInput(this.value)">
+        <div id="suggestions" class="suggestions-box"></div>
+        <div onclick="clearStopInputs()" class="suggestion-reset">RESET</div>
+      </div>
+      
+      <div class="input-wrap">
+        <input type="text" id="stop-address" class="glow-field" placeholder="Address">
+      </div>
+      
+      <div class="input-wrap">
+        <input type="text" id="stop-city" class="glow-field" placeholder="City" oninput="handleCityInput(this.value)">
+        <div id="city-suggestions" class="suggestions-box"></div>
+      </div>
+      
+      <button class="add-stop-btn" onclick="addStop()">+ ADD TO ROUTE</button>
+      
+      <div style="margin-top: 30px;">
+        <h2 style="margin-bottom: 10px;">Quick Add from Address Book</h2>
+        <select id="quick-address-select" class="driver-select" onchange="quickAddFromSelect()">
+          <option value="" disabled selected>Select saved address...</option>
+        </select>
+      </div>
+    </div>
+    
+    <!-- Stops List Section -->
+    <div class="stops-list-section">
+      <div class="stops-header">
+        <h2>Route Stops</h2>
+        <span class="stops-count" id="stops-count">0</span>
+      </div>
+      
+      <div class="stops-container" id="stops-container">
+        <div class="empty-state" id="empty-stops">No stops added yet. Add a stop to begin planning.</div>
+      </div>
+      
+      <button class="clear-all-btn" onclick="clearAllStops()" id="clear-all-btn" style="display: none;">CLEAR ALL STOPS</button>
+    </div>
+  </div>
+
+  <!-- Map Modal -->
+  <div id="map-modal">
+    <button class="close-map" onclick="closeMap()">CLOSE MAP</button>
+    <button id="zoom-out-btn" class="close-map" onclick="zoomToAllStops()">ZOOM OUT</button>
+    <div id="route-list" class="route-list"></div>
+    <div id="map"></div>
+  </div>
+
+  <!-- Firebase and Google Maps Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA6umETP8wBUEV41ugAtiNiChUeLmmwmZI&libraries=geometry,places"></script>
+
+  <script>
+    // Firebase Configuration (same as command/driver apps)
+    firebase.initializeApp({
+      apiKey: "AIzaSyAKmgoXA4m3cRTmxJq4aUyva5SVvFbTNqg",
+      authDomain: "eandccourier-36fcc.firebaseapp.com",
+      databaseURL: "https://eandccourier-36fcc-default-rtdb.firebaseio.com",
+      projectId: "eandccourier-36fcc",
+      messagingSenderId: "1067680083511",
+      appId: "1:1067680083511:android:22d1eb3757302492bd19b2"
+    });
+
+    const db = firebase.database();
+    
+    // Use separate paths for route planner data
+    const ROUTES_DB_PATH = 'route_planner_stops';
+    const ADDRESS_LOOKUP_PATH = 'address_lookup'; // Shared for autocomplete
+    
+    // State
+    let addressData = {};
+    let currentStops = [];
+    let mainMap = null;
+    let mapMarkers = [];
+    let activePolyline = null;
+    let mapBoundsInitialized = false;
+    
+    // Load address data for autocomplete
+    db.ref(ADDRESS_LOOKUP_PATH).on('value', (snap) => {
+      addressData = snap.val() || {};
+      populateQuickAddressSelect();
+    });
+    
+    // Load saved stops from Firebase (using separate path)
+    db.ref(ROUTES_DB_PATH).on('value', (snap) => {
+      const stops = snap.val();
+      if (stops) {
+        currentStops = Object.values(stops).sort((a, b) => (a.order || 0) - (b.order || 0));
+      } else {
+        currentStops = [];
+      }
+      renderStopsList();
+    });
+    
+    // Helper Functions
+    function formatPhone(phone) {
+      if (!phone) return '';
+      const cleaned = phone.replace(/\D/g, '');
+      const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
+      if (match) {
+        return '(' + match[1] + ')-' + match[2] + '-' + match[3];
+      }
+      return phone;
+    }
+    
+    // Autocomplete for contact name
+    function handleNameInput(val) {
+      showSuggestions(val, 'suggestions', (key) => {
+        return `<div class="suggestion-item" onclick="selectClient('${key.replace(/'/g, "\\'")}')">${key}</div>`;
+      });
+    }
+    
+    function selectClient(key) {
+      const data = addressData[key];
+      if (data) {
+        document.getElementById('stop-name').value = key;
+        document.getElementById('stop-address').value = data.address || '';
+        document.getElementById('stop-city').value = data.city || '';
+        document.getElementById('suggestions').style.display = 'none';
+      }
+    }
+    
+    // City autocomplete
+    function handleCityInput(val) {
+      const suggestionsBox = document.getElementById('city-suggestions');
+      if (val.length < 1) {
+        suggestionsBox.style.display = 'none';
+        return;
+      }
+      
+      const matches = Object.keys(addressData).filter(key => 
+        (addressData[key].city || '').toLowerCase().startsWith(val.trim().toLowerCase())
+      );
+      
+      if (matches.length === 0) {
+        suggestionsBox.style.display = 'none';
+        return;
+      }
+      
+      suggestionsBox.innerHTML = matches.map(key => 
+        `<div class="suggestion-item" onclick="selectCity('${key.replace(/'/g, "\\'")}')">${key} (${addressData[key].city})</div>`
+      ).join('');
+      suggestionsBox.style.display = 'block';
+    }
+    
+    function selectCity(key) {
+      const data = addressData[key];
+      if (data) {
+        document.getElementById('stop-name').value = key;
+        document.getElementById('stop-address').value = data.address || '';
+        document.getElementById('stop-city').value = data.city || '';
+        document.getElementById('city-suggestions').style.display = 'none';
+      }
+    }
+    
+    function showSuggestions(val, boxId, itemGenerator) {
+      const box = document.getElementById(boxId);
+      if (val.length < 1) {
+        box.style.display = 'none';
+        return;
+      }
+      
+      const matches = Object.keys(addressData).filter(key => 
+        key.toLowerCase().startsWith(val.replace(/[.#$\[\]\/]/g, '').trim().toLowerCase())
+      );
+      
+      if (matches.length === 0) {
+        box.style.display = 'none';
+        return;
+      }
+      
+      box.innerHTML = matches.map(itemGenerator).join('');
+      box.style.display = 'block';
+    }
+    
+    function clearStopInputs() {
+      document.getElementById('stop-name').value = '';
+      document.getElementById('stop-address').value = '';
+      document.getElementById('stop-city').value = '';
+      document.getElementById('suggestions').style.display = 'none';
+      document.getElementById('city-suggestions').style.display = 'none';
+    }
+    
+    // Populate quick address select
+    function populateQuickAddressSelect() {
+      const select = document.getElementById('quick-address-select');
+      select.innerHTML = '<option value="" disabled selected>Select saved address...</option>';
+      
+      Object.keys(addressData).sort().forEach(key => {
+        const data = addressData[key];
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = `${key} - ${data.city || ''}`;
+        select.appendChild(option);
+      });
+    }
+    
+    function quickAddFromSelect() {
+      const select = document.getElementById('quick-address-select');
+      const key = select.value;
+      if (!key) return;
+      
+      const data = addressData[key];
+      if (data) {
+        document.getElementById('stop-name').value = key;
+        document.getElementById('stop-address').value = data.address || '';
+        document.getElementById('stop-city').value = data.city || '';
+      }
+    }
+    
+    // Add stop to route
+    async function addStop() {
+      const name = document.getElementById('stop-name').value.trim();
+      const address = document.getElementById('stop-address').value.trim();
+      const city = document.getElementById('stop-city').value.trim();
+      
+      if (!name || !address || !city) {
+        alert('Please fill in all fields');
+        return;
+      }
+      
+      // Geocode to get coordinates
+      try {
+        const geocoder = new google.maps.Geocoder();
+        const fullAddress = `${address}, ${city}`;
+        
+        const result = await new Promise((resolve, reject) => {
+          geocoder.geocode({ address: fullAddress }, (results, status) => {
+            if (status === 'OK' && results[0]) {
+              resolve(results[0]);
+            } else {
+              reject('Geocoding failed');
+            }
+          });
+        });
+        
+        const location = result.geometry.location;
+        const stop = {
+          name: name,
+          address: address,
+          city: city,
+          lat: location.lat(),
+          lng: location.lng(),
+          order: currentStops.length,
+          timestamp: Date.now()
+        };
+        
+        // Save to Firebase
+        const newStopRef = db.ref(ROUTES_DB_PATH).push();
+        await newStopRef.set(stop);
+        
+        clearStopInputs();
+        
+      } catch (error) {
+        console.error('Geocoding error:', error);
+        alert('Could not find coordinates for this address. Please check the address and try again.');
+      }
+    }
+    
+    // Render stops list
+    function renderStopsList() {
+      const container = document.getElementById('stops-container');
+      const countSpan = document.getElementById('stops-count');
+      const clearBtn = document.getElementById('clear-all-btn');
+      
+      if (currentStops.length === 0) {
+        container.innerHTML = '<div class="empty-state">No stops added yet. Add a stop to begin planning.</div>';
+        countSpan.textContent = '0';
+        clearBtn.style.display = 'none';
+        return;
+      }
+      
+      clearBtn.style.display = 'block';
+      countSpan.textContent = currentStops.length;
+      
+      let html = '';
+      currentStops.forEach((stop, index) => {
+        html += `
+          <div class="stop-item" data-stop-id="${stop._id || ''}">
+            <div class="stop-number">${index + 1}</div>
+            <div class="stop-info">
+              <div class="stop-name">${stop.name || ''}</div>
+              <div class="stop-address">${stop.address || ''}, ${stop.city || ''}</div>
+            </div>
+            <button class="stop-remove" onclick="removeStop('${stop._id || ''}')">✕</button>
+          </div>
+        `;
+      });
+      
+      container.innerHTML = html;
+    }
+    
+    // Remove stop
+    function removeStop(stopId) {
+      if (!stopId) return;
+      if (confirm('Remove this stop from the route?')) {
+        db.ref(`${ROUTES_DB_PATH}/${stopId}`).remove();
+      }
+    }
+    
+    // Clear all stops
+    function clearAllStops() {
+      if (currentStops.length === 0) return;
+      if (confirm('Clear all stops from the route?')) {
+        db.ref(ROUTES_DB_PATH).remove();
+      }
+    }
+    
+    // Generate and show optimized route
+    async function generateAndShowRoute() {
+      if (currentStops.length === 0) {
+        alert('Add at least one stop to generate a route');
+        return;
+      }
+      
+      // Show loading state
+      const routeBtn = document.getElementById('route-btn');
+      const btnText = document.getElementById('route-btn-text');
+      const spinner = document.getElementById('route-spinner');
+      
+      btnText.style.display = 'none';
+      spinner.style.display = 'inline-block';
+      routeBtn.disabled = true;
+      
+      try {
+        // Get user's location for start point
+        const startPoint = await getUserLocation();
+        
+        // Prepare waypoints
+        const waypoints = currentStops.map(stop => ({
+          location: new google.maps.LatLng(stop.lat, stop.lng),
+          stopover: true
+        }));
+        
+        // Request route from Google Maps
+        const directionsService = new google.maps.DirectionsService();
+        
+        const request = {
+          origin: startPoint,
+          destination: startPoint, // Return to start
+          waypoints: waypoints,
+          travelMode: 'DRIVING',
+          optimizeWaypoints: true
+        };
+        
+        const result = await new Promise((resolve, reject) => {
+          directionsService.route(request, (result, status) => {
+            if (status === 'OK') {
+              resolve(result);
+            } else {
+              reject(status);
+            }
+          });
+        });
+        
+        // Show map with route
+        showMapWithRoute(result, waypoints);
+        
+      } catch (error) {
+        console.error('Route generation error:', error);
+        alert('Failed to generate route. Please try again.');
+      } finally {
+        // Reset button state
+        btnText.style.display = 'inline';
+        spinner.style.display = 'none';
+        routeBtn.disabled = false;
+      }
+    }
+    
+    // Get user's current location
+    function getUserLocation() {
+      return new Promise((resolve, reject) => {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              resolve(new google.maps.LatLng(
+                position.coords.latitude,
+                position.coords.longitude
+              ));
+            },
+            (error) => {
+              console.warn('Geolocation failed, using default location:', error);
+              // Default to Brandon, MB
+              resolve(new google.maps.LatLng(49.8485, -99.9501));
+            }
+          );
+        } else {
+          resolve(new google.maps.LatLng(49.8485, -99.9501));
+        }
+      });
+    }
+    
+    // Show map with optimized route
+    function showMapWithRoute(directionsResult, originalWaypoints) {
+      const mapModal = document.getElementById('map-modal');
+      mapModal.style.display = 'block';
+      
+      // Initialize map if needed
+      if (!mainMap) {
+        mainMap = new google.maps.Map(document.getElementById('map'), {
+          center: { lat: 49.8485, lng: -99.9501 },
+          zoom: 12,
+          styles: [
+            {
+              featureType: 'all',
+              elementType: 'all',
+              stylers: [
+                { invert_lightness: true },
+                { saturation: 10 },
+                { lightness: 30 },
+                { gamma: 0.5 }
+              ]
+            }
+          ]
+        });
+      }
+      
+      // Clear existing markers and polylines
+      mapMarkers.forEach(marker => marker.setMap(null));
+      mapMarkers = [];
+      if (activePolyline) activePolyline.setMap(null);
+      
+      // Get optimized order
+      const optimizedOrder = directionsResult.routes[0].waypoint_order;
+      
+      // Create ordered list of stops
+      const orderedStops = optimizedOrder.map(index => currentStops[index]);
+      
+      // Draw route
+      const directionsRenderer = new google.maps.DirectionsRenderer({
+        map: mainMap,
+        directions: directionsResult,
+        suppressMarkers: true,
+        polylineOptions: {
+          strokeColor: '#3b82f6',
+          strokeWeight: 6,
+          strokeOpacity: 0.8
+        }
+      });
+      
+      // Add markers for each stop
+      const bounds = new google.maps.LatLngBounds();
+      
+      // Add start point marker (driver location)
+      const startPoint = directionsResult.routes[0].legs[0].start_location;
+      bounds.extend(startPoint);
+      
+      const startMarker = new google.maps.Marker({
+        position: startPoint,
+        map: mainMap,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 8,
+          fillColor: '#22c55e',
+          fillOpacity: 1,
+          strokeColor: '#fff',
+          strokeWeight: 2
+        },
+        label: {
+          text: 'S',
+          color: '#000',
+          fontWeight: 'bold'
+        }
+      });
+      mapMarkers.push(startMarker);
+      
+      // Add markers for each stop
+      orderedStops.forEach((stop, index) => {
+        const position = new google.maps.LatLng(stop.lat, stop.lng);
+        bounds.extend(position);
+        
+        const marker = new google.maps.Marker({
+          position: position,
+          map: mainMap,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 10,
+            fillColor: '#facc15',
+            fillOpacity: 1,
+            strokeColor: '#fff',
+            strokeWeight: 2
+          },
+          label: {
+            text: (index + 1).toString(),
+            color: '#000',
+            fontWeight: 'bold'
+          }
+        });
+        mapMarkers.push(marker);
+      });
+      
+      // Fit bounds
+      mainMap.fitBounds(bounds);
+      
+      // Generate route list HTML
+      const routeList = document.getElementById('route-list');
+      let listHtml = '<h3>OPTIMIZED ROUTE ORDER</h3>';
+      
+      orderedStops.forEach((stop, index) => {
+        listHtml += `
+          <div class="route-stop-item">
+            <div class="route-stop-num">${index + 1}</div>
+            <div class="route-stop-info">
+              <div class="route-stop-name">${stop.name || ''}</div>
+              <div class="route-stop-address">${stop.address || ''}, ${stop.city || ''}</div>
+            </div>
+          </div>
+        `;
+      });
+      
+      routeList.innerHTML = listHtml;
+      mapBoundsInitialized = true;
+    }
+    
+    // Close map
+    function closeMap() {
+      document.getElementById('map-modal').style.display = 'none';
+    }
+    
+    // Zoom to all stops
+    function zoomToAllStops() {
+      if (!mainMap || mapMarkers.length === 0) return;
+      
+      const bounds = new google.maps.LatLngBounds();
+      mapMarkers.forEach(marker => {
+        if (marker.getPosition()) {
+          bounds.extend(marker.getPosition());
+        }
+      });
+      
+      mainMap.fitBounds(bounds);
+    }
+    
+    // Theme toggle (optional, from command.html)
+    if (localStorage.getItem('ec_theme') === 'light') {
+      document.body.classList.add('light-mode');
+    }
+    
+    // Click outside suggestions to close
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#suggestions') && !e.target.closest('#stop-name')) {
+        document.getElementById('suggestions').style.display = 'none';
+      }
+      if (!e.target.closest('#city-suggestions') && !e.target.closest('#stop-city')) {
+        document.getElementById('city-suggestions').style.display = 'none';
+      }
+    });
+    
+    // Enter key to add stop
+    document.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && e.target.closest('.input-section')) {
+        e.preventDefault();
+        addStop();
+      }
+    });
+    
+    // Escape key to close map
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeMap();
+      }
+    });
+  </script>
+</body>
+</html>
