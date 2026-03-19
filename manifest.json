@@ -1,7 +1,7 @@
 {
   "name": "E&C Route Planner",
   "short_name": "Route Planner",
-  "start_url": "planner.html",
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#111827",
   "theme_color": "gold",
