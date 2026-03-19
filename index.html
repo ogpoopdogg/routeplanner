@@ -725,42 +725,59 @@
         return;
       }
       
-      // Geocode to get coordinates
-      try {
-        const geocoder = new google.maps.Geocoder();
-        const fullAddress = `${address}, ${city}`;
-        
-        const result = await new Promise((resolve, reject) => {
-          geocoder.geocode({ address: fullAddress }, (results, status) => {
-            if (status === 'OK' && results[0]) {
-              resolve(results[0]);
-            } else {
-              reject('Geocoding failed');
-            }
+      // Check if this address exists in addressData and has coordinates
+      const addressKey = name;
+      const savedData = addressData[addressKey];
+      
+      let lat = null;
+      let lng = null;
+      
+      // If we have saved coordinates, use them
+      if (savedData && savedData.lat && savedData.lng) {
+        lat = savedData.lat;
+        lng = savedData.lng;
+      } else {
+        // Otherwise geocode to get coordinates
+        try {
+          const geocoder = new google.maps.Geocoder();
+          const fullAddress = `${address}, ${city}`;
+          
+          const result = await new Promise((resolve, reject) => {
+            geocoder.geocode({ address: fullAddress }, (results, status) => {
+              if (status === 'OK' && results[0]) {
+                resolve(results[0]);
+              } else {
+                reject('Geocoding failed');
+              }
+            });
           });
-        });
-        
-        const location = result.geometry.location;
-        const stop = {
-          name: name,
-          address: address,
-          city: city,
-          lat: location.lat(),
-          lng: location.lng(),
-          order: currentStops.length,
-          timestamp: Date.now()
-        };
-        
-        // Save to Firebase
-        const newStopRef = db.ref(ROUTES_DB_PATH).push();
-        await newStopRef.set(stop);
-        
-        clearStopInputs();
-        
-      } catch (error) {
-        console.error('Geocoding error:', error);
-        alert('Could not find coordinates for this address. Please check the address and try again.');
+          
+          const location = result.geometry.location;
+          lat = location.lat();
+          lng = location.lng();
+        } catch (error) {
+          console.error('Geocoding error:', error);
+          alert('Could not find coordinates for this address. Please check the address and try again.');
+          return;
+        }
       }
+      
+      const stop = {
+        name: name,
+        address: address,
+        city: city,
+        lat: lat,
+        lng: lng,
+        order: currentStops.length,
+        timestamp: Date.now()
+      };
+      
+      // Save to Firebase
+      const newStopRef = db.ref(ROUTES_DB_PATH).push();
+      await newStopRef.set(stop);
+      
+      clearStopInputs();
+      
     }
     
     // Render stops list
