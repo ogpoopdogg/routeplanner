@@ -1065,29 +1065,14 @@
           position: position,
           map: mainMap,
           title: stopName,
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 10,
-            fillColor: '#facc15',
-            fillOpacity: 1,
-            strokeColor: '#fff',
-            strokeWeight: 2
-          },
+          icon: null,
           label: {
-            text: (i + 1).toString(),
-            color: '#000',
-            fontWeight: 'bold'
+            text: stopName,
+            color: '#00FF00',
+            fontWeight: 'bold',
+            fontSize: '14px'
           }
         });
-        
-        // Create info window with contact name, positioned above marker
-        const infoWindow = new google.maps.InfoWindow({
-          content: `<div style="font-weight:bold; color:#000; background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #ccc;">${stopName}</div>`,
-          disableAutoPan: true,
-          position: position,
-          pixelOffset: new google.maps.Size(0, -35)
-        });
-        infoWindow.open(mainMap);
         
         mapMarkers.push(marker);
       }
