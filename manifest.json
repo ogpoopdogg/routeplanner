@@ -1,0 +1,20 @@
+{
+  "name": "E&C Route Planner",
+  "short_name": "RoutePlanner",
+  "start_url": "routeplanner.html",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#facc15",
+  "icons": [
+    {
+      "src": "icon2.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon2.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
