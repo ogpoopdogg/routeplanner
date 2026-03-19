@@ -397,7 +397,12 @@
     #map {
       width: 100%;
       height: 100%;
-      touch-action: pan-x pan-y pinch-zoom; /* allow one‑finger map movement + pinch */
+      touch-action: pan-x pan-y; /* allow one‑finger panning, disable pinch-zoom for map itself */
+    }
+    
+    /* Ensure Google Maps container doesn't block touch events */
+    .gm-style {
+      touch-action: pan-x pan-y !important;
     }
     
     .close-map {
@@ -963,7 +968,8 @@
                 { gamma: 0.5 }
               ]
             }
-          ]
+          ],
+          gestureHandling: 'greedy' // This enables one-finger panning on mobile
         });
       }
       
