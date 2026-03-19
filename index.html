@@ -56,6 +56,8 @@
       justify-content: space-between;
       align-items: center;
       box-shadow: var(--shadow-soft);
+      flex-wrap: wrap;
+      gap: 10px;
     }
     
     .header-logo-group {
@@ -84,6 +86,33 @@
     
     @keyframes text-shine {
       to { background-position: 200% center; }
+    }
+    
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    #install-btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 30px;
+      font-weight: 700;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      box-shadow: var(--shadow-soft);
+      transition: transform 0.2s, box-shadow 0.2s;
+      display: none; /* hidden by default, shown when prompt available */
+    }
+    
+    #install-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 15px -3px rgba(250,204,21,0.4);
     }
     
     #route-btn {
@@ -435,10 +464,13 @@
       <img src="icon2.png" class="header-logo" alt="E&C Logo">
       <span class="shiny-text">E&C ROUTE PLANNER</span>
     </div>
-    <button id="route-btn" onclick="generateAndShowRoute()">
-      <span id="route-btn-text">ROUTE</span>
-      <span id="route-spinner" class="loading-spinner" style="display: none;"></span>
-    </button>
+    <div class="header-actions">
+      <button id="install-btn" onclick="installPWA()">📲 INSTALL APP</button>
+      <button id="route-btn" onclick="generateAndShowRoute()">
+        <span id="route-btn-text">ROUTE</span>
+        <span id="route-spinner" class="loading-spinner" style="display: none;"></span>
+      </button>
+    </div>
   </header>
 
   <div class="main-container">
@@ -498,6 +530,44 @@
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
   <script>
+    // PWA install handling
+    let deferredPrompt;
+    const installBtn = document.getElementById('install-btn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Prevent Chrome 67 and earlier from automatically showing the prompt
+      e.preventDefault();
+      // Stash the event so it can be triggered later
+      deferredPrompt = e;
+      // Show the install button
+      installBtn.style.display = 'inline-block';
+    });
+
+    window.addEventListener('appinstalled', () => {
+      // Hide the install button after successful install
+      installBtn.style.display = 'none';
+      deferredPrompt = null;
+      console.log('PWA was installed');
+    });
+
+    function installPWA() {
+      if (!deferredPrompt) return;
+      // Show the install prompt
+      deferredPrompt.prompt();
+      // Wait for the user to respond to the prompt
+      deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('User accepted the install prompt');
+        } else {
+          console.log('User dismissed the install prompt');
+        }
+        // Clear the saved prompt as it can't be used again
+        deferredPrompt = null;
+        // Hide the button (in case user declined, we hide it anyway – can be shown again on next beforeinstallprompt)
+        installBtn.style.display = 'none';
+      });
+    }
+
     // Firebase Configuration (same as command/driver apps)
     firebase.initializeApp({
       apiKey: "AIzaSyAKmgoXA4m3cRTmxJq4aUyva5SVvFbTNqg",
