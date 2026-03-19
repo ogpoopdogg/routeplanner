@@ -1049,9 +1049,17 @@
         const position = leg.end_location; // end of each leg is a stop
         bounds.extend(position);
         
+        // Find matching stop
+        const match = currentStops.find(s => 
+          Math.abs(s.lat - position.lat()) < 0.0001 && Math.abs(s.lng - position.lng()) < 0.0001
+        );
+        const stopName = match ? match.name : `Stop ${i+1}`;
+        const stopAddr = match ? `${match.address}, ${match.city}` : '';
+        
         const marker = new google.maps.Marker({
           position: position,
           map: mainMap,
+          title: stopName, // Add title for hover
           icon: {
             path: google.maps.SymbolPath.CIRCLE,
             scale: 10,
@@ -1066,7 +1074,35 @@
             fontWeight: 'bold'
           }
         });
+        
+        // Add info window on click
+        const infoWindow = new google.maps.InfoWindow({
+          content: `<div><strong>${stopName}</strong><br>${stopAddr}</div>`
+        });
+        marker.addListener('click', () => {
+          infoWindow.open(mainMap, marker);
+        });
+        
         mapMarkers.push(marker);
+      }
+      
+      // Update stop orders in Firebase to reflect optimized sequence
+      const orderUpdates = {};
+      for (let i = 0; i < legs.length; i++) {
+        const leg = legs[i];
+        const position = leg.end_location;
+        const match = currentStops.find(s => 
+          Math.abs(s.lat - position.lat()) < 0.0001 && Math.abs(s.lng - position.lng()) < 0.0001
+        );
+        if (match && match._id) {
+          // Only update if the order is different from current to avoid unnecessary writes
+          if (match.order !== i) {
+            orderUpdates[`${ROUTES_DB_PATH}/${match._id}/order`] = i;
+          }
+        }
+      }
+      if (Object.keys(orderUpdates).length > 0) {
+        db.ref().update(orderUpdates);
       }
       
       // Fit bounds with zero padding for maximum zoom (as far as possible while showing all stops)
