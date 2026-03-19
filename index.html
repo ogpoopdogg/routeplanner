@@ -28,7 +28,6 @@
         .header-logo { height: 24px; width: auto; margin-right: 12px; vertical-align: middle; filter: drop-shadow(0 0 3px var(--accent)); cursor: pointer; }
         .shiny-text { background: linear-gradient(to right, var(--accent) 20%, #ccc 50%, var(--accent) 80%); background-size: 200% auto; color: transparent; -webkit-background-clip: text; background-clip: text; animation: text-shine 3s linear infinite; }
         @keyframes text-shine { to { background-position: 200% center; } }
-        #user-display { color: var(--active-green); font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
 
         #login-overlay { position: fixed; inset: 0; background: #050505; z-index: 9999; display: flex; align-items: center; justify-content: center; }
         .login-box { width: 100%; max-width: 350px; background: #111; padding: 40px; border-radius: 12px; border: 1px solid #222; text-align: center; }
@@ -68,6 +67,24 @@
 
         #install-btn { display: none; background: var(--pro-blue); color: #fff; border: none; padding: 14px 16px; font-size: 12px; font-weight: 700; border-radius: 6px; cursor: pointer; text-transform: uppercase; position: fixed; right: 15px; bottom: 15px; z-index: 1002; }
 
+        /* Map button styles */
+        .map-btn {
+            background: repeating-linear-gradient(45deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 4px, transparent 4px, transparent 8px), #2c3e50;
+            color: white;
+            border: 1px solid #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: box-shadow 0.2s;
+        }
+        .map-btn-glow {
+            box-shadow: 0 0 15px var(--accent);
+        }
+
+        /* Driver map label style (from command.html) */
+        .driver-map-label { color: #00ff00 !important; font-weight: 700; text-shadow: 0 0 2px #000; }
+
         @media (max-width: 768px) {
             header { padding: 8px 12px; }
             .header-logo { height: 20px; }
@@ -90,11 +107,9 @@
         <div style="display: flex; align-items: center; gap: 10px;">
             <img src="icon2.png" class="header-logo" alt="Logo" onclick="toggleTheme()">
             <span class="shiny-text" style="font-size:16px; font-weight:700;">E&C ROUTE PLANNER</span>
-            <div id="user-display"></div>
         </div>
         <div style="display: flex; align-items: center; gap: 10px;">
-            <button onclick="alert('Settings placeholder')" style="background:transparent; border:none; cursor:pointer; font-size:20px; color:var(--text);">⚙️</button>
-            <button onclick="openMap()" style="background:var(--accent); color:#000; border:none; padding:8px 16px; border-radius:6px; font-weight:700; cursor:pointer;">MAP</button>
+            <button id="map-btn" class="map-btn" onclick="openMap()">MAP</button>
         </div>
     </header>
 
@@ -102,17 +117,17 @@
     <div style="padding: 20px;">
         <div style="background: var(--card); border-radius: 12px; padding: 20px; border: 1px solid var(--border); box-shadow: var(--shadow-soft);">
             <div class="flex-row">
-                <div class="input-wrap" style="position: relative;">
-                    <input type="text" id="f-name" placeholder="Contact/Business Name" autocomplete="off" oninput="handleNameInput(this.value)">
+                <div class="rel" style="position: relative; width: 100%;">
+                    <input type="text" id="f-name" class="glow-field" placeholder="Contact/Business Name" autocomplete="off" oninput="handleNameInput(this.value)" onblur="setTimeout(()=>document.getElementById('suggestions').style.display='none', 200)" style="padding-right:50px;">
                     <div id="suggestions" class="suggestions-box"></div>
+                    <div onclick="resetFormFields()" class="suggestion-reset" style="right:36px;">RESET</div>
                 </div>
-                <div class="suggestion-reset" onclick="resetFormFields()" style="position: static; margin-left: 8px;">RESET</div>
             </div>
             <div class="flex-row">
-                <div class="input-wrap">
+                <div class="input-wrap" style="flex: 0.7;">
                     <input type="text" id="f-address" placeholder="Address">
                 </div>
-                <div class="input-wrap">
+                <div class="input-wrap" style="flex: 0.3;">
                     <input type="text" id="f-city" placeholder="City" oninput="handleCityInput(this.value)">
                     <div id="city-suggestions" class="suggestions-box"></div>
                 </div>
@@ -200,7 +215,7 @@
                     if (snap.val() === true) {
                         currentUser = username;
                         document.getElementById('login-overlay').style.display = 'none';
-                        document.getElementById('user-display').innerText = `Logged in as: ${currentUser}`;
+                        // Removed user-display line
                         initApp();
                     } else {
                         alert("ACCESS DENIED");
@@ -346,6 +361,9 @@
                 if (activePolyline) activePolyline.setMap(null);
                 if (mapMarkers) Object.values(mapMarkers).forEach(m => m.setMap(null));
                 mapMarkers = {};
+                // Remove glow from map button
+                const mapBtn = document.getElementById('map-btn');
+                if (mapBtn) mapBtn.classList.remove('map-btn-glow');
                 return;
             }
 
@@ -470,14 +488,18 @@
                                     group.jobs.forEach(job => {
                                         db.ref(`developer/route_planner/jobs/${job.id}`).update({ lat: loc.latitude, lng: loc.longitude });
                                     });
-                                    // Create marker with number
+                                    // Create marker with number and business name (like command.html)
+                                    const firstJob = group.jobs[0];
+                                    const labelText = `${idx+1}. ${firstJob.name || ''}`;
                                     const marker = new google.maps.Marker({
                                         position: { lat: loc.latitude, lng: loc.longitude },
                                         map: map,
                                         label: {
-                                            text: (idx + 1).toString(),
-                                            color: 'white',
-                                            fontWeight: 'bold'
+                                            text: labelText,
+                                            color: '#00b32d',
+                                            fontWeight: 'bold',
+                                            fontSize: '12px',
+                                            className: 'driver-map-label'
                                         },
                                         icon: {
                                             path: google.maps.SymbolPath.CIRCLE,
@@ -503,6 +525,16 @@
             }
 
             renderList();
+
+            // Add glow to map button if there are jobs
+            const mapBtn = document.getElementById('map-btn');
+            if (mapBtn) {
+                if (optimizedOrder.length > 0) {
+                    mapBtn.classList.add('map-btn-glow');
+                } else {
+                    mapBtn.classList.remove('map-btn-glow');
+                }
+            }
         }
 
         // ---------- RENDER JOB LIST (simplified from driver.html) ----------
