@@ -367,7 +367,7 @@
     #map {
       width: 100%;
       height: 100%;
-      touch-action: pan-x pan-y; /* FIX 3: allow one‑finger map movement */
+      touch-action: pan-x pan-y; /* allow one‑finger map movement */
     }
     
     .close-map {
@@ -391,7 +391,7 @@
       background: #2e7d32;
     }
     
-    /* FIX 1: remove the overlay list – keep only the map (list is hidden by default) */
+    /* hide the overlay list – only map shown */
     .route-list {
       display: none;
     }
@@ -557,7 +557,7 @@
       db.ref(ROUTES_DB_PATH).on('value', (snap) => {
         const stops = snap.val();
         if (stops) {
-          // FIX 2: preserve the Firebase key inside each stop object
+          // preserve the Firebase key inside each stop object
           currentStops = Object.keys(stops).map(key => {
             return { ...stops[key], _id: key };
           }).sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -794,22 +794,35 @@
         // Get user's location for start point
         const startPoint = await getUserLocation();
         
-        // Prepare waypoints
+        // Prepare waypoints (all stops)
         const waypoints = currentStops.map(stop => ({
           location: new google.maps.LatLng(stop.lat, stop.lng),
           stopover: true
         }));
         
-        // Request route from Google Maps
+        // Request route from Google Maps – origin = start, destination = last stop, waypoints = all except last
         const directionsService = new google.maps.DirectionsService();
         
-        const request = {
-          origin: startPoint,
-          destination: startPoint, // Return to start
-          waypoints: waypoints,
-          travelMode: 'DRIVING',
-          optimizeWaypoints: true
-        };
+        // If only one stop, destination is that stop and no waypoints
+        let request;
+        if (waypoints.length === 1) {
+          request = {
+            origin: startPoint,
+            destination: waypoints[0].location,
+            waypoints: [],
+            travelMode: 'DRIVING',
+            optimizeWaypoints: true
+          };
+        } else {
+          // destination is the last stop, waypoints are all stops except the last one
+          request = {
+            origin: startPoint,
+            destination: waypoints[waypoints.length - 1].location,
+            waypoints: waypoints.slice(0, -1), // all except last
+            travelMode: 'DRIVING',
+            optimizeWaypoints: true
+          };
+        }
         
         const result = await new Promise((resolve, reject) => {
           directionsService.route(request, (result, status) => {
@@ -891,10 +904,29 @@
       // Get optimized order
       const optimizedOrder = directionsResult.routes[0].waypoint_order;
       
-      // Create ordered list of stops
-      const orderedStops = optimizedOrder.map(index => currentStops[index]);
+      // Create ordered list of stops (based on original order + start point)
+      // The waypoint_order indexes correspond to the waypoints array we passed (all except last)
+      // But our currentStops includes all stops; we need to map carefully.
+      // We passed waypoints = all stops except the last one. So the last stop is fixed as destination.
+      // However, DirectionsResult includes legs: [start->firstWaypoint, waypoint->waypoint, ..., lastWaypoint->destination]
+      // We'll construct orderedStops for display: start, then optimized waypoints, then destination.
       
-      // Draw route
+      const orderedStops = [];
+      // Start point (user location)
+      orderedStops.push({ name: 'Start', address: 'Your Location', lat: null, lng: null }); // placeholder, we'll use actual coordinates for marker later
+      
+      // Add optimized waypoints (these are from currentStops except the last original stop)
+      const originalLastStop = currentStops[currentStops.length - 1];
+      const otherStops = currentStops.slice(0, -1); // all except last
+      
+      optimizedOrder.forEach(index => {
+        orderedStops.push(otherStops[index]); // these are the stops in optimized order (excluding last)
+      });
+      
+      // Finally add the destination (original last stop)
+      orderedStops.push(originalLastStop);
+      
+      // Draw route using DirectionsRenderer
       const directionsRenderer = new google.maps.DirectionsRenderer({
         map: mainMap,
         directions: directionsResult,
@@ -932,9 +964,12 @@
       });
       mapMarkers.push(startMarker);
       
-      // Add markers for each stop
-      orderedStops.forEach((stop, index) => {
-        const position = new google.maps.LatLng(stop.lat, stop.lng);
+      // Add markers for each stop (we have orderedStops from index 1 onward)
+      // We'll iterate through the legs to get end_location of each leg for proper order
+      const legs = directionsResult.routes[0].legs;
+      for (let i = 0; i < legs.length; i++) {
+        const leg = legs[i];
+        const position = leg.end_location; // end of each leg is a stop
         bounds.extend(position);
         
         const marker = new google.maps.Marker({
@@ -949,32 +984,46 @@
             strokeWeight: 2
           },
           label: {
-            text: (index + 1).toString(),
+            text: (i + 1).toString(), // 1,2,3...
             color: '#000',
             fontWeight: 'bold'
           }
         });
         mapMarkers.push(marker);
-      });
+      }
       
-      // Fit bounds – FIX 4: zoom as close as possible
-      mainMap.fitBounds(bounds, 0); // padding 0 ensures max zoom
+      // Fit bounds with zero padding for maximum zoom
+      mainMap.fitBounds(bounds, 0);
       
-      // Generate route list HTML (kept hidden by CSS, but still built)
+      // Generate route list HTML (kept hidden by CSS)
       const routeList = document.getElementById('route-list');
       let listHtml = '<h3>OPTIMIZED ROUTE ORDER</h3>';
       
-      orderedStops.forEach((stop, index) => {
+      // Show stops in order: start, then stops from legs (excluding final destination if same as last leg end)
+      // We already have markers for each leg end; the last leg end is the final stop.
+      for (let i = 0; i < legs.length; i++) {
+        // Find which stop this corresponds to (by matching coordinates roughly)
+        const legEnd = legs[i].end_location;
+        let stopName = `Stop ${i+1}`;
+        let stopAddr = '';
+        // try to match with currentStops based on lat/lng (simple rounding)
+        const match = currentStops.find(s => 
+          Math.abs(s.lat - legEnd.lat()) < 0.0001 && Math.abs(s.lng - legEnd.lng()) < 0.0001
+        );
+        if (match) {
+          stopName = match.name;
+          stopAddr = `${match.address}, ${match.city}`;
+        }
         listHtml += `
           <div class="route-stop-item">
-            <div class="route-stop-num">${index + 1}</div>
+            <div class="route-stop-num">${i + 1}</div>
             <div class="route-stop-info">
-              <div class="route-stop-name">${stop.name || ''}</div>
-              <div class="route-stop-address">${stop.address || ''}, ${stop.city || ''}</div>
+              <div class="route-stop-name">${stopName}</div>
+              <div class="route-stop-address">${stopAddr}</div>
             </div>
           </div>
         `;
-      });
+      }
       
       routeList.innerHTML = listHtml;
       mapBoundsInitialized = true;
@@ -996,7 +1045,7 @@
         }
       });
       
-      mainMap.fitBounds(bounds, 0); // padding 0 for max zoom
+      mainMap.fitBounds(bounds, 0);
     }
     
     // Theme toggle (optional, from command.html)
