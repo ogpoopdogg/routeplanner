@@ -477,6 +477,17 @@
   </style>
 </head>
 <body>
+  <div id=login-overlay style="position: fixed; inset: 0; background: #050505; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px;">
+    <div class=login-box style="width: 100%; max-width: 350px; background: #111; padding: 40px; border-radius: 12px; border: 1px solid #222; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+      <h2 style="color:var(--accent);font-weight:700;letter-spacing:1px;margin-top:0;">COMMAND LOGIN</h2>
+      <input type=email id=login-user class=login-input style="width:100%; padding:14px; margin:12px 0; background:#0a0a0a; border:1px solid #333; color:#fff; border-radius:6px; font-size:16px; outline:none;" placeholder=Email autofocus>
+      <input type=password id=login-pin class=login-input style="width:100%; padding:14px; margin:12px 0; background:#0a0a0a; border:1px solid #333; color:#fff; border-radius:6px; font-size:16px; outline:none;" placeholder=Password>
+      <button class="login-submit" onclick="attemptLogin()" id="login-btn" style="width:100%; padding:14px; margin-top:20px; background:var(--accent); border:none; color:#000; font-weight:700; font-size:16px; border-radius:6px; cursor:pointer; text-transform:uppercase; letter-spacing:1px; display:flex; align-items:center; justify-content:center; gap:8px;">
+        <span id="login-spinner" class="spinner" style="display:none; border:2px solid rgba(255,255,255,0.3); border-radius:50%; border-top:2px solid #fff; width:16px; height:16px; animation: spin 1s linear infinite;"></span>
+        <span id="login-text">Authorize</span>
+      </button>
+    </div>
+  </div>
   <header>
     <div class="header-logo-group">
       <img src="icon2.png" class="header-logo" alt="E&C Logo">
@@ -509,12 +520,7 @@
       
       <button class="add-stop-btn" onclick="addStop()">+ ADD TO ROUTE</button>
       
-      <div style="margin-top: 30px;">
-        <h2 style="margin-bottom: 10px;">Quick Add from Address Book</h2>
-        <select id="quick-address-select" class="driver-select" onchange="quickAddFromSelect()">
-          <option value="" disabled selected>Select saved address...</option>
-        </select>
-      </div>
+      
     </div>
     
     <!-- Stops List Section -->
@@ -546,6 +552,9 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA6umETP8wBUEV41ugAtiNiChUeLmmwmZI&libraries=geometry,places"></script>
 
+  <style>
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
   <script>
     // Firebase Configuration (same as command/driver apps)
     firebase.initializeApp({
@@ -556,8 +565,10 @@
       messagingSenderId: "1067680083511",
       appId: "1:1067680083511:android:22d1eb3757302492bd19b2"
     });
+    firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
     const db = firebase.database();
+    let currentUser = null;
     
     // Use separate paths for route planner data
     const ROUTES_DB_PATH = 'route_planner_stops';
@@ -571,22 +582,48 @@
     let activePolyline = null;
     let mapBoundsInitialized = false;
     
-    // Load address data for autocomplete
-    db.ref(ADDRESS_LOOKUP_PATH).on('value', (snap) => {
-      addressData = snap.val() || {};
-      populateQuickAddressSelect();
-    });
-    
-    // Load saved stops from Firebase (using separate path)
-    db.ref(ROUTES_DB_PATH).on('value', (snap) => {
-      const stops = snap.val();
-      if (stops) {
-        currentStops = Object.values(stops).sort((a, b) => (a.order || 0) - (b.order || 0));
-      } else {
-        currentStops = [];
+    // Login functions (from command.html)
+    function attemptLogin(){
+      with(document){
+        let a=getElementById('login-user').value.trim(),b=getElementById('login-pin').value.trim();
+        let loginBtn = getElementById('login-btn');
+        let spinner = getElementById('login-spinner');
+        let loginText = getElementById('login-text');
+        if(a&&b){
+          loginBtn.disabled = true;
+          spinner.style.display = 'inline-block';
+          loginText.innerText = ' Logging in...';
+          firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(()=>firebase.auth().signInWithEmailAndPassword(a,b))
+            .catch(c=>{
+              alert("Login Failed: "+c.message);
+              loginBtn.disabled = false;
+              spinner.style.display = 'none';
+              loginText.innerText = 'Authorize';
+            });
+        }
       }
-      renderStopsList();
-    });
+    }
+
+    firebase.auth().onAuthStateChanged(a=>{if(a){
+      currentUser = a.email.split('@')[0];
+      document.getElementById('login-overlay').style.display='none';
+      // Load address data for autocomplete
+      db.ref(ADDRESS_LOOKUP_PATH).on('value', (snap) => {
+        addressData = snap.val() || {};
+      });
+      // Load saved stops from Firebase (using separate path)
+      db.ref(ROUTES_DB_PATH).on('value', (snap) => {
+        const stops = snap.val();
+        if (stops) {
+          currentStops = Object.values(stops).sort((a, b) => (a.order || 0) - (b.order || 0));
+        } else {
+          currentStops = [];
+        }
+        renderStopsList();
+      });
+    }else{
+      document.getElementById('login-overlay').style.display='flex';
+    }});
     
     // Helper Functions
     function formatPhone(phone) {
@@ -675,33 +712,6 @@
       document.getElementById('stop-city').value = '';
       document.getElementById('suggestions').style.display = 'none';
       document.getElementById('city-suggestions').style.display = 'none';
-    }
-    
-    // Populate quick address select
-    function populateQuickAddressSelect() {
-      const select = document.getElementById('quick-address-select');
-      select.innerHTML = '<option value="" disabled selected>Select saved address...</option>';
-      
-      Object.keys(addressData).sort().forEach(key => {
-        const data = addressData[key];
-        const option = document.createElement('option');
-        option.value = key;
-        option.textContent = `${key} - ${data.city || ''}`;
-        select.appendChild(option);
-      });
-    }
-    
-    function quickAddFromSelect() {
-      const select = document.getElementById('quick-address-select');
-      const key = select.value;
-      if (!key) return;
-      
-      const data = addressData[key];
-      if (data) {
-        document.getElementById('stop-name').value = key;
-        document.getElementById('stop-address').value = data.address || '';
-        document.getElementById('stop-city').value = data.city || '';
-      }
     }
     
     // Add stop to route
