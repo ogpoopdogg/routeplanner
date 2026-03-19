@@ -597,6 +597,7 @@
     let currentStops = [];
     let mainMap = null;
     let mapMarkers = [];
+    let mapInfoWindows = [];
     let activePolyline = null;
     let mapBoundsInitialized = false;
     let _reordering = false;
@@ -978,9 +979,11 @@
         });
       }
       
-      // Clear existing markers and polylines
+      // Clear existing markers and info windows
       mapMarkers.forEach(marker => marker.setMap(null));
       mapMarkers = [];
+      mapInfoWindows.forEach(iw => iw.close());
+      mapInfoWindows = [];
       if (activePolyline) activePolyline.setMap(null);
       
       // Get optimized order
@@ -1046,7 +1049,7 @@
       });
       mapMarkers.push(startMarker);
       
-      // Add markers for each stop (we have orderedStops from index 1 onward)
+      // Add markers and info windows for each stop (we have orderedStops from index 1 onward)
       // We'll iterate through the legs to get end_location of each leg for proper order
       const legs = directionsResult.routes[0].legs;
       for (let i = 0; i < legs.length; i++) {
@@ -1065,16 +1068,26 @@
           position: position,
           map: mainMap,
           title: stopName,
-          icon: null,
-          label: {
-            text: stopName,
-            color: '#00FF00',
-            fontWeight: 'bold',
-            fontSize: '14px'
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 10,
+            fillColor: '#facc15',
+            fillOpacity: 1,
+            strokeColor: '#fff',
+            strokeWeight: 2
           }
         });
-        
         mapMarkers.push(marker);
+        
+        // Add info window with contact name (bright green text)
+        const infoWindow = new google.maps.InfoWindow({
+          content: `<div style="color: #00FF00; font-weight: bold; text-shadow: 1px 1px 2px black; font-size: 14px;">${stopName}</div>`,
+          disableAutoPan: true,
+          position: position,
+          pixelOffset: new google.maps.Size(0, -35)
+        });
+        infoWindow.open(mainMap);
+        mapInfoWindows.push(infoWindow);
       }
       
       // Update stop orders in Firebase to reflect optimized sequence, but suppress reorder trigger
