@@ -599,6 +599,8 @@
     let mapMarkers = [];
     let activePolyline = null;
     let mapBoundsInitialized = false;
+    let _reordering = false;
+    let _suppressReorder = false;
     
     // Login functions (from command.html)
     function attemptLogin(){
@@ -641,6 +643,9 @@
           currentStops = [];
         }
         renderStopsList();
+        if (!_reordering && !_suppressReorder) {
+          reorderStops();
+        }
       });
     }else{
       document.getElementById('login-overlay').style.display='flex';
@@ -911,7 +916,7 @@
         });
         
         // Show map with route
-        showMapWithRoute(result, waypoints);
+        await showMapWithRoute(result, waypoints);
         
       } catch (error) {
         console.error('Route generation error:', error);
@@ -948,7 +953,7 @@
     }
     
     // Show map with optimized route
-    function showMapWithRoute(directionsResult, originalWaypoints) {
+    async function showMapWithRoute(directionsResult, originalWaypoints) {
       const mapModal = document.getElementById('map-modal');
       mapModal.style.display = 'block';
       
@@ -1059,7 +1064,7 @@
         const marker = new google.maps.Marker({
           position: position,
           map: mainMap,
-          title: stopName, // Add title for hover
+          title: stopName,
           icon: {
             path: google.maps.SymbolPath.CIRCLE,
             scale: 10,
@@ -1069,24 +1074,26 @@
             strokeWeight: 2
           },
           label: {
-            text: (i + 1).toString(), // 1,2,3...
+            text: (i + 1).toString(),
             color: '#000',
             fontWeight: 'bold'
           }
         });
         
-        // Add info window on click
+        // Create info window with contact name, positioned above marker
         const infoWindow = new google.maps.InfoWindow({
-          content: `<div><strong>${stopName}</strong><br>${stopAddr}</div>`
+          content: `<div style="font-weight:bold; color:#000; background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #ccc;">${stopName}</div>`,
+          disableAutoPan: true,
+          position: position,
+          pixelOffset: new google.maps.Size(0, -35)
         });
-        marker.addListener('click', () => {
-          infoWindow.open(mainMap, marker);
-        });
+        infoWindow.open(mainMap);
         
         mapMarkers.push(marker);
       }
       
-      // Update stop orders in Firebase to reflect optimized sequence
+      // Update stop orders in Firebase to reflect optimized sequence, but suppress reorder trigger
+      _suppressReorder = true;
       const orderUpdates = {};
       for (let i = 0; i < legs.length; i++) {
         const leg = legs[i];
@@ -1102,8 +1109,9 @@
         }
       }
       if (Object.keys(orderUpdates).length > 0) {
-        db.ref().update(orderUpdates);
+        await db.ref().update(orderUpdates);
       }
+      _suppressReorder = false;
       
       // Fit bounds with zero padding for maximum zoom (as far as possible while showing all stops)
       mainMap.fitBounds(bounds, 0);
@@ -1159,6 +1167,60 @@
       });
       
       mainMap.fitBounds(bounds, 0);
+    }
+    
+    // Reorder stops based on current location
+    async function reorderStops() {
+      if (_reordering) return;
+      if (currentStops.length < 2) return;
+      _reordering = true;
+      try {
+        const startPoint = await getUserLocation();
+        const stops = currentStops.slice();
+        const destinationStop = stops[stops.length - 1];
+        const waypointStops = stops.slice(0, -1);
+        if (waypointStops.length === 0) return;
+
+        const waypoints = waypointStops.map(s => ({
+          location: new google.maps.LatLng(s.lat, s.lng),
+          stopover: true
+        }));
+
+        const directionsService = new google.maps.DirectionsService();
+        const request = {
+          origin: startPoint,
+          destination: new google.maps.LatLng(destinationStop.lat, destinationStop.lng),
+          waypoints: waypoints,
+          travelMode: 'DRIVING',
+          optimizeWaypoints: true
+        };
+
+        const result = await new Promise((resolve, reject) => {
+          directionsService.route(request, (res, status) => {
+            if (status === 'OK') resolve(res);
+            else reject(status);
+          });
+        });
+
+        const waypointOrder = result.routes[0].waypoint_order;
+        const updates = {};
+        waypointOrder.forEach((idx, pos) => {
+          const stop = waypointStops[idx];
+          if (stop._id && stop.order !== pos) {
+            updates[`${ROUTES_DB_PATH}/${stop._id}/order`] = pos;
+          }
+        });
+        if (destinationStop._id && destinationStop.order !== waypointStops.length) {
+          updates[`${ROUTES_DB_PATH}/${destinationStop._id}/order`] = waypointStops.length;
+        }
+        if (Object.keys(updates).length > 0) {
+          await db.ref().update(updates);
+        }
+      } catch (e) {
+        console.error('Reordering failed', e);
+      } finally {
+        _reordering = false;
+      }
     }
     
     // Theme toggle (optional, from command.html)
