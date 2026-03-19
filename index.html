@@ -1,580 +1,637 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>E&C Route Planner</title>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="gold">
-  <!-- fonts & styles from command.html -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@300&display=swap" rel="stylesheet">
-  <style>
-    /* base variables – same as command.html dark mode */
-    :root {
-      --accent: #facc15; --bg: #111827; --card: #1f2937; --text: #f9fafb; --card-text: #e5e7eb;
-      --active-green: #22c55e; --header-bg: #030712; --input-bg: #374151; --border: #4b5563;
-      --modal-bg: #111827; --btn-bg: #374151; --shadow-soft: 0 10px 15px -3px rgba(0,0,0,0.3);
-    }
-    body.light-mode { /* optional, user can toggle via theme button? not required but keep for completeness */ }
-    body {
-      font-family: 'Inter', system-ui, sans-serif;
-      background: var(--bg); color: var(--text);
-      margin: 0; padding: 0 0 20px 0;
-      display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden;
-    }
-    header {
-      padding: 16px 24px; background: var(--header-bg); border-bottom: 1px solid var(--border);
-      display: flex; justify-content: space-between; align-items: center;
-      box-shadow: var(--shadow-soft);
-    }
-    .header-logo-group { display: flex; flex-direction: column; }
-    #user-display { color: var(--active-green); font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
-    .flex { display: flex; }
-    .ac { align-items: center; }
-    .pointer { cursor: pointer; }
-    .header-logo { height: 24px; width: auto; margin-right: 12px; vertical-align: middle; filter: drop-shadow(0 0 3px var(--accent)); }
-    .shiny-text { background: linear-gradient(to right, var(--accent) 20%, #ccc 50%, var(--accent) 80%); background-size: 200% auto; color: transparent; -webkit-background-clip: text; background-clip: text; animation: text-shine 3s linear infinite; }
-    @keyframes text-shine { to { background-position: 200% center; } }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>E&C ROUTE PLANNER</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="gold">
+    <link href="//fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Combined and simplified CSS from both files */
+        :root {
+            --accent: #facc15; --bg: #111827; --card: #1f2937; --text: #f9fafb; --card-text: #e5e7eb;
+            --active-green: #22c55e; --archive-orange: #f97316; --note-blue: #3b82f6; --pro-blue: #2563eb;
+            --header-bg: #030712; --input-bg: #374151; --border: #4b5563; --modal-bg: #111827;
+            --shadow-soft: 0 10px 15px -3px rgba(0,0,0,0.3), 0 4px 6px -4px rgba(0,0,0,0.3);
+        }
+        body.light-mode {
+            --bg: #f3f4f6; --card: #ffffff; --text: #111827; --card-text: #374151; --header-bg: #ffffff;
+            --input-bg: #f9fafb; --border: #e5e7eb; --modal-bg: #ffffff; --accent: #2563eb; --active-green: #16a34a;
+        }
+        body.light-mode * { color: #000 !important; }
+        body.light-mode button { background: #fff !important; color: #000 !important; border: 1px solid #ccc !important; }
+        body.light-mode .primary { background: #fff !important; border: 2px solid #00b32d !important; }
 
-    /* input section */
-    #entry-panel { background: var(--bg); padding: 12px; border-bottom: 1px solid var(--border); }
-    .input-wrap { position: relative; width: 100%; margin-bottom: 8px; }
-    input, select, textarea {
-      width: 100%; padding: 12px 16px; background: var(--input-bg); border: 1px solid var(--border);
-      color: var(--text); border-radius: 8px; font-size: 14px; box-sizing: border-box;
-    }
-    input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(250,204,21,0.2); }
-    .flex-row { display: flex; gap: 8px; }
-    .f-1 { flex: 1; }
-    .f-2 { flex: 2; }
-    .mb-6 { margin-bottom: 6px; }
-    .mt-15 { margin-top: 15px; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden; }
+        header { padding: 16px 24px; background: var(--header-bg); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-soft); }
+        .header-logo { height: 24px; width: auto; margin-right: 12px; vertical-align: middle; filter: drop-shadow(0 0 3px var(--accent)); cursor: pointer; }
+        .shiny-text { background: linear-gradient(to right, var(--accent) 20%, #ccc 50%, var(--accent) 80%); background-size: 200% auto; color: transparent; -webkit-background-clip: text; background-clip: text; animation: text-shine 3s linear infinite; }
+        @keyframes text-shine { to { background-position: 200% center; } }
+        #user-display { color: var(--active-green); font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
 
-    /* suggestions box – exactly as command.html */
-    .suggestions-box {
-      position: absolute; top: 100%; left: 0; right: 0; background: var(--card);
-      border: 1px solid var(--border); z-index: 5000; max-height: 200px; overflow-y: auto;
-      display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-    }
-    .suggestion-item {
-      padding: 14px; border-bottom: 1px solid var(--border); cursor: pointer;
-      color: var(--text); font-weight: 500; font-size: 14px;
-    }
-    .suggestion-item:hover { background: var(--accent); color: #000; }
-    .suggestion-reset {
-      position: absolute; right: 36px; top: 50%; transform: translateY(-50%);
-      font-size: 9px; font-weight: 700; cursor: pointer; color: #666; text-transform: uppercase; z-index: 10;
-    }
+        #login-overlay { position: fixed; inset: 0; background: #050505; z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        .login-box { width: 100%; max-width: 350px; background: #111; padding: 40px; border-radius: 12px; border: 1px solid #222; text-align: center; }
+        .login-input { width: 100%; padding: 14px; margin: 12px 0; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 6px; font-size: 16px; outline: none; }
+        .login-submit { width: 100%; padding: 14px; margin-top: 20px; background: var(--accent); border: none; color: #000; font-weight: 700; border-radius: 6px; cursor: pointer; text-transform: uppercase; }
 
-    /* stop list */
-    #stop-list-container {
-      background: var(--card); border-radius: 8px; padding: 16px; margin: 16px 12px;
-      border: 1px solid var(--border); max-height: 300px; overflow-y: auto;
-    }
-    .stop-item {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 10px; border-bottom: 1px solid var(--border); font-size: 14px;
-    }
-    .stop-number {
-      background: var(--accent); color: #000; border-radius: 50%; width: 24px; height: 24px;
-      display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px;
-    }
-    .stop-text { flex: 1; }
-    .delete-stop { background: transparent; border: none; color: #f87171; font-size: 18px; cursor: pointer; padding: 0 8px; }
+        .flex-row { display: flex; gap: 8px; margin-bottom: 8px; }
+        .input-wrap { position: relative; flex: 1; }
+        input, select, textarea { width: 100%; padding: 12px 16px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 8px; font-size: 14px; box-sizing: border-box; }
+        input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(250,204,21,0.2); }
+        .suggestions-box { position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 1px solid var(--border); z-index: 5000; max-height: 200px; overflow-y: auto; display: none; }
+        .suggestion-item { padding: 14px; border-bottom: 1px solid var(--border); cursor: pointer; color: var(--text); }
+        .suggestion-item:hover { background: var(--accent); color: #000; }
+        .suggestion-reset { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 9px; font-weight: 700; cursor: pointer; color: #666; text-transform: uppercase; z-index: 10; }
 
-    /* map modal – same as command.html */
-    #map-modal {
-      display: none; position: fixed; z-index: 3000; left: 0; top: 0; width: 100%; height: 100%;
-      background: #000; flex-direction: column;
-    }
-    #map { width: 100%; height: 100%; }
-    .close-map {
-      position: fixed; top: 20px; right: 20px; z-index: 3005; background: #b71c1c; color: #fff;
-      border: none; width: 140px; height: 40px; font-weight: 700; border-radius: 6px; cursor: pointer;
-      box-shadow: var(--shadow-soft); display: flex; align-items: center; justify-content: center;
-    }
-    .driver-map-label { color: #00ff00 !important; font-weight: 700; text-shadow: 0 0 2px #000; }
+        #map-modal { display: none; position: fixed; z-index: 3000; left: 0; top: 0; width: 100%; height: 100%; background: #000; }
+        #map { width: 100%; height: 100%; }
+        .close-map { position: fixed; top: 20px; right: 20px; z-index: 3005; background: #b71c1c; color: #fff; border: none; width: 140px; height: 40px; font-weight: 700; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        #zoom-out-btn { top: 70px; background: #448800; }
+        #reset-driver-view-btn { position: absolute; bottom: 20px; left: 20px; z-index: 3005; background: #222; color: #fff; border: 1px solid #fff; border-radius: 6px; padding: 8px 12px; font-weight: 700; cursor: pointer; display: none; }
 
-    /* login overlay */
-    #login-overlay {
-      position: fixed; inset: 0; background: #050505; z-index: 9999;
-      display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px;
-    }
-    .login-box { width: 100%; max-width: 350px; background: #111; padding: 40px; border-radius: 12px; border: 1px solid #222; text-align: center; }
-    .login-input { width: 100%; padding: 14px; margin: 12px 0; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 6px; }
-    .login-submit { width: 100%; padding: 14px; margin-top: 20px; background: var(--accent); border: none; color: #000; font-weight: 700; border-radius: 6px; cursor: pointer; }
+        .primary { padding: 14px 16px; background: var(--btn-bg, #374151); color: var(--text); font-weight: 700; border: 1px solid var(--border); border-bottom: 3px solid var(--accent); cursor: pointer; border-radius: 8px; text-transform: uppercase; }
+        .btn-add { background: var(--active-green); color: #000; border: none; padding: 14px 24px; font-weight: 700; border-radius: 8px; cursor: pointer; text-transform: uppercase; }
+        .btn-clear { background: #b71c1c; color: #fff; border: none; padding: 8px 16px; font-weight: 700; border-radius: 4px; cursor: pointer; text-transform: uppercase; font-size: 12px; }
 
-    /* route button */
-    #route-btn { background: #000; border: 1px solid var(--accent); color: var(--active-green); font-weight: 700; cursor: pointer; border-radius: 6px; padding: 8px 16px; font-size: 12px; text-transform: uppercase; white-space: nowrap; box-shadow: var(--shadow-soft); }
+        #job-list-container { background: var(--card); border-radius: 12px; padding: 15px; margin: 20px; border: 1px solid var(--border); box-shadow: var(--shadow-soft); }
+        #job-list { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; }
+        .job-item { display: flex; align-items: center; gap: 12px; background: var(--input-bg); padding: 12px; border-radius: 8px; border: 1px solid var(--border); cursor: grab; }
+        .job-item.sortable-ghost { opacity: 0.4; background: var(--accent); }
+        .job-number { background: #fff; color: #000; font-weight: 900; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+        .job-info { flex: 1; overflow: hidden; }
+        .job-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .job-address { font-size: 12px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .star-icon { width: 24px; height: 24px; cursor: pointer; fill: none; stroke: var(--accent); stroke-width: 2; }
+        .star-icon.active { fill: var(--accent); }
+        .delete-icon { width: 20px; height: 20px; cursor: pointer; fill: #b71c1c; }
 
-    /* install button */
-    #install-btn { display: none; background: #2563eb; color: #fff; border: none; padding: 14px 16px; font-size: 12px; font-weight: 700; border-radius: 6px; cursor: pointer; text-transform: uppercase; position: fixed; right: 15px; bottom: 15px; z-index: 1002; }
-  </style>
+        #install-btn { display: none; background: var(--pro-blue); color: #fff; border: none; padding: 14px 16px; font-size: 12px; font-weight: 700; border-radius: 6px; cursor: pointer; text-transform: uppercase; position: fixed; right: 15px; bottom: 15px; z-index: 1002; }
+
+        @media (max-width: 768px) {
+            header { padding: 8px 12px; }
+            .header-logo { height: 20px; }
+        }
+    </style>
 </head>
 <body>
-  <!-- LOGIN OVERLAY (same as command.html) -->
-  <div id="login-overlay">
-    <div class="login-box">
-      <h2 style="color:var(--accent);">ROUTE PLANNER LOGIN</h2>
-      <input type="email" id="login-user" class="login-input" placeholder="Email" autofocus>
-      <input type="password" id="login-pin" class="login-input" placeholder="Password">
-      <button class="login-submit" onclick="attemptLogin()">Authorize</button>
-    </div>
-  </div>
-
-  <!-- HEADER (exactly like command.html, title changed) -->
-  <header>
-    <div class="header-logo-group">
-      <div id="user-display"></div>
-      <div class="flex ac pointer" onclick="toggleTheme()">
-        <div class="crt-animate flex ac">
-          <img src="icon2.png" class="header-logo" alt="E&C Logo">
-          <span class="shiny-text" style="font-size:16px;font-weight:700;white-space:nowrap;">E&C ROUTE PLANNER</span>
+    <!-- Login Overlay (exact copy from command.html) -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2 style="color:var(--accent);">ROUTE PLANNER LOGIN</h2>
+            <input type="email" id="login-user" class="login-input" placeholder="Email" autofocus>
+            <input type="password" id="login-pin" class="login-input" placeholder="Password">
+            <button class="login-submit" onclick="attemptLogin()">Authorize</button>
         </div>
-      </div>
     </div>
-    <div style="display:flex; align-items:center; gap:10px;">
-      <button id="route-btn" onclick="openMapModal()">ROUTE</button>
-    </div>
-  </header>
 
-  <!-- MAIN INPUT SECTION (Contact Name, Address, City) -->
-  <div id="entry-panel">
-    <div class="input-wrap rel">
-      <input type="text" id="contact-name" class="glow-field" placeholder="Contact Name" autocomplete="off" oninput="handleNameInput(this.value)">
-      <div id="name-suggestions" class="suggestions-box"></div>
-      <div onclick="clearFields()" class="suggestion-reset">RESET</div>
-    </div>
-    <div class="flex-row">
-      <div class="input-wrap f-2">
-        <input type="text" id="contact-address" class="glow-field" placeholder="Contact Address" style="padding-right:50px;">
-        <!-- optional location picker could be added, omit for simplicity -->
-      </div>
-      <div class="input-wrap f-1 rel">
-        <input type="text" id="contact-city" class="glow-field" placeholder="City" oninput="handleCityInput(this.value)">
-        <div id="city-suggestions" class="suggestions-box"></div>
-      </div>
-    </div>
-    <button class="primary super-dispatch" onclick="addStop()" style="width:100%; padding:14px; background:var(--active-green); color:#000; font-weight:700; border:none; border-radius:8px; margin-top:8px;">ADD STOP</button>
-  </div>
+    <!-- Header (similar to command.html) -->
+    <header>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <img src="icon2.png" class="header-logo" alt="Logo" onclick="toggleTheme()">
+            <span class="shiny-text" style="font-size:16px; font-weight:700;">E&C ROUTE PLANNER</span>
+            <div id="user-display"></div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <button onclick="alert('Settings placeholder')" style="background:transparent; border:none; cursor:pointer; font-size:20px; color:var(--text);">⚙️</button>
+            <button onclick="openMap()" style="background:var(--accent); color:#000; border:none; padding:8px 16px; border-radius:6px; font-weight:700; cursor:pointer;">MAP</button>
+        </div>
+    </header>
 
-  <!-- OPTIMIZED STOP LIST (numbered, real‑time) -->
-  <div id="stop-list-container">
-    <h3 style="margin:0 0 10px; color:var(--accent); font-size:16px;">OPTIMIZED STOPS</h3>
-    <div id="stop-list"></div>
-    <div id="no-stops" style="text-align:center; color:#666; padding:20px;">No stops added. Use the form above.</div>
-  </div>
-
-  <!-- MAP MODAL (full‑screen) -->
-  <div id="map-modal">
-    <button class="close-map" onclick="closeMapModal()">CLOSE MAP</button>
-    <div id="map"></div>
-  </div>
-
-  <!-- INSTALL BUTTON (PWA) -->
-  <button id="install-btn">Install App</button>
-
-  <!-- EXTERNAL SCRIPTS (same as original) -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA6umETP8wBUEV41ugAtiNiChUeLmmwmZI&libraries=geometry,places&callback=initMap" async defer></script>
-
-  <script>
-    (function() {
-      // ---------- FIREBASE INIT (same config) ----------
-      firebase.initializeApp({
-        apiKey: "AIzaSyAKmgoXA4m3cRTmxJq4aUyva5SVvFbTNqg",
-        authDomain: "eandccourier-36fcc.firebaseapp.com",
-        databaseURL: "https://eandccourier-36fcc-default-rtdb.firebaseio.com",
-        projectId: "eandccourier-36fcc",
-        messagingSenderId: "1067680083511",
-        appId: "1:1067680083511:android:22d1eb3757302492bd19b2"
-      });
-      const db = firebase.database();
-
-      // ---------- GLOBAL VARS ----------
-      let currentUser = null;
-      let addressData = {};          // from /address_lookup
-      let stops = {};                // local copy of /developer/routePlanner/stops
-      let map, directionsService, directionsRenderer, mapMarkers = [], mapPolyline = null;
-      let optimizedOrder = [];        // array of stop ids in optimized order
-
-      // ---------- AUTH (same as command.html, but check role 'routePlanner') ----------
-      firebase.auth().onAuthStateChanged(user => {
-        if (user) {
-          const email = user.email;
-          const base = email.split('@')[0].toLowerCase();
-          db.ref(`roles/${base}/routePlanner`).once('value').then(snap => {
-            if (snap.val() === true) {
-              currentUser = base;
-              document.getElementById('user-display').innerText = `Logged in as: ${currentUser}`;
-              document.getElementById('login-overlay').style.display = 'none';
-              loadAddressData();
-              listenToStops();
-            } else {
-              alert("ACCESS DENIED: You do not have routePlanner role.");
-              firebase.auth().signOut();
-            }
-          }).catch(err => {
-            console.error(err);
-            alert("Error checking role.");
-            firebase.auth().signOut();
-          });
-        } else {
-          document.getElementById('login-overlay').style.display = 'flex';
-        }
-      });
-
-      window.attemptLogin = function() {
-        const email = document.getElementById('login-user').value.trim();
-        const pass = document.getElementById('login-pin').value.trim();
-        if (!email || !pass) return alert("Enter credentials");
-        firebase.auth().signInWithEmailAndPassword(email, pass).catch(e => alert("Login failed: " + e.message));
-      };
-
-      // ---------- LOAD ADDRESS LOOKUP (for autocomplete) ----------
-      function loadAddressData() {
-        db.ref('address_lookup').on('value', snap => {
-          addressData = snap.val() || {};
-        });
-      }
-
-      // ---------- AUTOCOMPLETE HANDLERS (from command.html) ----------
-      window.handleNameInput = function(val) {
-        showSuggestions(val, 'name-suggestions', key => {
-          return `<div class="suggestion-item" onclick="selectContact('${key}')">${key}</div>`;
-        });
-      };
-      window.handleCityInput = function(val) {
-        if (val.length < 1) { document.getElementById('city-suggestions').style.display = 'none'; return; }
-        const matches = Object.keys(addressData).filter(key => 
-          (addressData[key].city || "").toLowerCase().startsWith(val.trim().toLowerCase())
-        );
-        const container = document.getElementById('city-suggestions');
-        if (matches.length === 0) { container.style.display = 'none'; return; }
-        container.innerHTML = matches.map(city => 
-          `<div class="suggestion-item" onclick="document.getElementById('contact-city').value='${city}'; document.getElementById('city-suggestions').style.display='none';">${city}</div>`
-        ).join('');
-        container.style.display = 'block';
-      };
-      function showSuggestions(inputVal, containerId, htmlGenerator) {
-        const container = document.getElementById(containerId);
-        if (inputVal.length < 1) { container.style.display = 'none'; return; }
-        const keys = Object.keys(addressData).filter(k => k.toLowerCase().startsWith(inputVal.trim().toLowerCase()));
-        if (keys.length === 0) { container.style.display = 'none'; return; }
-        container.innerHTML = keys.map(htmlGenerator).join('');
-        container.style.display = 'block';
-      }
-      window.selectContact = function(key) {
-        const rec = addressData[key] || {};
-        document.getElementById('contact-name').value = key;
-        document.getElementById('contact-address').value = rec.address || '';
-        document.getElementById('contact-city').value = rec.city || '';
-        document.getElementById('name-suggestions').style.display = 'none';
-      };
-      window.clearFields = function() {
-        document.getElementById('contact-name').value = '';
-        document.getElementById('contact-address').value = '';
-        document.getElementById('contact-city').value = '';
-      };
-
-      // ---------- STOPS CRUD (isolated path) ----------
-      function listenToStops() {
-        db.ref('developer/routePlanner/stops').on('value', snap => {
-          stops = snap.val() || {};
-          optimizeAndRenderList();
-        });
-      }
-
-      window.addStop = function() {
-        const name = document.getElementById('contact-name').value.trim();
-        const addr = document.getElementById('contact-address').value.trim();
-        const city = document.getElementById('contact-city').value.trim();
-        if (!name || !addr || !city) return alert("Please fill all fields");
-        // push to Firebase under our isolated path
-        const newStopRef = db.ref('developer/routePlanner/stops').push();
-        const stopData = { name, address: addr, city, timestamp: Date.now() };
-        newStopRef.set(stopData).then(() => {
-          // optionally update address_lookup (like command.html) for future autocomplete
-          const cleanKey = name.replace(/[.#$\[\]\/]/g, "").trim();
-          if (!addressData[cleanKey]) {
-            db.ref('address_lookup').child(cleanKey).update({ address: addr, city, last_edit_by: currentUser });
-          }
-          clearFields();
-        }).catch(err => alert("Error adding stop: " + err.message));
-      };
-
-      window.deleteStop = function(stopId) {
-        if (confirm("Remove this stop?")) {
-          db.ref('developer/routePlanner/stops/' + stopId).remove();
-        }
-      };
-
-      // ---------- ROUTES API OPTIMIZATION (as in driver.html) ----------
-      async function optimizeAndRenderList() {
-        const stopArray = Object.entries(stops).map(([id, s]) => ({ id, ...s }));
-        if (stopArray.length === 0) {
-          document.getElementById('stop-list').innerHTML = '';
-          document.getElementById('no-stops').style.display = 'block';
-          optimizedOrder = [];
-          return;
-        }
-        document.getElementById('no-stops').style.display = 'none';
-
-        // Build waypoints for Routes API (like driver.html)
-        const waypoints = stopArray.map(s => ({
-          address: `${s.name} ${s.address}, ${s.city}`,
-          id: s.id
-        }));
-
-        // We need an origin and destination; use first stop as origin and last as destination? But Routes API can optimize intermediate waypoints.
-        // We'll use a fixed depot or first stop as start and last as end. For simplicity, we'll use the first stop as origin and the last as destination, and let the API optimize intermediates.
-        // But driver.html uses current location as origin and a fixed depot as destination. For route planner, we can use the first stop as origin and last as destination, and optimize in-between.
-        // To get a proper optimized order, we need to set origin = first waypoint, destination = last waypoint, and intermediates = the rest. However, we want the full order including all stops. Better: use the same pattern as driver.html: origin = first stop, destination = last stop, intermediates = the rest, and then the API returns optimizedIntermediateWaypointIndex which reorders intermediates.
-        if (waypoints.length < 2) {
-          // only one stop: just display it
-          optimizedOrder = [waypoints[0].id];
-          renderStopList();
-          return;
-        }
-
-        const origin = waypoints[0].address;
-        const destination = waypoints[waypoints.length-1].address;
-        const intermediates = waypoints.slice(1, -1).map(w => ({ address: w.address }));
-
-        try {
-          const response = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Goog-Api-Key": "AIzaSyA6umETP8wBUEV41ugAtiNiChUeLmmwmZI",
-              "X-Goog-FieldMask": "routes.optimizedIntermediateWaypointIndex,routes.polyline.encodedPolyline"
-            },
-            body: JSON.stringify({
-              origin: { address: origin },
-              destination: { address: destination },
-              intermediates: intermediates,
-              travelMode: "DRIVE",
-              optimizeWaypointOrder: true
-            })
-          });
-          const data = await response.json();
-          if (data.routes && data.routes[0] && data.routes[0].optimizedIntermediateWaypointIndex) {
-            const optIndex = data.routes[0].optimizedIntermediateWaypointIndex; // reorder of intermediates
-            // Build full order: origin (index 0) + reordered intermediates + destination (last)
-            const orderedWaypoints = [waypoints[0]];
-            optIndex.forEach(idx => orderedWaypoints.push(waypoints.slice(1,-1)[idx]));
-            orderedWaypoints.push(waypoints[waypoints.length-1]);
-            optimizedOrder = orderedWaypoints.map(w => w.id);
-          } else {
-            // fallback to original order
-            optimizedOrder = waypoints.map(w => w.id);
-          }
-        } catch (e) {
-          console.warn("Optimization failed, using original order", e);
-          optimizedOrder = waypoints.map(w => w.id);
-        }
-        renderStopList();
-        // if map is open, update map route
-        if (document.getElementById('map-modal').style.display === 'flex') {
-          drawRouteOnMap();
-        }
-      }
-
-      function renderStopList() {
-        const container = document.getElementById('stop-list');
-        if (!optimizedOrder.length) { container.innerHTML = ''; return; }
-        let html = '';
-        optimizedOrder.forEach((id, idx) => {
-          const s = stops[id];
-          if (!s) return;
-          html += `
-            <div class="stop-item">
-              <span class="stop-number">${idx+1}</span>
-              <span class="stop-text">${s.name} – ${s.address}, ${s.city}</span>
-              <button class="delete-stop" onclick="deleteStop('${id}')">&times;</button>
+    <!-- Input fields with autocomplete -->
+    <div style="padding: 20px;">
+        <div style="background: var(--card); border-radius: 12px; padding: 20px; border: 1px solid var(--border); box-shadow: var(--shadow-soft);">
+            <div class="flex-row">
+                <div class="input-wrap" style="position: relative;">
+                    <input type="text" id="f-name" placeholder="Contact/Business Name" autocomplete="off" oninput="handleNameInput(this.value)">
+                    <div id="suggestions" class="suggestions-box"></div>
+                </div>
+                <div class="suggestion-reset" onclick="resetFormFields()" style="position: static; margin-left: 8px;">RESET</div>
             </div>
-          `;
-        });
-        container.innerHTML = html;
-      }
+            <div class="flex-row">
+                <div class="input-wrap">
+                    <input type="text" id="f-address" placeholder="Address">
+                </div>
+                <div class="input-wrap">
+                    <input type="text" id="f-city" placeholder="City" oninput="handleCityInput(this.value)">
+                    <div id="city-suggestions" class="suggestions-box"></div>
+                </div>
+            </div>
+            <button class="btn-add" onclick="addJob()" style="width:100%; margin-top:10px;">ADD TO ROUTE</button>
+            <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+                <button class="btn-clear" onclick="clearAllJobs()">CLEAR ALL</button>
+            </div>
+        </div>
 
-      // ---------- MAP FUNCTIONS (from command.html / driver.html) ----------
-      window.initMap = function() {
-        map = new google.maps.Map(document.getElementById("map"), {
-          center: { lat: 49.8425, lng: -99.9497 },
-          zoom: 12,
-          gestureHandling: "greedy",
-          styles: [{"featureType":"all","elementType":"all","stylers":[{"invert_lightness":true},{"saturation":10},{"lightness":30},{"gamma":0.5},{"hue":"#435158"}]}]
-        });
-        directionsService = new google.maps.DirectionsService();
-        directionsRenderer = new google.maps.DirectionsRenderer({
-          map: map,
-          suppressMarkers: true,
-          preserveViewport: true,
-          polylineOptions: { strokeColor: "#00d4ff", strokeWeight: 6, strokeOpacity: 0.8 }
-        });
-      };
+        <!-- Job List Container (like mini-map-list from driver.html) -->
+        <div id="job-list-container">
+            <h3 style="margin-top:0; color:var(--accent);">ROUTE STOPS</h3>
+            <div id="job-list"></div>
+            <div id="empty-state" style="text-align:center; color:#666; padding:20px;">No jobs added. Use the form above to add stops.</div>
+        </div>
+    </div>
 
-      window.openMapModal = function() {
-        if (optimizedOrder.length === 0) return alert("No stops to display.");
-        document.getElementById('map-modal').style.display = 'flex';
-        setTimeout(() => google.maps.event.trigger(map, 'resize'), 100);
-        drawRouteOnMap();
-      };
+    <!-- Map Modal (exact from command.html) -->
+    <div id="map-modal">
+        <button id="close-map-btn" class="close-map" onclick="closeMap()">CLOSE MAP</button>
+        <button id="zoom-out-btn" class="close-map" onclick="zoomToAll()" style="top:70px; background:#448800;">ZOOM OUT</button>
+        <button id="reset-driver-view-btn" onclick="resetMapView()" style="display:none;">← BACK</button>
+        <div id="map"></div>
+    </div>
 
-      window.closeMapModal = function() {
-        document.getElementById('map-modal').style.display = 'none';
-        // clean up markers
-        if (mapMarkers.length) {
-          mapMarkers.forEach(m => m.setMap(null));
-          mapMarkers = [];
+    <!-- Install App Button -->
+    <button id="install-btn">Install App</button>
+
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA6umETP8wBUEV41ugAtiNiChUeLmmwmZI&libraries=geometry,drawing,places&callback=initMap" async defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+    <script>
+        // Firebase config (same as original)
+        firebase.initializeApp({
+            apiKey: "AIzaSyAKmgoXA4m3cRTmxJq4aUyva5SVvFbTNqg",
+            authDomain: "eandccourier-36fcc.firebaseapp.com",
+            databaseURL: "https://eandccourier-36fcc-default-rtdb.firebaseio.com",
+            projectId: "eandccourier-36fcc",
+            messagingSenderId: "1067680083511",
+            appId: "1:1067680083511:android:22d1eb3757302492bd19b2"
+        });
+        const auth = firebase.auth();
+        const db = firebase.database();
+
+        // Global variables
+        let currentUser = null;
+        let jobs = {};              // All jobs under developer/route_planner/jobs
+        let manualOrder = [];        // Array of job IDs in current order (from Firebase)
+        let optimizedOrder = [];     // Array of job IDs after route optimization
+        let addressData = {};        // From address_lookup
+        let map, mainMap, mapMarkers = {}, activePolyline = null, mapBoundsInitialized = false;
+        let autocompleteAddress;     // Google Places Autocomplete for address field
+
+        // Theme handling (copied from command.html)
+        if (localStorage.getItem('ec_theme') === 'light') document.body.classList.add('light-mode');
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            localStorage.setItem('ec_theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+            if (map) map.setOptions({ styles: document.body.classList.contains('light-mode') ? [] : mapStyles });
         }
-        if (mapPolyline) mapPolyline.setMap(null);
-        if (directionsRenderer) directionsRenderer.setMap(null);
-      };
 
-      async function drawRouteOnMap() {
-        if (!map || optimizedOrder.length === 0) return;
-        // clear previous
-        mapMarkers.forEach(m => m.setMap(null));
-        mapMarkers = [];
-        if (mapPolyline) mapPolyline.setMap(null);
-        if (directionsRenderer) directionsRenderer.setMap(map);
+        // Map styles (from command.html)
+        const mapStyles = [{"featureType":"all","elementType":"all","stylers":[{"invert_lightness":!0},{"saturation":10},{"lightness":30},{"gamma":0.5},{"hue":"#435158"}]}];
 
-        const waypoints = optimizedOrder.map(id => stops[id]).filter(s => s);
-        if (waypoints.length < 2) return;
+        // ---------- LOGIN (copied from command.html) ----------
+        function attemptLogin() {
+            const email = document.getElementById('login-user').value.trim();
+            const pass = document.getElementById('login-pin').value.trim();
+            if (!email || !pass) return;
+            auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+                .then(() => auth.signInWithEmailAndPassword(email, pass))
+                .catch(err => alert("Login Failed: " + err.message));
+        }
 
-        // Build addresses for directions
-        const origin = `${waypoints[0].name} ${waypoints[0].address}, ${waypoints[0].city}`;
-        const destination = `${waypoints[waypoints.length-1].name} ${waypoints[waypoints.length-1].address}, ${waypoints[waypoints.length-1].city}`;
-        const intermediates = waypoints.slice(1, -1).map(w => ({
-          location: `${w.name} ${w.address}, ${w.city}`,
-          stopover: true
-        }));
-
-        directionsService.route({
-          origin: origin,
-          destination: destination,
-          waypoints: intermediates,
-          travelMode: 'DRIVING',
-          optimizeWaypoints: false // we already have optimized order
-        }, (result, status) => {
-          if (status === 'OK') {
-            directionsRenderer.setDirections(result);
-            // Add custom markers with green labels (like command.html)
-            const legs = result.routes[0].legs;
-            // start marker (origin)
-            addLabeledMarker(result.routes[0].legs[0].start_location, waypoints[0].name, 1);
-            // intermediate markers
-            for (let i = 0; i < legs.length; i++) {
-              const endLoc = legs[i].end_location;
-              const stopIndex = i + 1; // because legs[0].end_location is the first intermediate? Actually legs correspond to waypoints: start->w1, w1->w2, ... last->dest. So end_location of leg i is the (i+1)th waypoint.
-              if (stopIndex < waypoints.length) {
-                addLabeledMarker(endLoc, waypoints[stopIndex].name, stopIndex+1);
-              }
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                const email = user.email;
+                const username = email.split('@')[0].toLowerCase();
+                db.ref(`roles/${username}/command`).once('value').then(snap => {
+                    if (snap.val() === true) {
+                        currentUser = username;
+                        document.getElementById('login-overlay').style.display = 'none';
+                        document.getElementById('user-display').innerText = `Logged in as: ${currentUser}`;
+                        initApp();
+                    } else {
+                        alert("ACCESS DENIED");
+                        auth.signOut();
+                        document.getElementById('login-overlay').style.display = 'flex';
+                    }
+                });
+            } else {
+                document.getElementById('login-overlay').style.display = 'flex';
             }
-          } else {
-            console.warn("Directions failed, drawing polyline fallback");
-            // fallback: draw line using geometry
-            const path = waypoints.map(w => new google.maps.LatLng(parseFloat(w.lat)||49.85, parseFloat(w.lng)||-99.95)); // if coordinates missing, fallback
-            mapPolyline = new google.maps.Polyline({
-              path: path,
-              geodesic: true,
-              strokeColor: "#00d4ff",
-              strokeOpacity: 0.8,
-              strokeWeight: 6,
-              map: map
-            });
-            waypoints.forEach((w, idx) => {
-              const pos = (w.lat && w.lng) ? { lat: parseFloat(w.lat), lng: parseFloat(w.lng) } : null;
-              if (pos) addLabeledMarker(pos, w.name, idx+1);
-            });
-          }
         });
-      }
 
-      function addLabeledMarker(position, labelText, number) {
-        const marker = new google.maps.Marker({
-          position: position,
-          map: map,
-          label: {
-            text: labelText,
-            color: "#00ff00",
-            fontSize: "12px",
-            fontWeight: "bold",
-            className: "driver-map-label"
-          },
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 8,
-            fillColor: "#22c55e",
-            fillOpacity: 0.8,
-            strokeWeight: 1,
-            strokeColor: "#fff"
-          },
-          zIndex: 100 + (number || 0)
+        // ---------- DATA LISTENERS (under /developer/route_planner) ----------
+        function initApp() {
+            // Listen for address_lookup (shared data, no change)
+            db.ref('address_lookup').on('value', snap => { addressData = snap.val() || {}; });
+
+            // Listen for jobs under developer/route_planner/jobs
+            db.ref('developer/route_planner/jobs').on('value', snap => {
+                jobs = snap.val() || {};
+                updateRoute();  // Re-optimize and render
+            });
+
+            // Listen for manual order
+            db.ref('developer/route_planner/manual_order').on('value', snap => {
+                manualOrder = snap.val() || [];
+                updateRoute();  // Re-optimize with new order
+            });
+
+            // Initialize Places Autocomplete on address field
+            initPlaces();
+        }
+
+        // ---------- ADDRESS AUTOCOMPLETE (from command.html) ----------
+        function handleNameInput(val) {
+            showSuggestions(val, 'suggestions', name => `<div class="suggestion-item" onclick="selectClient('${name.replace(/'/g, "\\'")}')">${name}</div>`);
+        }
+        function handleCityInput(val) {
+            showSuggestions(val, 'city-suggestions', city => `<div class="suggestion-item" onclick="selectCity('${city.replace(/'/g, "\\'")}')">${city} (${addressData[city]?.city})</div>`);
+        }
+        function showSuggestions(val, elementId, htmlCallback) {
+            const box = document.getElementById(elementId);
+            if (val.length < 1) { box.style.display = 'none'; return; }
+            const matches = Object.keys(addressData).filter(key => key.toLowerCase().startsWith(val.toLowerCase().trim()));
+            if (matches.length === 0) { box.style.display = 'none'; return; }
+            box.innerHTML = matches.map(htmlCallback).join('');
+            box.style.display = 'block';
+        }
+        function selectClient(name) {
+            const data = addressData[name];
+            if (!data) return;
+            document.getElementById('f-name').value = name;
+            document.getElementById('f-address').value = data.address || '';
+            document.getElementById('f-city').value = data.city || '';
+            document.getElementById('suggestions').style.display = 'none';
+        }
+        function selectCity(city) {
+            document.getElementById('f-city').value = city;
+            document.getElementById('city-suggestions').style.display = 'none';
+        }
+        function resetFormFields() {
+            document.getElementById('f-name').value = '';
+            document.getElementById('f-address').value = '';
+            document.getElementById('f-city').value = '';
+        }
+
+        // Google Places Autocomplete (copied from command.html)
+        function initPlaces() {
+            const addressInput = document.getElementById('f-address');
+            if (!addressInput) return;
+            const options = {
+                componentRestrictions: { country: 'ca' },
+                bounds: new google.maps.Circle({ center: new google.maps.LatLng(49.848, -99.950), radius: 50000 }).getBounds(),
+                strictBounds: false
+            };
+            autocompleteAddress = new google.maps.places.Autocomplete(addressInput, options);
+            autocompleteAddress.addListener('place_changed', () => {
+                const place = autocompleteAddress.getPlace();
+                if (!place.address_components) return;
+                // Extract city
+                for (let comp of place.address_components) {
+                    if (comp.types.includes('locality')) {
+                        document.getElementById('f-city').value = comp.long_name;
+                        break;
+                    }
+                }
+            });
+        }
+
+        // ---------- JOB MANAGEMENT ----------
+        function addJob() {
+            const name = document.getElementById('f-name').value.trim();
+            const address = document.getElementById('f-address').value.trim();
+            const city = document.getElementById('f-city').value.trim();
+            if (!name || !address || !city) {
+                alert("Please fill in all fields.");
+                return;
+            }
+            const newJob = {
+                name: name,
+                pickup_location: address,
+                city: city,
+                status: 'pending_pickup',
+                timestamp: Date.now(),
+                created_by: currentUser,
+                manual_priority: false
+            };
+            db.ref('developer/route_planner/jobs').push(newJob).then(() => {
+                resetFormFields();
+            }).catch(err => alert("Error adding job: " + err.message));
+        }
+
+        function deleteJob(id) {
+            if (confirm("Remove this job from route?")) {
+                db.ref(`developer/route_planner/jobs/${id}`).remove();
+            }
+        }
+
+        function clearAllJobs() {
+            if (confirm("Clear all jobs?")) {
+                db.ref('developer/route_planner/jobs').remove();
+            }
+        }
+
+        function togglePriority(id, current) {
+            const newVal = !current;
+            db.ref(`developer/route_planner/jobs/${id}/manual_priority`).set(newVal);
+            // No need to update manualOrder here; the route will reorder based on flags and existing manualOrder.
+        }
+
+        // ---------- ROUTE OPTIMIZATION (adapted from driver.html's updateRoute) ----------
+        async function updateRoute() {
+            if (!jobs) return;
+
+            // Filter only pending_pickup jobs (all jobs in this app)
+            const pendingJobs = Object.entries(jobs)
+                .filter(([id, job]) => job.status === 'pending_pickup')
+                .map(([id, job]) => ({ id, ...job }));
+
+            if (pendingJobs.length === 0) {
+                optimizedOrder = [];
+                renderList();
+                if (activePolyline) activePolyline.setMap(null);
+                if (mapMarkers) Object.values(mapMarkers).forEach(m => m.setMap(null));
+                mapMarkers = {};
+                return;
+            }
+
+            // Group jobs by identical address + city
+            const groups = [];
+            const groupMap = new Map();
+            pendingJobs.forEach(job => {
+                const key = `${job.pickup_location}, ${job.city}`.toLowerCase();
+                if (!groupMap.has(key)) {
+                    groupMap.set(key, { key, jobs: [], addrString: `${job.pickup_location}, ${job.city}` });
+                }
+                groupMap.get(key).jobs.push(job);
+            });
+            groupMap.forEach(group => groups.push(group));
+
+            // Separate priority groups (any job in group has manual_priority true)
+            const priorityGroups = [];
+            const normalGroups = [];
+            groups.forEach(group => {
+                if (group.jobs.some(j => j.manual_priority)) priorityGroups.push(group);
+                else normalGroups.push(group);
+            });
+
+            // Sort priority groups by their order in manualOrder
+            priorityGroups.sort((a, b) => {
+                const aId = a.jobs[0].id;
+                const bId = b.jobs[0].id;
+                const idxA = manualOrder.indexOf(aId);
+                const idxB = manualOrder.indexOf(bId);
+                return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+            });
+
+            let orderedNormalGroups = normalGroups;
+            if (normalGroups.length > 1) {
+                // Optimize normal groups using Routes API
+                try {
+                    const origin = { address: "1604 Moreland Ave, Brandon MB" }; // depot
+                    const destination = "1604 Moreland Ave, Brandon MB";
+                    const waypoints = normalGroups.map(g => ({ address: g.addrString }));
+                    const response = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-Goog-Api-Key": "AIzaSyA6umETP8wBUEV41ugAtiNiChUeLmmwmZI",
+                            "X-Goog-FieldMask": "routes.optimizedIntermediateWaypointIndex"
+                        },
+                        body: JSON.stringify({
+                            origin: origin,
+                            destination: { address: destination },
+                            intermediates: waypoints,
+                            travelMode: "DRIVE",
+                            optimizeWaypointOrder: true
+                        })
+                    });
+                    const data = await response.json();
+                    if (data.routes && data.routes[0] && data.routes[0].optimizedIntermediateWaypointIndex) {
+                        const indices = data.routes[0].optimizedIntermediateWaypointIndex;
+                        orderedNormalGroups = indices.map(idx => normalGroups[idx]);
+                    }
+                } catch (e) {
+                    console.warn("Optimization failed, using original order", e);
+                }
+            }
+
+            const finalGroups = priorityGroups.concat(orderedNormalGroups);
+
+            // Now compute full route to get polyline and durations (optional, but needed for map)
+            try {
+                const origin = { address: "1604 Moreland Ave, Brandon MB" };
+                const destination = "1604 Moreland Ave, Brandon MB";
+                const waypoints = finalGroups.map(g => ({ address: g.addrString }));
+                const response = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Goog-Api-Key": "AIzaSyA6umETP8wBUEV41ugAtiNiChUeLmmwmZI",
+                        "X-Goog-FieldMask": "routes.duration,routes.polyline.encodedPolyline,routes.legs"
+                    },
+                    body: JSON.stringify({
+                        origin: origin,
+                        destination: { address: destination },
+                        intermediates: waypoints,
+                        travelMode: "DRIVE",
+                        optimizeWaypointOrder: false
+                    })
+                });
+                const result = await response.json();
+                if (result.routes && result.routes[0]) {
+                    const route = result.routes[0];
+                    // Update optimizedOrder: flatten groups into job IDs
+                    optimizedOrder = [];
+                    finalGroups.forEach(group => {
+                        group.jobs.forEach(job => optimizedOrder.push(job.id));
+                    });
+
+                    // Draw polyline on map if map exists
+                    if (map && route.polyline) {
+                        if (activePolyline) activePolyline.setMap(null);
+                        const path = google.maps.geometry.encoding.decodePath(route.polyline.encodedPolyline);
+                        activePolyline = new google.maps.Polyline({
+                            path: path,
+                            geodesic: true,
+                            strokeColor: "#00d4ff",
+                            strokeOpacity: 0.8,
+                            strokeWeight: 6,
+                            map: map
+                        });
+                    }
+
+                    // Create markers for each group (use the leg end locations)
+                    if (map) {
+                        // Clear old markers
+                        Object.values(mapMarkers).forEach(m => m.setMap(null));
+                        mapMarkers = {};
+
+                        const legs = route.legs;
+                        finalGroups.forEach((group, idx) => {
+                            if (idx < legs.length) {
+                                const loc = legs[idx].endLocation ? legs[idx].endLocation.latLng : null;
+                                if (loc) {
+                                    // Store coordinates in jobs for future (optional)
+                                    group.jobs.forEach(job => {
+                                        db.ref(`developer/route_planner/jobs/${job.id}`).update({ lat: loc.latitude, lng: loc.longitude });
+                                    });
+                                    // Create marker with number
+                                    const marker = new google.maps.Marker({
+                                        position: { lat: loc.latitude, lng: loc.longitude },
+                                        map: map,
+                                        label: {
+                                            text: (idx + 1).toString(),
+                                            color: 'white',
+                                            fontWeight: 'bold'
+                                        },
+                                        icon: {
+                                            path: google.maps.SymbolPath.CIRCLE,
+                                            scale: 14,
+                                            fillColor: '#ff9800', // orange for pickup
+                                            fillOpacity: 1,
+                                            strokeColor: 'white',
+                                            strokeWeight: 2
+                                        }
+                                    });
+                                    // Store marker keyed by job IDs (use first job id as key)
+                                    mapMarkers[group.jobs[0].id] = marker;
+                                }
+                            }
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error("Route fetch error", e);
+                // Fallback: just use the finalGroups order without polyline
+                optimizedOrder = [];
+                finalGroups.forEach(group => group.jobs.forEach(job => optimizedOrder.push(job.id)));
+            }
+
+            renderList();
+        }
+
+        // ---------- RENDER JOB LIST (simplified from driver.html) ----------
+        function renderList() {
+            const container = document.getElementById('job-list');
+            const emptyState = document.getElementById('empty-state');
+            if (!optimizedOrder || optimizedOrder.length === 0) {
+                container.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+            emptyState.style.display = 'none';
+
+            let html = '';
+            optimizedOrder.forEach((id, index) => {
+                const job = jobs[id];
+                if (!job) return;
+                const isPriority = job.manual_priority || false;
+                const starClass = isPriority ? 'active' : '';
+                html += `
+                    <div class="job-item" data-id="${id}">
+                        <span class="job-number">${index + 1}</span>
+                        <div class="job-info">
+                            <div class="job-name">${job.name || 'No name'}</div>
+                            <div class="job-address">${job.pickup_location || ''}, ${job.city || ''}</div>
+                        </div>
+                        <svg class="star-icon ${starClass}" viewBox="0 0 24 24" onclick="togglePriority('${id}', ${isPriority})">
+                            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                        </svg>
+                        <svg class="delete-icon" viewBox="0 0 24 24" onclick="deleteJob('${id}')">
+                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                        </svg>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+
+            // Reinitialize Sortable after rendering
+            initSortable();
+        }
+
+        // ---------- SORTABLE (drag & drop) ----------
+        let sortableInstance;
+        function initSortable() {
+            if (sortableInstance) sortableInstance.destroy();
+            const list = document.getElementById('job-list');
+            sortableInstance = new Sortable(list, {
+                animation: 150,
+                delay: 400,
+                delayOnTouchOnly: true,
+                draggable: '.job-item',
+                ghostClass: 'sortable-ghost',
+                onEnd: function(evt) {
+                    // Get new order from DOM
+                    const items = list.querySelectorAll('.job-item');
+                    const newOrder = Array.from(items).map(item => item.dataset.id);
+                    // Update manualOrder in Firebase
+                    db.ref('developer/route_planner/manual_order').set(newOrder);
+                    // For the dragged item, set manual_priority to true (like driver.html)
+                    const draggedId = evt.item.dataset.id;
+                    if (draggedId) {
+                        db.ref(`developer/route_planner/jobs/${draggedId}/manual_priority`).set(true);
+                    }
+                }
+            });
+        }
+
+        // ---------- MAP FUNCTIONS (from command.html) ----------
+        function initMap() {
+            if (!google.maps) return;
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 49.8425, lng: -99.9497 },
+                zoom: 12,
+                gestureHandling: 'greedy',
+                styles: document.body.classList.contains('light-mode') ? [] : mapStyles
+            });
+            mainMap = map; // alias
+        }
+
+        function openMap() {
+            document.getElementById('map-modal').style.display = 'block';
+            setTimeout(() => {
+                google.maps.event.trigger(map, 'resize');
+                if (optimizedOrder.length > 0 && activePolyline) {
+                    const bounds = new google.maps.LatLngBounds();
+                    activePolyline.getPath().forEach(p => bounds.extend(p));
+                    map.fitBounds(bounds);
+                } else {
+                    map.setCenter({ lat: 49.8425, lng: -99.9497 });
+                    map.setZoom(12);
+                }
+            }, 100);
+        }
+
+        function closeMap() {
+            document.getElementById('map-modal').style.display = 'none';
+        }
+
+        function zoomToAll() {
+            if (activePolyline) {
+                const bounds = new google.maps.LatLngBounds();
+                activePolyline.getPath().forEach(p => bounds.extend(p));
+                map.fitBounds(bounds);
+            }
+        }
+
+        function resetMapView() {
+            // Similar to resetDriverView but without driver
+            zoomToAll();
+        }
+
+        // ---------- PWA INSTALL ----------
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('install-btn').style.display = 'block';
         });
-        mapMarkers.push(marker);
-      }
+        document.getElementById('install-btn').addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') deferredPrompt = null;
+                document.getElementById('install-btn').style.display = 'none';
+            }
+        });
 
-      // ---------- PWA INSTALL ----------
-      let deferredPrompt;
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        document.getElementById('install-btn').style.display = 'block';
-      });
-      document.getElementById('install-btn').addEventListener('click', async () => {
-        if (deferredPrompt) {
-          deferredPrompt.prompt();
-          const { outcome } = await deferredPrompt.userChoice;
-          if (outcome === 'accepted') document.getElementById('install-btn').style.display = 'none';
-          deferredPrompt = null;
-        }
-      });
-
-      // ---------- THEME TOGGLE (optional) ----------
-      window.toggleTheme = function() {
-        document.body.classList.toggle('light-mode');
-        localStorage.setItem('ec_theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
-      };
-      if (localStorage.getItem('ec_theme') === 'light') document.body.classList.add('light-mode');
-
-      // ---------- helper to blur suggestions on outside click ----------
-      document.addEventListener('click', function(e) {
-        if (!e.target.closest('.input-wrap')) {
-          document.querySelectorAll('.suggestions-box').forEach(b => b.style.display = 'none');
-        }
-      });
-    })();
-  </script>
-  <!-- manifest linked in head, we need to serve manifest.json separately -->
-  <!-- we'll embed minimal manifest in comments; but requirement is to provide file, so we'll generate dynamically or note -->
-  <script>
-    // dynamically create manifest link if not present (already in head)
-    // but we need to ensure manifest.json exists. For completeness, we can create a data URL manifest.
-    // To avoid external file, we'll generate a manifest inline and use a blob URL.
-    (function() {
-      const manifest = {
-        name: "E&C Route Planner",
-        short_name: "RoutePlanner",
-        start_url: ".",
-        display: "standalone",
-        background_color: "#030712",
-        theme_color: "gold",
-        icons: [
-          { src: "icon2.png", sizes: "192x192", type: "image/png" },
-          { src: "icon2.png", sizes: "512x512", type: "image/png" }
-        ]
-      };
-      const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-      const manifestURL = URL.createObjectURL(manifestBlob);
-      document.querySelector('link[rel="manifest"]').setAttribute('href', manifestURL);
-    })();
-  </script>
-  <!-- dev notes button (optional) not needed -->
+        // ---------- UTILS ----------
+        function formatTime12(ts) { /* not used but kept for consistency */ }
+    </script>
 </body>
 </html>
