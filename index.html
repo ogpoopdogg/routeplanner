@@ -323,7 +323,17 @@
                 created_by: currentUser,
                 manual_priority: false
             };
-            db.ref('developer/route_planner/jobs').push(newJob).then(() => {
+            // Push job to Firebase
+            const newJobRef = db.ref('developer/route_planner/jobs').push();
+            newJobRef.set(newJob).then(() => {
+                // After job is saved, update address_lookup
+                const sanitizedKey = name.replace(/[.#$\[\]\/]/g, "").trim();
+                const updateObj = {
+                    address: address,
+                    city: city,
+                    last_edit_by: currentUser
+                };
+                db.ref("address_lookup").child(sanitizedKey).update(updateObj);
                 resetFormFields();
             }).catch(err => alert("Error adding job: " + err.message));
         }
