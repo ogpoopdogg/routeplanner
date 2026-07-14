@@ -109,6 +109,7 @@
             <span class="shiny-text" style="font-size:16px; font-weight:700;">E&C ROUTE PLANNER</span>
         </div>
         <div style="display: flex; align-items: center; gap: 10px;">
+            <button id="route-btn" class="map-btn" onclick="openExternalRoute()">ROUTE</button>
             <button id="map-btn" class="map-btn" onclick="openMap()">MAP</button>
         </div>
     </header>
@@ -664,6 +665,37 @@
         function resetMapView() {
             // Similar to resetDriverView but without driver
             zoomToAll();
+        }
+
+        // ---------- EXTERNAL ROUTE NAVIGATION (similar to driver.html) ----------
+        function openExternalRoute() {
+            if (optimizedOrder.length === 0) {
+                alert("No stops to route.");
+                return;
+            }
+            const origin = "1604 Moreland Ave, Brandon MB";
+            const destination = "1604 Moreland Ave, Brandon MB";
+            const seenLocs = new Set();
+            const waypoints = optimizedOrder.map(id => {
+                const job = jobs[id];
+                if (!job) return "";
+                // Use pickup_location and city (no business name) for accuracy
+                const addr = job.pickup_location;
+                const city = job.city || "Brandon";
+                const key = `${addr}, ${city}`;
+                if (seenLocs.has(key)) return "";
+                seenLocs.add(key);
+                return encodeURIComponent(key);
+            }).filter(w => w !== "").join("|");
+
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+            if (/android/i.test(userAgent)) {
+                window.location.href = `intent://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&waypoints=${waypoints}&travelmode=driving#Intent;scheme=https;package=com.google.android.apps.maps;end`;
+            } else if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+                window.location.href = `comgooglemaps://?saddr=${encodeURIComponent(origin)}&daddr=${encodeURIComponent(destination)}&waypoints=${waypoints}&directionsmode=driving`;
+            } else {
+                window.open(`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&waypoints=${waypoints}&travelmode=driving`, '_blank');
+            }
         }
 
         // ---------- PWA INSTALL ----------
