@@ -155,7 +155,7 @@
 
         <!-- ETA Display -->
         <div id="eta-display" style="margin-top:15px; background:var(--card); border-radius:12px; padding:12px; border:1px solid var(--border); display:none; color:var(--text);">
-            <span>Total ETA: <span id="eta-time">0</span> <span id="eta-adjusted" style="color:#ff8c00; display:none;">(<span id="eta-adjusted-time">0</span>)</span></span>
+            <span>Total ETA: <span id="eta-time">0</span> <span id="eta-adjusted" style="color:#ff8c00; display:none;">(<span id="eta-adjusted-time">0</span>)</span> <span id="eta-distance-display" style="display:inline;">| <span id="eta-distance">0</span> km</span></span>
         </div>
 
         <!-- Job List Container (like mini-map-list from driver.html) -->
@@ -845,6 +845,7 @@
             const etaTime = document.getElementById('eta-time');
             const etaAdjusted = document.getElementById('eta-adjusted');
             const etaAdjustedTime = document.getElementById('eta-adjusted-time');
+            const etaDistance = document.getElementById('eta-distance');
             if (!optimizedOrder || optimizedOrder.length === 0 || etaTotalMinutes === 0) {
                 display.style.display = 'none';
                 display.classList.remove('eta-glow');
@@ -868,6 +869,8 @@
             adjStr += adjMins + 'm';
             etaAdjustedTime.textContent = adjStr;
             etaAdjusted.style.display = 'inline';
+            // Distance
+            etaDistance.textContent = etaTotalKm.toFixed(1);
             display.style.display = 'block';
             display.classList.add('eta-glow');
         }
