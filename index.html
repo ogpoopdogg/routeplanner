@@ -92,6 +92,12 @@
         /* Driver map label style (from command.html) */
         .driver-map-label { color: #00ff00 !important; font-weight: 700; text-shadow: 0 0 2px #000; }
 
+        /* ETA glow */
+        .eta-glow {
+            border-color: #00bfff !important;
+            box-shadow: 0 0 15px #00bfff;
+        }
+
         @media (max-width: 768px) {
             header { padding: 8px 12px; }
             .header-logo { height: 20px; }
@@ -116,8 +122,8 @@
             <span class="shiny-text" style="font-size:16px; font-weight:700;">E&C ROUTE PLANNER</span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
-            <button id="route-btn" class="map-btn" onclick="openExternalRoute()" aria-label="Route"><svg viewBox="0 0 24 24" width="20" height="20" stroke="white" fill="none" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2" fill="white"/></svg></button>
-            <button id="map-btn" class="map-btn" onclick="openMap()" aria-label="Map"><svg viewBox="0 0 24 24" width="20" height="20" stroke="white" fill="none" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></button>
+            <button id="route-btn" class="map-btn" onclick="openExternalRoute()" aria-label="Route"><svg viewBox="0 0 24 24" width="20" height="20" stroke="white" fill="none" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></button>
+            <button id="map-btn" class="map-btn" onclick="openMap()" aria-label="Map" style="background: none; background-image: url('https://maps.googleapis.com/maps/api/staticmap?center=49.8425,-99.9497&zoom=12&size=40x40&key=AIzaSyA6umETP8wBUEV41ugAtiNiChUeLmmwmZI'); background-size: cover; background-position: center; border: 1px solid #fff;"></button>
             <button id="eta-btn" class="map-btn" onclick="calculateETA()" aria-label="ETA"><svg viewBox="0 0 24 24" width="20" height="20" stroke="white" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
         </div>
     </header>
@@ -149,12 +155,15 @@
 
         <!-- ETA Display -->
         <div id="eta-display" style="margin-top:15px; background:var(--card); border-radius:12px; padding:12px; border:1px solid var(--border); display:none; color:var(--text);">
-            <span>Total ETA: <span id="eta-time">0</span> min</span> | <span>Distance: <span id="eta-distance">0</span> km</span>
+            <span>Total ETA: <span id="eta-time">0</span></span> | <span>Distance: <span id="eta-distance">0</span> km</span>
         </div>
 
         <!-- Job List Container (like mini-map-list from driver.html) -->
         <div id="job-list-container">
-            <h3 style="margin-top:0; color:var(--accent);">ROUTE STOPS</h3>
+            <h3 style="margin-top:0; color:var(--accent); display: flex; align-items: center; gap: 8px;">
+                ROUTE STOPS
+                <span id="stop-counter" style="display:none; border:2px solid white; color:#ff8c00; font-weight:bold; padding:0 8px; border-radius:12px; font-size:14px;"></span>
+            </h3>
             <div id="job-list"></div>
             <div id="empty-state" style="text-align:center; color:#666; padding:20px;">No jobs added. Use the form above to add stops.</div>
         </div>
@@ -362,6 +371,8 @@
             if (confirm("Clear all jobs?")) {
                 db.ref('developer/route_planner/jobs').remove();
                 document.getElementById('eta-display').style.display = 'none';
+                document.getElementById('eta-display').classList.remove('eta-glow');
+                document.getElementById('stop-counter').style.display = 'none';
             }
         }
 
@@ -390,6 +401,8 @@
                 const mapBtn = document.getElementById('map-btn');
                 if (mapBtn) mapBtn.classList.remove('map-btn-glow');
                 document.getElementById('eta-display').style.display = 'none';
+                document.getElementById('eta-display').classList.remove('eta-glow');
+                document.getElementById('stop-counter').style.display = 'none';
                 return;
             }
 
@@ -577,12 +590,17 @@
         function renderList() {
             const container = document.getElementById('job-list');
             const emptyState = document.getElementById('empty-state');
+            const counter = document.getElementById('stop-counter');
             if (!optimizedOrder || optimizedOrder.length === 0) {
                 container.innerHTML = '';
                 emptyState.style.display = 'block';
+                counter.style.display = 'none';
                 return;
             }
             emptyState.style.display = 'none';
+            // Update counter
+            counter.textContent = optimizedOrder.length;
+            counter.style.display = 'inline-block';
 
             let html = '';
             optimizedOrder.forEach((id, index) => {
@@ -783,10 +801,17 @@
                         totalDistanceMeters = parseFloat(route.distanceMeters);
                     }
                     const totalMinutes = Math.round(totalDurationSeconds / 60);
+                    const hours = Math.floor(totalMinutes / 60);
+                    const mins = totalMinutes % 60;
+                    let timeStr = '';
+                    if (hours > 0) timeStr += hours + 'h ';
+                    timeStr += mins + 'm';
                     const totalKm = (totalDistanceMeters / 1000).toFixed(1);
-                    document.getElementById('eta-time').textContent = `${totalMinutes}`;
-                    document.getElementById('eta-distance').textContent = `${totalKm}`;
-                    document.getElementById('eta-display').style.display = 'block';
+                    document.getElementById('eta-time').textContent = timeStr;
+                    document.getElementById('eta-distance').textContent = totalKm;
+                    const display = document.getElementById('eta-display');
+                    display.style.display = 'block';
+                    display.classList.add('eta-glow');
                 } else {
                     alert("Could not calculate route.");
                 }
