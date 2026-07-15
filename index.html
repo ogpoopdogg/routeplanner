@@ -484,108 +484,137 @@
 
             const finalGroups = priorityGroups.concat(orderedNormalGroups);
 
-            // Now compute full route to get polyline and durations (optional, but needed for map)
+            // Build optimizedOrder from finalGroups
+            optimizedOrder = [];
+            finalGroups.forEach(group => {
+                group.jobs.forEach(job => optimizedOrder.push(job.id));
+            });
+
+            // Now compute full route with segmentation for >25 stops
             try {
-                const origin = { address: "1604 Moreland Ave, Brandon MB" };
-                const destination = "1604 Moreland Ave, Brandon MB";
-                const waypoints = finalGroups.map(g => ({ address: g.addrString }));
-                const response = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-Goog-Api-Key": "AIzaSyA6umETP8wBUEV41ugAtiNiChUeLmmwmZI",
-                        "X-Goog-FieldMask": "routes.duration,routes.polyline.encodedPolyline,routes.legs,routes.distanceMeters"
-                    },
-                    body: JSON.stringify({
+                const depotAddress = "1604 Moreland Ave, Brandon MB";
+                const maxIntermediates = 25;
+                const totalGroups = finalGroups.length;
+                let segments = [];
+                let start = 0;
+                while (start < totalGroups) {
+                    let end = Math.min(start + maxIntermediates, totalGroups);
+                    let segmentGroups = finalGroups.slice(start, end);
+                    let originAddr = (start === 0) ? depotAddress : finalGroups[start - 1].addrString;
+                    let destAddr, intermediates;
+                    if (end === totalGroups) {
+                        destAddr = depotAddress;
+                        intermediates = segmentGroups.map(g => g.addrString);
+                    } else {
+                        destAddr = segmentGroups[segmentGroups.length - 1].addrString;
+                        intermediates = segmentGroups.slice(0, -1).map(g => g.addrString);
+                    }
+                    segments.push({ originAddr, destAddr, intermediates, segmentGroups });
+                    start = end;
+                }
+
+                let totalDurationSeconds = 0;
+                let totalDistanceMeters = 0;
+                let allLegs = [];
+                let combinedPath = [];
+
+                for (let seg of segments) {
+                    const origin = { address: seg.originAddr };
+                    const destination = { address: seg.destAddr };
+                    const waypoints = seg.intermediates.map(addr => ({ address: addr }));
+                    const requestBody = {
                         origin: origin,
-                        destination: { address: destination },
+                        destination: destination,
                         intermediates: waypoints,
                         travelMode: "DRIVE",
                         optimizeWaypointOrder: false
-                    })
-                });
-                const result = await response.json();
-                if (result.routes && result.routes[0]) {
-                    const route = result.routes[0];
-                    // Update optimizedOrder: flatten groups into job IDs
-                    optimizedOrder = [];
-                    finalGroups.forEach(group => {
-                        group.jobs.forEach(job => optimizedOrder.push(job.id));
+                    };
+                    const response = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-Goog-Api-Key": "AIzaSyA6umETP8wBUEV41ugAtiNiChUeLmmwmZI",
+                            "X-Goog-FieldMask": "routes.duration,routes.polyline.encodedPolyline,routes.legs,routes.distanceMeters"
+                        },
+                        body: JSON.stringify(requestBody)
                     });
-
-                    // Draw polyline on map if map exists
-                    if (map && route.polyline) {
-                        if (activePolyline) activePolyline.setMap(null);
-                        const path = google.maps.geometry.encoding.decodePath(route.polyline.encodedPolyline);
-                        activePolyline = new google.maps.Polyline({
-                            path: path,
-                            geodesic: true,
-                            strokeColor: "#00d4ff",
-                            strokeOpacity: 0.8,
-                            strokeWeight: 6,
-                            map: map
-                        });
-                    }
-
-                    // Create markers for each group (use the leg end locations)
-                    if (map) {
-                        // Clear old markers
-                        Object.values(mapMarkers).forEach(m => m.setMap(null));
-                        mapMarkers = {};
-
-                        const legs = route.legs;
-                        finalGroups.forEach((group, idx) => {
-                            if (idx < legs.length) {
-                                const loc = legs[idx].endLocation ? legs[idx].endLocation.latLng : null;
-                                if (loc) {
-                                    // Store coordinates in jobs for future (optional)
-                                    group.jobs.forEach(job => {
-                                        db.ref(`developer/route_planner/jobs/${job.id}`).update({ lat: loc.latitude, lng: loc.longitude });
-                                    });
-                                    // Create marker with number and business name (like command.html)
-                                    const firstJob = group.jobs[0];
-                                    const labelText = `${idx+1}. ${firstJob.name || ''}`;
-                                    const marker = new google.maps.Marker({
-                                        position: { lat: loc.latitude, lng: loc.longitude },
-                                        map: map,
-                                        label: {
-                                            text: labelText,
-                                            color: '#00b32d',
-                                            fontWeight: 'bold',
-                                            fontSize: '12px',
-                                            className: 'driver-map-label'
-                                        },
-                                        icon: {
-                                            path: google.maps.SymbolPath.CIRCLE,
-                                            scale: 14,
-                                            fillColor: '#ff9800', // orange for pickup
-                                            fillOpacity: 1,
-                                            strokeColor: 'white',
-                                            strokeWeight: 2
-                                        }
-                                    });
-                                    // Store marker keyed by job IDs (use first job id as key)
-                                    mapMarkers[group.jobs[0].id] = marker;
+                    const result = await response.json();
+                    if (result.routes && result.routes[0]) {
+                        const route = result.routes[0];
+                        let segDuration = parseFloat(route.duration.replace('s', ''));
+                        let segDistance = parseFloat(route.distanceMeters);
+                        totalDurationSeconds += segDuration;
+                        totalDistanceMeters += segDistance;
+                        if (route.polyline) {
+                            const path = google.maps.geometry.encoding.decodePath(route.polyline.encodedPolyline);
+                            combinedPath = combinedPath.concat(path);
+                        }
+                        if (route.legs) {
+                            for (let i = 0; i < seg.segmentGroups.length; i++) {
+                                let leg = route.legs[i];
+                                if (leg && leg.endLocation) {
+                                    allLegs.push({ group: seg.segmentGroups[i], leg: leg });
                                 }
                             }
-                        });
-                    }
-
-                    // Compute ETA totals from legs or route
-                    let totalDurationSeconds = 0;
-                    let totalDistanceMeters = 0;
-                    if (route.legs) {
-                        route.legs.forEach(leg => {
-                            totalDurationSeconds += parseFloat(leg.duration.replace('s', ''));
-                            totalDistanceMeters += parseFloat(leg.distanceMeters);
-                        });
+                        }
                     } else {
-                        totalDurationSeconds = parseFloat(route.duration.replace('s', ''));
-                        totalDistanceMeters = parseFloat(route.distanceMeters);
+                        console.warn("Segment route failed:", result);
                     }
-                    etaTotalMinutes = totalDurationSeconds / 60;
-                    etaTotalKm = totalDistanceMeters / 1000;
                 }
+
+                etaTotalMinutes = totalDurationSeconds / 60;
+                etaTotalKm = totalDistanceMeters / 1000;
+
+                // Draw polyline
+                if (map && combinedPath.length > 0) {
+                    if (activePolyline) activePolyline.setMap(null);
+                    activePolyline = new google.maps.Polyline({
+                        path: combinedPath,
+                        geodesic: true,
+                        strokeColor: "#00d4ff",
+                        strokeOpacity: 0.8,
+                        strokeWeight: 6,
+                        map: map
+                    });
+                }
+
+                // Create markers from allLegs
+                if (map) {
+                    Object.values(mapMarkers).forEach(m => m.setMap(null));
+                    mapMarkers = {};
+                    allLegs.forEach((item, idx) => {
+                        const group = item.group;
+                        const loc = item.leg.endLocation.latLng;
+                        if (loc) {
+                            group.jobs.forEach(job => {
+                                db.ref(`developer/route_planner/jobs/${job.id}`).update({ lat: loc.latitude, lng: loc.longitude });
+                            });
+                            const firstJob = group.jobs[0];
+                            const labelText = `${idx+1}. ${firstJob.name || ''}`;
+                            const marker = new google.maps.Marker({
+                                position: { lat: loc.latitude, lng: loc.longitude },
+                                map: map,
+                                label: {
+                                    text: labelText,
+                                    color: '#00b32d',
+                                    fontWeight: 'bold',
+                                    fontSize: '12px',
+                                    className: 'driver-map-label'
+                                },
+                                icon: {
+                                    path: google.maps.SymbolPath.CIRCLE,
+                                    scale: 14,
+                                    fillColor: '#ff9800',
+                                    fillOpacity: 1,
+                                    strokeColor: 'white',
+                                    strokeWeight: 2
+                                }
+                            });
+                            mapMarkers[group.jobs[0].id] = marker;
+                        }
+                    });
+                }
+
             } catch (e) {
                 console.error("Route fetch error", e);
                 // Fallback: just use the finalGroups order without polyline
@@ -734,7 +763,11 @@
             const origin = "1604 Moreland Ave, Brandon MB";
             const destination = "1604 Moreland Ave, Brandon MB";
             const seenLocs = new Set();
+            // Limit to first 25 stops for the external maps link (Google Maps URL limit)
+            const maxStopsForExternal = 25;
+            let stopsAdded = 0;
             const waypoints = optimizedOrder.map(id => {
+                if (stopsAdded >= maxStopsForExternal) return "";
                 const job = jobs[id];
                 if (!job) return "";
                 // Use pickup_location and city (no business name) for accuracy
@@ -743,6 +776,7 @@
                 const key = `${addr}, ${city}`;
                 if (seenLocs.has(key)) return "";
                 seenLocs.add(key);
+                stopsAdded++;
                 return encodeURIComponent(key);
             }).filter(w => w !== "").join("|");
 
