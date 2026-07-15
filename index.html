@@ -117,15 +117,15 @@
 
     <!-- Header (similar to command.html) -->
     <header>
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <img src="icon2.png" class="header-logo" alt="Logo" onclick="toggleTheme()">
-            <span class="shiny-text" style="font-size:16px; font-weight:700;">E&C ROUTE PLANNER</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 6px; flex:1;">
-            <button id="route-btn" class="map-btn" onclick="openExternalRoute()" aria-label="Route" style="flex:1;"><svg viewBox="0 0 24 24" width="20" height="20" stroke="white" fill="none" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></button>
-            <button id="map-btn" class="map-btn" onclick="openMap()" aria-label="Map" style="flex:1; background: url('//mt.google.com/vt/lyrs=m&x=235&y=348&z=10') center/cover; border: 1px solid #fff;"></button>
-        </div>
-    </header>
+    <div style="display: flex; align-items: center; gap: 10px; flex-shrink:0;">
+        <img src="icon2.png" class="header-logo" alt="Logo" onclick="toggleTheme()">
+        <span class="shiny-text" style="font-size:16px; font-weight:700;">E&C ROUTE PLANNER</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px; margin-left: auto;">
+        <button id="route-btn" class="map-btn" onclick="openExternalRoute()" aria-label="Route"><svg viewBox="0 0 24 24" width="20" height="20" stroke="white" fill="none" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></button>
+        <button id="map-btn" class="map-btn" onclick="openMap()" aria-label="Map" style="background: url('//mt.google.com/vt/lyrs=m&x=235&y=348&z=10') center/cover; border: 1px solid #fff;"></button>
+    </div>
+</header>
 
     <!-- Input fields with autocomplete -->
     <div style="padding: 20px;">
