@@ -155,7 +155,7 @@
 
         <!-- ETA Display -->
         <div id="eta-display" style="margin-top:15px; background:var(--card); border-radius:12px; padding:12px; border:1px solid var(--border); display:none; color:var(--text);">
-            <span>Total ETA: <span id="eta-time">0</span></span> | <span>Distance: <span id="eta-distance">0</span> km</span>
+            <span>Total ETA: <span id="eta-time">0</span> <span id="eta-adjusted" style="color:#ff8c00; display:none;">(<span id="eta-adjusted-time">0</span>)</span></span>
         </div>
 
         <!-- Job List Container (like mini-map-list from driver.html) -->
@@ -208,6 +208,8 @@
         let addressData = {};        // From address_lookup
         let map, mainMap, mapMarkers = {}, activePolyline = null, mapBoundsInitialized = false;
         let autocompleteAddress;     // Google Places Autocomplete for address field
+        let etaTotalMinutes = 0;
+        let etaTotalKm = 0;
 
         // Theme handling (copied from command.html)
         if (localStorage.getItem('ec_theme') === 'light') document.body.classList.add('light-mode');
@@ -373,6 +375,8 @@
                 document.getElementById('eta-display').style.display = 'none';
                 document.getElementById('eta-display').classList.remove('eta-glow');
                 document.getElementById('stop-counter').style.display = 'none';
+                etaTotalMinutes = 0;
+                etaTotalKm = 0;
             }
         }
 
@@ -403,6 +407,8 @@
                 document.getElementById('eta-display').style.display = 'none';
                 document.getElementById('eta-display').classList.remove('eta-glow');
                 document.getElementById('stop-counter').style.display = 'none';
+                etaTotalMinutes = 0;
+                etaTotalKm = 0;
                 return;
             }
 
@@ -489,7 +495,7 @@
                     headers: {
                         "Content-Type": "application/json",
                         "X-Goog-Api-Key": "AIzaSyA6umETP8wBUEV41ugAtiNiChUeLmmwmZI",
-                        "X-Goog-FieldMask": "routes.duration,routes.polyline.encodedPolyline,routes.legs"
+                        "X-Goog-FieldMask": "routes.duration,routes.polyline.encodedPolyline,routes.legs,routes.distanceMeters"
                     },
                     body: JSON.stringify({
                         origin: origin,
@@ -565,12 +571,29 @@
                             }
                         });
                     }
+
+                    // Compute ETA totals from legs or route
+                    let totalDurationSeconds = 0;
+                    let totalDistanceMeters = 0;
+                    if (route.legs) {
+                        route.legs.forEach(leg => {
+                            totalDurationSeconds += parseFloat(leg.duration.replace('s', ''));
+                            totalDistanceMeters += parseFloat(leg.distanceMeters);
+                        });
+                    } else {
+                        totalDurationSeconds = parseFloat(route.duration.replace('s', ''));
+                        totalDistanceMeters = parseFloat(route.distanceMeters);
+                    }
+                    etaTotalMinutes = totalDurationSeconds / 60;
+                    etaTotalKm = totalDistanceMeters / 1000;
                 }
             } catch (e) {
                 console.error("Route fetch error", e);
                 // Fallback: just use the finalGroups order without polyline
                 optimizedOrder = [];
                 finalGroups.forEach(group => group.jobs.forEach(job => optimizedOrder.push(job.id)));
+                etaTotalMinutes = 0;
+                etaTotalKm = 0;
             }
 
             renderList();
@@ -584,6 +607,9 @@
                     mapBtn.classList.remove('map-btn-glow');
                 }
             }
+
+            // Update ETA display
+            updateETADisplay();
         }
 
         // ---------- RENDER JOB LIST (simplified from driver.html) ----------
@@ -800,18 +826,9 @@
                         totalDurationSeconds = parseFloat(route.duration.replace('s', ''));
                         totalDistanceMeters = parseFloat(route.distanceMeters);
                     }
-                    const totalMinutes = Math.round(totalDurationSeconds / 60);
-                    const hours = Math.floor(totalMinutes / 60);
-                    const mins = totalMinutes % 60;
-                    let timeStr = '';
-                    if (hours > 0) timeStr += hours + 'h ';
-                    timeStr += mins + 'm';
-                    const totalKm = (totalDistanceMeters / 1000).toFixed(1);
-                    document.getElementById('eta-time').textContent = timeStr;
-                    document.getElementById('eta-distance').textContent = totalKm;
-                    const display = document.getElementById('eta-display');
-                    display.style.display = 'block';
-                    display.classList.add('eta-glow');
+                    etaTotalMinutes = totalDurationSeconds / 60;
+                    etaTotalKm = totalDistanceMeters / 1000;
+                    updateETADisplay();
                 } else {
                     alert("Could not calculate route.");
                 }
@@ -820,6 +837,39 @@
                 console.error(err);
                 alert("Error calculating ETA.");
             });
+        }
+
+        // ---------- UPDATE ETA DISPLAY ----------
+        function updateETADisplay() {
+            const display = document.getElementById('eta-display');
+            const etaTime = document.getElementById('eta-time');
+            const etaAdjusted = document.getElementById('eta-adjusted');
+            const etaAdjustedTime = document.getElementById('eta-adjusted-time');
+            if (!optimizedOrder || optimizedOrder.length === 0 || etaTotalMinutes === 0) {
+                display.style.display = 'none';
+                display.classList.remove('eta-glow');
+                return;
+            }
+            // Format time
+            const totalMinutes = etaTotalMinutes;
+            const hours = Math.floor(totalMinutes / 60);
+            const mins = Math.round(totalMinutes % 60);
+            let timeStr = '';
+            if (hours > 0) timeStr += hours + 'h ';
+            timeStr += mins + 'm';
+            etaTime.textContent = timeStr;
+            // Adjusted time
+            const stops = optimizedOrder.length;
+            const adjustedMinutes = totalMinutes + 3 * stops;
+            const adjHours = Math.floor(adjustedMinutes / 60);
+            const adjMins = Math.round(adjustedMinutes % 60);
+            let adjStr = '';
+            if (adjHours > 0) adjStr += adjHours + 'h ';
+            adjStr += adjMins + 'm';
+            etaAdjustedTime.textContent = adjStr;
+            etaAdjusted.style.display = 'inline';
+            display.style.display = 'block';
+            display.classList.add('eta-glow');
         }
 
         // ---------- PWA INSTALL ----------
