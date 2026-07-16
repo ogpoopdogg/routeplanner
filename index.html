@@ -55,15 +55,15 @@
 
         #job-list-container { background: var(--card); border-radius: 12px; padding: 15px; margin: 20px; border: 1px solid var(--border); box-shadow: var(--shadow-soft); }
         #job-list { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; }
-        .job-item { display: flex; align-items: center; gap: 12px; background: var(--input-bg); padding: 12px; border-radius: 8px; border: 1px solid var(--border); cursor: grab; user-select: none; -webkit-user-select: none; }
+        .job-item { display: flex; align-items: center; gap: 12px; background: var(--input-bg); padding: 12px; border-radius: 8px; border: 1px solid var(--border); cursor: grab; user-select: none; -webkit-user-select: none; position: relative; }
         .job-item.sortable-ghost { opacity: 0.4; background: var(--accent); }
         .job-number { background: #fff; color: #000; font-weight: 900; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
         .job-info { flex: 1; overflow: hidden; }
         .job-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .job-address { font-size: 12px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .star-icon { width: 24px; height: 24px; cursor: pointer; fill: none; stroke: var(--accent); stroke-width: 2; }
+        .star-icon { width: 24px; height: 24px; cursor: pointer; fill: none; stroke: var(--accent); stroke-width: 2; z-index: 2; }
         .star-icon.active { fill: var(--accent); }
-        .delete-icon { width: 20px; height: 20px; cursor: pointer; fill: #b71c1c; }
+        .delete-icon { width: 20px; height: 20px; cursor: pointer; fill: #b71c1c; z-index: 2; }
 
         #install-btn { display: none; background: var(--pro-blue); color: #fff; border: none; padding: 14px 16px; font-size: 12px; font-weight: 700; border-radius: 6px; cursor: pointer; text-transform: uppercase; position: fixed; right: 15px; bottom: 15px; z-index: 1002; }
 
@@ -96,6 +96,92 @@
         .eta-glow {
             border-color: #00bfff !important;
             box-shadow: 0 0 15px #00bfff;
+        }
+
+        /* ---------- NEW STYLES FOR BULLSEYE, DONE OVERLAY, CHECKMARK ---------- */
+        /* Bullseye button */
+        .bullseye-btn {
+            background: #fff;
+            border: 2px solid #333;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, border-color 0.2s;
+            outline: none;
+            margin: 0 0 8px 0; /* spacing above default controls */
+        }
+        .bullseye-btn.active {
+            border-color: #ff6600;
+            background: #ffcc00;
+        }
+
+        /* Done overlay for list items */
+        .done-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            z-index: 10;
+            cursor: default;
+        }
+        .done-overlay .done-btn {
+            background: #fff;
+            border: 3px solid #00aa00;
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            color: #000;
+        }
+        .done-overlay .checkmark-svg {
+            width: 60px;
+            height: 60px;
+        }
+        .done-overlay .checkmark-path {
+            stroke: #00aa00;
+            stroke-width: 4;
+            fill: none;
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            animation: draw-check 1.5s forwards;
+        }
+        @keyframes draw-check {
+            to { stroke-dashoffset: 0; }
+        }
+
+        /* InfoWindow button style */
+        .done-infowindow-btn {
+            border: 3px solid #00aa00;
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            background: #fff;
+            color: #000;
+            display: inline-block;
+        }
+        .done-infowindow-btn:active {
+            background: #e0e0e0;
+        }
+        .gm-style .gm-style-iw-c {
+            padding: 10px !important;
+        }
+        .gm-style .gm-style-iw-d {
+            overflow: hidden !important;
         }
 
         @media (max-width: 768px) {
@@ -209,6 +295,13 @@
         let autocompleteAddress;     // Google Places Autocomplete for address field
         let etaTotalMinutes = 0;
         let etaTotalKm = 0;
+
+        // New globals for tracking and overlays
+        let isTracking = false;
+        let userMarker = null;
+        let userCircle = null;
+        let locationWatchId = null;
+        let activeInfoWindow = null;
 
         // Theme handling (copied from command.html)
         if (localStorage.getItem('ec_theme') === 'light') document.body.classList.add('light-mode');
@@ -610,6 +703,12 @@
                                     strokeWeight: 2
                                 }
                             });
+                            // Attach click listener for "Done?" overlay
+                            marker.addListener('click', (function(marker, jobId) {
+                                return function() {
+                                    showDoneOverlayForMarker(marker, jobId);
+                                };
+                            })(marker, firstJob.id));
                             mapMarkers[group.jobs[0].id] = marker;
                         }
                     });
@@ -680,6 +779,19 @@
             });
             container.innerHTML = html;
 
+            // Attach click listeners to job items for "Done?" overlay, excluding star and delete
+            container.querySelectorAll('.job-item').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    // Ignore clicks on star or delete icons (they have their own handlers)
+                    if (e.target.closest('.star-icon') || e.target.closest('.delete-icon')) return;
+                    const jobId = this.dataset.id;
+                    if (!jobId) return;
+                    // Check if there's already an overlay; if so, don't add another
+                    if (this.querySelector('.done-overlay')) return;
+                    showDoneOverlayForListItem(this, jobId);
+                });
+            });
+
             // Reinitialize Sortable after rendering
             initSortable();
         }
@@ -720,8 +832,200 @@
                 styles: document.body.classList.contains('light-mode') ? [] : mapStyles
             });
             mainMap = map; // alias
+
+            // ---- Add bullseye button as custom control ----
+            const bullseyeDiv = document.createElement('div');
+            bullseyeDiv.innerHTML = `<button class="bullseye-btn" id="bullseye-btn" aria-label="Track my location">🎯</button>`;
+            const bullseyeBtn = bullseyeDiv.querySelector('#bullseye-btn');
+            map.controls[google.maps.ControlPosition.BOTTOM_RIGHT].push(bullseyeDiv);
+
+            // Toggle tracking on click
+            bullseyeBtn.addEventListener('click', function() {
+                if (isTracking) {
+                    stopTracking();
+                } else {
+                    startTracking();
+                }
+            });
         }
 
+        // ---- Location Tracking ----
+        function startTracking() {
+            if (!navigator.geolocation) {
+                alert("Geolocation not supported by your browser.");
+                return;
+            }
+            const btn = document.getElementById('bullseye-btn');
+            if (btn) btn.classList.add('active');
+            isTracking = true;
+
+            // Watch position
+            locationWatchId = navigator.geolocation.watchPosition(
+                function(pos) {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    const loc = new google.maps.LatLng(lat, lng);
+
+                    // Remove old marker/circle if any
+                    if (userMarker) userMarker.setMap(null);
+                    if (userCircle) userCircle.setMap(null);
+
+                    // Create pulsing circle
+                    userCircle = new google.maps.Circle({
+                        map: map,
+                        center: loc,
+                        radius: 20,
+                        fillColor: '#ff6600',
+                        fillOpacity: 0.5,
+                        strokeColor: '#ff6600',
+                        strokeWeight: 2,
+                        strokeOpacity: 0.8
+                    });
+                    // Animate circle (pulse)
+                    let pulseInterval = setInterval(function() {
+                        if (!userCircle) { clearInterval(pulseInterval); return; }
+                        let rad = userCircle.getRadius();
+                        let newRad = rad + 5;
+                        if (newRad > 40) newRad = 20;
+                        userCircle.setRadius(newRad);
+                        // Also toggle opacity slightly
+                        let op = userCircle.getFillOpacity();
+                        let newOp = (op === 0.5) ? 0.8 : 0.5;
+                        userCircle.setFillOpacity(newOp);
+                    }, 500);
+
+                    // Store interval to clear later
+                    userCircle._pulseInterval = pulseInterval;
+
+                    // Create marker at user location (small dot)
+                    userMarker = new google.maps.Marker({
+                        position: loc,
+                        map: map,
+                        icon: {
+                            path: google.maps.SymbolPath.CIRCLE,
+                            scale: 8,
+                            fillColor: '#ff6600',
+                            fillOpacity: 1,
+                            strokeColor: '#fff',
+                            strokeWeight: 2
+                        }
+                    });
+
+                    // Center map on user
+                    map.panTo(loc);
+                    map.setZoom(15);
+                },
+                function(err) {
+                    console.error("Geolocation error:", err);
+                    alert("Unable to get your location: " + err.message);
+                    stopTracking();
+                },
+                { enableHighAccuracy: true, maximumAge: 10000 }
+            );
+        }
+
+        function stopTracking() {
+            if (locationWatchId) {
+                navigator.geolocation.clearWatch(locationWatchId);
+                locationWatchId = null;
+            }
+            if (userMarker) {
+                userMarker.setMap(null);
+                userMarker = null;
+            }
+            if (userCircle) {
+                if (userCircle._pulseInterval) {
+                    clearInterval(userCircle._pulseInterval);
+                }
+                userCircle.setMap(null);
+                userCircle = null;
+            }
+            isTracking = false;
+            const btn = document.getElementById('bullseye-btn');
+            if (btn) btn.classList.remove('active');
+            // Zoom back to route bounds if any
+            if (optimizedOrder.length > 0 && activePolyline) {
+                const bounds = new google.maps.LatLngBounds();
+                activePolyline.getPath().forEach(p => bounds.extend(p));
+                map.fitBounds(bounds);
+            } else {
+                map.setCenter({ lat: 49.8425, lng: -99.9497 });
+                map.setZoom(12);
+            }
+        }
+
+        // ---------- "DONE?" OVERLAY FOR MARKERS ----------
+        function showDoneOverlayForMarker(marker, jobId) {
+            // Close any existing info window
+            if (activeInfoWindow) {
+                activeInfoWindow.close();
+                activeInfoWindow = null;
+            }
+            // Create info window content
+            const contentDiv = document.createElement('div');
+            contentDiv.id = 'done-infowindow-content';
+            contentDiv.innerHTML = `
+                <button class="done-infowindow-btn" id="done-infowindow-btn">Done?</button>
+            `;
+            const infowindow = new google.maps.InfoWindow({
+                content: contentDiv
+            });
+            infowindow.open(map, marker);
+            activeInfoWindow = infowindow;
+
+            // Handle click on Done button
+            const doneBtn = contentDiv.querySelector('#done-infowindow-btn');
+            doneBtn.addEventListener('click', function() {
+                // Replace button with checkmark animation
+                const checkSvg = `
+                    <svg class="checkmark-svg" viewBox="0 0 60 60">
+                        <path class="checkmark-path" d="M10 30 L25 45 L50 15" />
+                    </svg>
+                `;
+                contentDiv.innerHTML = checkSvg;
+                // After 1.5s, delete job and close infowindow
+                setTimeout(() => {
+                    // Delete job
+                    db.ref(`developer/route_planner/jobs/${jobId}`).remove();
+                    if (activeInfoWindow) {
+                        activeInfoWindow.close();
+                        activeInfoWindow = null;
+                    }
+                }, 1500);
+            });
+        }
+
+        // ---------- "DONE?" OVERLAY FOR LIST ITEMS ----------
+        function showDoneOverlayForListItem(listItem, jobId) {
+            // Create overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'done-overlay';
+            overlay.innerHTML = `
+                <button class="done-btn" id="done-list-btn">Done?</button>
+            `;
+            listItem.style.position = 'relative'; // ensure absolute works
+            listItem.appendChild(overlay);
+
+            // Handle click on Done button
+            const doneBtn = overlay.querySelector('#done-list-btn');
+            doneBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                // Replace button with checkmark
+                const checkSvg = `
+                    <svg class="checkmark-svg" viewBox="0 0 60 60">
+                        <path class="checkmark-path" d="M10 30 L25 45 L50 15" />
+                    </svg>
+                `;
+                overlay.innerHTML = checkSvg;
+                // After 1.5s, delete job and remove overlay
+                setTimeout(() => {
+                    db.ref(`developer/route_planner/jobs/${jobId}`).remove();
+                    // overlay will be removed when job item is removed from DOM
+                }, 1500);
+            });
+        }
+
+        // ---------- MAP FUNCTIONS (continued) ----------
         function openMap() {
             document.getElementById('map-modal').style.display = 'block';
             setTimeout(() => {
