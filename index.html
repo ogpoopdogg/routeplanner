@@ -762,23 +762,17 @@
             }
             const origin = "1604 Moreland Ave, Brandon MB";
             const destination = "1604 Moreland Ave, Brandon MB";
-            const seenLocs = new Set();
-            // Limit to first 25 stops for the external maps link (Google Maps URL limit)
-            const maxStopsForExternal = 25;
-            let stopsAdded = 0;
-            const waypoints = optimizedOrder.map(id => {
-                if (stopsAdded >= maxStopsForExternal) return "";
+            const maxStops = 25;
+            let waypointStrings = [];
+            for (let i = 0; i < Math.min(optimizedOrder.length, maxStops); i++) {
+                const id = optimizedOrder[i];
                 const job = jobs[id];
-                if (!job) return "";
-                // Use pickup_location and city (no business name) for accuracy
+                if (!job) continue;
                 const addr = job.pickup_location;
                 const city = job.city || "Brandon";
-                const key = `${addr}, ${city}`;
-                if (seenLocs.has(key)) return "";
-                seenLocs.add(key);
-                stopsAdded++;
-                return encodeURIComponent(key);
-            }).filter(w => w !== "").join("|");
+                waypointStrings.push(encodeURIComponent(`${addr}, ${city}`));
+            }
+            const waypoints = waypointStrings.join("|");
 
             const userAgent = navigator.userAgent || navigator.vendor || window.opera;
             if (/android/i.test(userAgent)) {
