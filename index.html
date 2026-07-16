@@ -139,6 +139,26 @@
             opacity: 0.4;
             cursor: not-allowed;
         }
+        #nav-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin: 8px 0;
+        }
+        #nav-buttons button {
+            background: var(--active-green);
+            color: #000;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+        }
+        #nav-buttons button.stop-nav {
+            background: #b71c1c;
+            color: #fff;
+        }
 
         .primary { padding: 14px 16px; background: var(--btn-bg, #374151); color: var(--text); font-weight: 700; border: 1px solid var(--border); border-bottom: 3px solid var(--accent); cursor: pointer; border-radius: 8px; text-transform: uppercase; }
         .btn-add { background: var(--active-green); color: #000; border: none; padding: 14px 24px; font-weight: 700; border-radius: 8px; cursor: pointer; text-transform: uppercase; }
@@ -273,6 +293,10 @@
                 <button id="toggle-directions-btn">▲</button>
             </div>
             <div id="directions-content">
+                <div id="nav-buttons">
+                    <button id="start-nav-btn" onclick="startNavigation()">▶ Start Navigation</button>
+                    <button id="stop-nav-btn" class="stop-nav" onclick="stopNavigation()" style="display:none;">⏹ Stop</button>
+                </div>
                 <div id="steps-list"></div>
                 <div class="nav-controls">
                     <button id="prev-step-btn" onclick="prevStep()" disabled>◀ Previous</button>
@@ -320,6 +344,11 @@
         let allSteps = [];
         let currentStepIndex = 0;
         let stepMarkers = [];
+
+        // Navigation globals
+        let userMarker = null;
+        let watchId = null;
+        let isNavigating = false;
 
         // Theme handling (copied from command.html)
         if (localStorage.getItem('ec_theme') === 'light') document.body.classList.add('light-mode');
@@ -477,6 +506,7 @@
                 etaTotalKm = 0;
                 allSteps = [];
                 document.getElementById('steps-list').innerHTML = '';
+                stopNavigation(); // also stop navigation if active
             }
         }
 
@@ -811,6 +841,129 @@
             }
         }
 
+        // ---------- NAVIGATION FUNCTIONS ----------
+        function startNavigation() {
+            if (!navigator.geolocation) {
+                alert("Geolocation is not supported by your browser.");
+                return;
+            }
+            if (!allSteps || allSteps.length === 0) {
+                alert("No route directions available. Please ensure you have stops added.");
+                return;
+            }
+            isNavigating = true;
+            document.getElementById('start-nav-btn').style.display = 'none';
+            document.getElementById('stop-nav-btn').style.display = 'block';
+
+            // Create user marker if not exists
+            if (!userMarker) {
+                userMarker = new google.maps.Marker({
+                    position: { lat: 49.8425, lng: -99.9497 },
+                    map: map,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 10,
+                        fillColor: '#4285F4',
+                        fillOpacity: 1,
+                        strokeColor: '#FFFFFF',
+                        strokeWeight: 2
+                    },
+                    title: 'Your Location'
+                });
+            }
+
+            // Start watching position
+            watchId = navigator.geolocation.watchPosition(
+                updateNavigationPosition,
+                (err) => {
+                    console.warn("Geolocation error:", err);
+                    alert("Unable to get your location. Please enable GPS and try again.");
+                    stopNavigation();
+                },
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+            );
+        }
+
+        function stopNavigation() {
+            isNavigating = false;
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+            if (userMarker) {
+                userMarker.setMap(null);
+                userMarker = null;
+            }
+            document.getElementById('start-nav-btn').style.display = 'block';
+            document.getElementById('stop-nav-btn').style.display = 'none';
+            // Reset map view to show full route
+            if (activePolyline) {
+                const bounds = new google.maps.LatLngBounds();
+                activePolyline.getPath().forEach(p => bounds.extend(p));
+                map.fitBounds(bounds);
+            }
+        }
+
+        function updateNavigationPosition(position) {
+            if (!map || !userMarker) return;
+            const pos = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+            };
+            userMarker.setPosition(pos);
+            // Center map on user
+            map.panTo(pos);
+            // Check which step we are closest to
+            if (allSteps && allSteps.length > 0) {
+                let closestIndex = 0;
+                let closestDist = Infinity;
+                allSteps.forEach((step, idx) => {
+                    if (step.startLocation) {
+                        const stepPos = { lat: step.startLocation.latitude, lng: step.startLocation.longitude };
+                        const dist = google.maps.geometry.spherical.computeDistanceBetween(
+                            new google.maps.LatLng(pos.lat, pos.lng),
+                            new google.maps.LatLng(stepPos.lat, stepPos.lng)
+                        );
+                        if (dist < closestDist) {
+                            closestDist = dist;
+                            closestIndex = idx;
+                        }
+                    }
+                });
+                // If we are within 50 meters of the next step, advance
+                if (closestIndex > currentStepIndex && closestDist < 50) {
+                    currentStepIndex = closestIndex;
+                    renderDirections();
+                }
+                // If we are past the current step by a margin, move forward
+                if (currentStepIndex < allSteps.length - 1) {
+                    const nextStepPos = allSteps[currentStepIndex + 1].startLocation;
+                    if (nextStepPos) {
+                        const distToNext = google.maps.geometry.spherical.computeDistanceBetween(
+                            new google.maps.LatLng(pos.lat, pos.lng),
+                            new google.maps.LatLng(nextStepPos.latitude, nextStepPos.longitude)
+                        );
+                        if (distToNext < 30) {
+                            currentStepIndex++;
+                            renderDirections();
+                        }
+                    }
+                }
+                // Also check if we are very far from current step, maybe we missed it, jump to closest
+                const currentStepPos = allSteps[currentStepIndex].startLocation;
+                if (currentStepPos) {
+                    const distCurrent = google.maps.geometry.spherical.computeDistanceBetween(
+                        new google.maps.LatLng(pos.lat, pos.lng),
+                        new google.maps.LatLng(currentStepPos.latitude, currentStepPos.longitude)
+                    );
+                    if (distCurrent > 100 && closestIndex > currentStepIndex) {
+                        currentStepIndex = closestIndex;
+                        renderDirections();
+                    }
+                }
+            }
+        }
+
         // ---------- RENDER JOB LIST ----------
         function renderList() {
             const container = document.getElementById('job-list');
@@ -913,6 +1066,8 @@
 
         function closeMap() {
             document.getElementById('map-modal').style.display = 'none';
+            // Stop navigation if active when closing map
+            if (isNavigating) stopNavigation();
         }
 
         function zoomToAll() {
