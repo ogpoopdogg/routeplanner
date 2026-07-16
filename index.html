@@ -49,117 +49,6 @@
         #zoom-out-btn { top: 70px; background: #448800; }
         #reset-driver-view-btn { position: absolute; bottom: 20px; left: 20px; z-index: 3005; background: #222; color: #fff; border: 1px solid #fff; border-radius: 6px; padding: 8px 12px; font-weight: 700; cursor: pointer; display: none; }
 
-        /* Directions panel styles */
-        #directions-panel {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: var(--card);
-            color: var(--text);
-            max-height: 45vh;
-            overflow-y: auto;
-            padding: 10px 16px;
-            border-top: 2px solid var(--accent);
-            z-index: 3010;
-            transition: max-height 0.3s ease;
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
-        }
-        #directions-panel.collapsed {
-            max-height: 40px;
-            overflow: hidden;
-            cursor: pointer;
-        }
-        #directions-panel .panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--border);
-            margin-bottom: 8px;
-        }
-        #directions-panel .panel-header h4 {
-            margin: 0;
-            color: var(--accent);
-        }
-        #directions-panel .panel-header button {
-            background: none;
-            border: none;
-            color: var(--text);
-            font-size: 20px;
-            cursor: pointer;
-        }
-        .step-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--border);
-            font-size: 14px;
-        }
-        .step-item .step-number {
-            font-weight: 700;
-            color: var(--accent);
-            min-width: 28px;
-        }
-        .step-item .step-instruction {
-            flex: 1;
-        }
-        .step-item .step-detail {
-            font-size: 12px;
-            color: #aaa;
-            margin-top: 4px;
-        }
-        .step-item.active-step {
-            background: var(--accent);
-            color: #000;
-            border-radius: 6px;
-            padding: 8px 12px;
-        }
-        .step-item.active-step .step-detail {
-            color: #333;
-        }
-        .nav-controls {
-            display: flex;
-            gap: 12px;
-            margin: 12px 0;
-            justify-content: center;
-        }
-        .nav-controls button {
-            background: var(--accent);
-            color: #000;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 6px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-        .nav-controls button:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-        #nav-buttons {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            margin: 8px 0;
-        }
-        #nav-buttons button {
-            background: var(--active-green);
-            color: #000;
-            border: none;
-            padding: 10px 24px;
-            border-radius: 8px;
-            font-weight: 700;
-            cursor: pointer;
-            width: 100%;
-        }
-        #nav-buttons button.stop-nav {
-            background: #b71c1c;
-            color: #fff;
-        }
-
         .primary { padding: 14px 16px; background: var(--btn-bg, #374151); color: var(--text); font-weight: 700; border: 1px solid var(--border); border-bottom: 3px solid var(--accent); cursor: pointer; border-radius: 8px; text-transform: uppercase; }
         .btn-add { background: var(--active-green); color: #000; border: none; padding: 14px 24px; font-weight: 700; border-radius: 8px; cursor: pointer; text-transform: uppercase; }
         .btn-clear { background: #b71c1c; color: #fff; border: none; padding: 8px 16px; font-weight: 700; border-radius: 4px; cursor: pointer; text-transform: uppercase; font-size: 12px; }
@@ -212,7 +101,6 @@
         @media (max-width: 768px) {
             header { padding: 8px 12px; }
             .header-logo { height: 20px; }
-            #directions-panel { max-height: 50vh; }
         }
     </style>
 </head>
@@ -280,30 +168,12 @@
         </div>
     </div>
 
-    <!-- Map Modal -->
+    <!-- Map Modal (exact from command.html) -->
     <div id="map-modal">
         <button id="close-map-btn" class="close-map" onclick="closeMap()">CLOSE MAP</button>
         <button id="zoom-out-btn" class="close-map" onclick="zoomToAll()" style="top:70px; background:#448800;">ZOOM OUT</button>
         <button id="reset-driver-view-btn" onclick="resetMapView()" style="display:none;">← BACK</button>
         <div id="map"></div>
-        <!-- Directions Panel -->
-        <div id="directions-panel" class="collapsed">
-            <div class="panel-header" onclick="toggleDirectionsPanel()">
-                <h4>📍 Turn-by-Turn</h4>
-                <button id="toggle-directions-btn">▲</button>
-            </div>
-            <div id="directions-content">
-                <div id="nav-buttons">
-                    <button id="start-nav-btn" onclick="startNavigation()">▶ Start Navigation</button>
-                    <button id="stop-nav-btn" class="stop-nav" onclick="stopNavigation()" style="display:none;">⏹ Stop</button>
-                </div>
-                <div id="steps-list"></div>
-                <div class="nav-controls">
-                    <button id="prev-step-btn" onclick="prevStep()" disabled>◀ Previous</button>
-                    <button id="next-step-btn" onclick="nextStep()">Next ▶</button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Install App Button -->
@@ -340,16 +210,6 @@
         let etaTotalMinutes = 0;
         let etaTotalKm = 0;
 
-        // Directions related globals
-        let allSteps = [];
-        let currentStepIndex = 0;
-        let stepMarkers = [];
-
-        // Navigation globals
-        let userMarker = null;
-        let watchId = null;
-        let isNavigating = false;
-
         // Theme handling (copied from command.html)
         if (localStorage.getItem('ec_theme') === 'light') document.body.classList.add('light-mode');
         function toggleTheme() {
@@ -379,6 +239,7 @@
                     if (snap.val() === true) {
                         currentUser = username;
                         document.getElementById('login-overlay').style.display = 'none';
+                        // Removed user-display line
                         initApp();
                     } else {
                         alert("ACCESS DENIED");
@@ -393,15 +254,22 @@
 
         // ---------- DATA LISTENERS (under /developer/route_planner) ----------
         function initApp() {
+            // Listen for address_lookup (shared data, no change)
             db.ref('address_lookup').on('value', snap => { addressData = snap.val() || {}; });
+
+            // Listen for jobs under developer/route_planner/jobs
             db.ref('developer/route_planner/jobs').on('value', snap => {
                 jobs = snap.val() || {};
-                updateRoute();
+                updateRoute();  // Re-optimize and render
             });
+
+            // Listen for manual order
             db.ref('developer/route_planner/manual_order').on('value', snap => {
                 manualOrder = snap.val() || [];
-                updateRoute();
+                updateRoute();  // Re-optimize with new order
             });
+
+            // Initialize Places Autocomplete on address field
             initPlaces();
         }
 
@@ -438,6 +306,7 @@
             document.getElementById('f-city').value = '';
         }
 
+        // Google Places Autocomplete (copied from command.html)
         function initPlaces() {
             const addressInput = document.getElementById('f-address');
             if (!addressInput) return;
@@ -450,6 +319,7 @@
             autocompleteAddress.addListener('place_changed', () => {
                 const place = autocompleteAddress.getPlace();
                 if (!place.address_components) return;
+                // Extract city
                 for (let comp of place.address_components) {
                     if (comp.types.includes('locality')) {
                         document.getElementById('f-city').value = comp.long_name;
@@ -477,8 +347,10 @@
                 created_by: currentUser,
                 manual_priority: false
             };
+            // Push job to Firebase
             const newJobRef = db.ref('developer/route_planner/jobs').push();
             newJobRef.set(newJob).then(() => {
+                // After job is saved, update address_lookup
                 const sanitizedKey = name.replace(/[.#$\[\]\/]/g, "").trim();
                 const updateObj = {
                     address: address,
@@ -504,21 +376,20 @@
                 document.getElementById('stop-counter').style.display = 'none';
                 etaTotalMinutes = 0;
                 etaTotalKm = 0;
-                allSteps = [];
-                document.getElementById('steps-list').innerHTML = '';
-                stopNavigation(); // also stop navigation if active
             }
         }
 
         function togglePriority(id, current) {
             const newVal = !current;
             db.ref(`developer/route_planner/jobs/${id}/manual_priority`).set(newVal);
+            // No need to update manualOrder here; the route will reorder based on flags and existing manualOrder.
         }
 
         // ---------- ROUTE OPTIMIZATION (adapted from driver.html's updateRoute) ----------
         async function updateRoute() {
             if (!jobs) return;
 
+            // Filter only pending_pickup jobs (all jobs in this app)
             const pendingJobs = Object.entries(jobs)
                 .filter(([id, job]) => job.status === 'pending_pickup')
                 .map(([id, job]) => ({ id, ...job }));
@@ -529,6 +400,7 @@
                 if (activePolyline) activePolyline.setMap(null);
                 if (mapMarkers) Object.values(mapMarkers).forEach(m => m.setMap(null));
                 mapMarkers = {};
+                // Remove glow from map button
                 const mapBtn = document.getElementById('map-btn');
                 if (mapBtn) mapBtn.classList.remove('map-btn-glow');
                 document.getElementById('eta-display').style.display = 'none';
@@ -536,8 +408,6 @@
                 document.getElementById('stop-counter').style.display = 'none';
                 etaTotalMinutes = 0;
                 etaTotalKm = 0;
-                allSteps = [];
-                document.getElementById('steps-list').innerHTML = '';
                 return;
             }
 
@@ -553,7 +423,7 @@
             });
             groupMap.forEach(group => groups.push(group));
 
-            // Separate priority groups
+            // Separate priority groups (any job in group has manual_priority true)
             const priorityGroups = [];
             const normalGroups = [];
             groups.forEach(group => {
@@ -561,6 +431,7 @@
                 else normalGroups.push(group);
             });
 
+            // Sort priority groups by their order in manualOrder
             priorityGroups.sort((a, b) => {
                 const aId = a.jobs[0].id;
                 const bId = b.jobs[0].id;
@@ -571,13 +442,17 @@
 
             let orderedNormalGroups = normalGroups;
             if (normalGroups.length > 1) {
+                // Determine origin for normal group optimization
+                // If there are priority groups, start from the last priority group's address; otherwise start from depot
                 let originAddress;
                 if (priorityGroups.length > 0) {
+                    // Last priority group's address
                     originAddress = priorityGroups[priorityGroups.length - 1].addrString;
                 } else {
-                    originAddress = "1604 Moreland Ave, Brandon MB";
+                    originAddress = "1604 Moreland Ave, Brandon MB"; // depot
                 }
-                const destinationAddress = "1604 Moreland Ave, Brandon MB";
+                const destinationAddress = "1604 Moreland Ave, Brandon MB"; // depot
+
                 try {
                     const origin = { address: originAddress };
                     const destination = { address: destinationAddress };
@@ -609,13 +484,13 @@
 
             const finalGroups = priorityGroups.concat(orderedNormalGroups);
 
-            // Build optimizedOrder
+            // Build optimizedOrder from finalGroups
             optimizedOrder = [];
             finalGroups.forEach(group => {
                 group.jobs.forEach(job => optimizedOrder.push(job.id));
             });
 
-            // Now compute full route with segmentation for >25 stops and get steps
+            // Now compute full route with segmentation for >25 stops
             try {
                 const depotAddress = "1604 Moreland Ave, Brandon MB";
                 const maxIntermediates = 25;
@@ -642,7 +517,6 @@
                 let totalDistanceMeters = 0;
                 let allLegs = [];
                 let combinedPath = [];
-                let allStepsTemp = [];
 
                 for (let seg of segments) {
                     const origin = { address: seg.originAddr };
@@ -660,7 +534,7 @@
                         headers: {
                             "Content-Type": "application/json",
                             "X-Goog-Api-Key": "AIzaSyA6umETP8wBUEV41ugAtiNiChUeLmmwmZI",
-                            "X-Goog-FieldMask": "routes.duration,routes.polyline.encodedPolyline,routes.legs,routes.distanceMeters,routes.legs.steps"
+                            "X-Goog-FieldMask": "routes.duration,routes.polyline.encodedPolyline,routes.legs,routes.distanceMeters"
                         },
                         body: JSON.stringify(requestBody)
                     });
@@ -681,18 +555,6 @@
                                 if (leg && leg.endLocation) {
                                     allLegs.push({ group: seg.segmentGroups[i], leg: leg });
                                 }
-                                // Extract steps from this leg
-                                if (leg && leg.steps) {
-                                    for (let step of leg.steps) {
-                                        allStepsTemp.push({
-                                            instruction: step.navigationInstruction ? step.navigationInstruction.instructions : (step.html_instructions || 'Continue'),
-                                            distance: step.distanceMeters ? (parseFloat(step.distanceMeters) / 1000).toFixed(1) + ' km' : '',
-                                            duration: step.staticDuration ? step.staticDuration.replace('s', '') + 's' : '',
-                                            startLocation: step.startLocation ? step.startLocation.latLng : null,
-                                            endLocation: step.endLocation ? step.endLocation.latLng : null
-                                        });
-                                    }
-                                }
                             }
                         }
                     } else {
@@ -702,11 +564,6 @@
 
                 etaTotalMinutes = totalDurationSeconds / 60;
                 etaTotalKm = totalDistanceMeters / 1000;
-
-                // Store steps globally
-                allSteps = allStepsTemp;
-                currentStepIndex = 0;
-                renderDirections();
 
                 // Draw polyline
                 if (map && combinedPath.length > 0) {
@@ -721,7 +578,7 @@
                     });
                 }
 
-                // Create markers
+                // Create markers from allLegs
                 if (map) {
                     Object.values(mapMarkers).forEach(m => m.setMap(null));
                     mapMarkers = {};
@@ -760,15 +617,16 @@
 
             } catch (e) {
                 console.error("Route fetch error", e);
+                // Fallback: just use the finalGroups order without polyline
                 optimizedOrder = [];
                 finalGroups.forEach(group => group.jobs.forEach(job => optimizedOrder.push(job.id)));
                 etaTotalMinutes = 0;
                 etaTotalKm = 0;
-                allSteps = [];
             }
 
             renderList();
 
+            // Add glow to map button if there are jobs
             const mapBtn = document.getElementById('map-btn');
             if (mapBtn) {
                 if (optimizedOrder.length > 0) {
@@ -778,193 +636,11 @@
                 }
             }
 
+            // Update ETA display
             updateETADisplay();
         }
 
-        // ---------- RENDER DIRECTIONS ----------
-        function renderDirections() {
-            const stepsList = document.getElementById('steps-list');
-            if (!stepsList) return;
-            if (!allSteps || allSteps.length === 0) {
-                stepsList.innerHTML = '<div style="padding:12px;text-align:center;color:#aaa;">No directions available</div>';
-                return;
-            }
-            let html = '';
-            allSteps.forEach((step, idx) => {
-                const activeClass = (idx === currentStepIndex) ? 'active-step' : '';
-                html += `
-                    <div class="step-item ${activeClass}" data-index="${idx}">
-                        <div class="step-number">${idx+1}</div>
-                        <div class="step-instruction">
-                            <div>${step.instruction}</div>
-                            <div class="step-detail">${step.distance} ${step.duration ? '· '+step.duration : ''}</div>
-                        </div>
-                    </div>
-                `;
-            });
-            stepsList.innerHTML = html;
-            // Update nav buttons
-            document.getElementById('prev-step-btn').disabled = (currentStepIndex === 0);
-            document.getElementById('next-step-btn').disabled = (currentStepIndex >= allSteps.length - 1);
-            // Scroll to active step
-            const activeEl = stepsList.querySelector('.active-step');
-            if (activeEl) {
-                activeEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
-            }
-            // Update map marker highlight? We'll just center on step start location if available.
-            if (allSteps[currentStepIndex] && allSteps[currentStepIndex].startLocation) {
-                const loc = allSteps[currentStepIndex].startLocation;
-                if (map && loc) {
-                    map.panTo({ lat: loc.latitude, lng: loc.longitude });
-                }
-            }
-        }
-
-        function toggleDirectionsPanel() {
-            const panel = document.getElementById('directions-panel');
-            panel.classList.toggle('collapsed');
-            const btn = document.getElementById('toggle-directions-btn');
-            btn.textContent = panel.classList.contains('collapsed') ? '▲' : '▼';
-        }
-
-        function nextStep() {
-            if (currentStepIndex < allSteps.length - 1) {
-                currentStepIndex++;
-                renderDirections();
-            }
-        }
-
-        function prevStep() {
-            if (currentStepIndex > 0) {
-                currentStepIndex--;
-                renderDirections();
-            }
-        }
-
-        // ---------- NAVIGATION FUNCTIONS ----------
-        function startNavigation() {
-            if (!navigator.geolocation) {
-                alert("Geolocation is not supported by your browser.");
-                return;
-            }
-            if (!allSteps || allSteps.length === 0) {
-                alert("No route directions available. Please ensure you have stops added.");
-                return;
-            }
-            isNavigating = true;
-            document.getElementById('start-nav-btn').style.display = 'none';
-            document.getElementById('stop-nav-btn').style.display = 'block';
-
-            // Create user marker if not exists
-            if (!userMarker) {
-                userMarker = new google.maps.Marker({
-                    position: { lat: 49.8425, lng: -99.9497 },
-                    map: map,
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: 10,
-                        fillColor: '#4285F4',
-                        fillOpacity: 1,
-                        strokeColor: '#FFFFFF',
-                        strokeWeight: 2
-                    },
-                    title: 'Your Location'
-                });
-            }
-
-            // Start watching position
-            watchId = navigator.geolocation.watchPosition(
-                updateNavigationPosition,
-                (err) => {
-                    console.warn("Geolocation error:", err);
-                    alert("Unable to get your location. Please enable GPS and try again.");
-                    stopNavigation();
-                },
-                { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
-            );
-        }
-
-        function stopNavigation() {
-            isNavigating = false;
-            if (watchId) {
-                navigator.geolocation.clearWatch(watchId);
-                watchId = null;
-            }
-            if (userMarker) {
-                userMarker.setMap(null);
-                userMarker = null;
-            }
-            document.getElementById('start-nav-btn').style.display = 'block';
-            document.getElementById('stop-nav-btn').style.display = 'none';
-            // Reset map view to show full route
-            if (activePolyline) {
-                const bounds = new google.maps.LatLngBounds();
-                activePolyline.getPath().forEach(p => bounds.extend(p));
-                map.fitBounds(bounds);
-            }
-        }
-
-        function updateNavigationPosition(position) {
-            if (!map || !userMarker) return;
-            const pos = {
-                lat: position.coords.latitude,
-                lng: position.coords.longitude
-            };
-            userMarker.setPosition(pos);
-            // Center map on user
-            map.panTo(pos);
-            // Check which step we are closest to
-            if (allSteps && allSteps.length > 0) {
-                let closestIndex = 0;
-                let closestDist = Infinity;
-                allSteps.forEach((step, idx) => {
-                    if (step.startLocation) {
-                        const stepPos = { lat: step.startLocation.latitude, lng: step.startLocation.longitude };
-                        const dist = google.maps.geometry.spherical.computeDistanceBetween(
-                            new google.maps.LatLng(pos.lat, pos.lng),
-                            new google.maps.LatLng(stepPos.lat, stepPos.lng)
-                        );
-                        if (dist < closestDist) {
-                            closestDist = dist;
-                            closestIndex = idx;
-                        }
-                    }
-                });
-                // If we are within 50 meters of the next step, advance
-                if (closestIndex > currentStepIndex && closestDist < 50) {
-                    currentStepIndex = closestIndex;
-                    renderDirections();
-                }
-                // If we are past the current step by a margin, move forward
-                if (currentStepIndex < allSteps.length - 1) {
-                    const nextStepPos = allSteps[currentStepIndex + 1].startLocation;
-                    if (nextStepPos) {
-                        const distToNext = google.maps.geometry.spherical.computeDistanceBetween(
-                            new google.maps.LatLng(pos.lat, pos.lng),
-                            new google.maps.LatLng(nextStepPos.latitude, nextStepPos.longitude)
-                        );
-                        if (distToNext < 30) {
-                            currentStepIndex++;
-                            renderDirections();
-                        }
-                    }
-                }
-                // Also check if we are very far from current step, maybe we missed it, jump to closest
-                const currentStepPos = allSteps[currentStepIndex].startLocation;
-                if (currentStepPos) {
-                    const distCurrent = google.maps.geometry.spherical.computeDistanceBetween(
-                        new google.maps.LatLng(pos.lat, pos.lng),
-                        new google.maps.LatLng(currentStepPos.latitude, currentStepPos.longitude)
-                    );
-                    if (distCurrent > 100 && closestIndex > currentStepIndex) {
-                        currentStepIndex = closestIndex;
-                        renderDirections();
-                    }
-                }
-            }
-        }
-
-        // ---------- RENDER JOB LIST ----------
+        // ---------- RENDER JOB LIST (simplified from driver.html) ----------
         function renderList() {
             const container = document.getElementById('job-list');
             const emptyState = document.getElementById('empty-state');
@@ -976,6 +652,7 @@
                 return;
             }
             emptyState.style.display = 'none';
+            // Update counter
             counter.textContent = optimizedOrder.length;
             counter.style.display = 'inline-block';
 
@@ -1002,10 +679,12 @@
                 `;
             });
             container.innerHTML = html;
+
+            // Reinitialize Sortable after rendering
             initSortable();
         }
 
-        // ---------- SORTABLE ----------
+        // ---------- SORTABLE (drag & drop) ----------
         let sortableInstance;
         function initSortable() {
             if (sortableInstance) sortableInstance.destroy();
@@ -1017,9 +696,12 @@
                 draggable: '.job-item',
                 ghostClass: 'sortable-ghost',
                 onEnd: function(evt) {
+                    // Get new order from DOM
                     const items = list.querySelectorAll('.job-item');
                     const newOrder = Array.from(items).map(item => item.dataset.id);
+                    // Update manualOrder in Firebase
                     db.ref('developer/route_planner/manual_order').set(newOrder);
+                    // For the dragged item, set manual_priority to true (like driver.html)
                     const draggedId = evt.item.dataset.id;
                     if (draggedId) {
                         db.ref(`developer/route_planner/jobs/${draggedId}/manual_priority`).set(true);
@@ -1028,7 +710,7 @@
             });
         }
 
-        // ---------- MAP FUNCTIONS ----------
+        // ---------- MAP FUNCTIONS (from command.html) ----------
         function initMap() {
             if (!google.maps) return;
             map = new google.maps.Map(document.getElementById('map'), {
@@ -1037,20 +719,11 @@
                 gestureHandling: 'greedy',
                 styles: document.body.classList.contains('light-mode') ? [] : mapStyles
             });
-            mainMap = map;
+            mainMap = map; // alias
         }
 
         function openMap() {
             document.getElementById('map-modal').style.display = 'block';
-            // Show directions panel if steps exist
-            if (allSteps && allSteps.length > 0) {
-                document.getElementById('directions-panel').classList.remove('collapsed');
-                document.getElementById('toggle-directions-btn').textContent = '▼';
-                renderDirections();
-            } else {
-                document.getElementById('directions-panel').classList.add('collapsed');
-                document.getElementById('toggle-directions-btn').textContent = '▲';
-            }
             setTimeout(() => {
                 google.maps.event.trigger(map, 'resize');
                 if (optimizedOrder.length > 0 && activePolyline) {
@@ -1066,8 +739,6 @@
 
         function closeMap() {
             document.getElementById('map-modal').style.display = 'none';
-            // Stop navigation if active when closing map
-            if (isNavigating) stopNavigation();
         }
 
         function zoomToAll() {
@@ -1079,10 +750,11 @@
         }
 
         function resetMapView() {
+            // Similar to resetDriverView but without driver
             zoomToAll();
         }
 
-        // ---------- EXTERNAL ROUTE NAVIGATION (limited to 10 stops) ----------
+        // ---------- EXTERNAL ROUTE NAVIGATION (similar to driver.html) ----------
         function openExternalRoute() {
             if (optimizedOrder.length === 0) {
                 alert("No stops to route.");
@@ -1090,17 +762,23 @@
             }
             const origin = "1604 Moreland Ave, Brandon MB";
             const destination = "1604 Moreland Ave, Brandon MB";
-            const maxStops = 10; // Google Maps URL limit
-            let waypointStrings = [];
-            for (let i = 0; i < Math.min(optimizedOrder.length, maxStops); i++) {
-                const id = optimizedOrder[i];
+            const seenLocs = new Set();
+            // Limit to first 25 stops for the external maps link (Google Maps URL limit)
+            const maxStopsForExternal = 25;
+            let stopsAdded = 0;
+            const waypoints = optimizedOrder.map(id => {
+                if (stopsAdded >= maxStopsForExternal) return "";
                 const job = jobs[id];
-                if (!job) continue;
+                if (!job) return "";
+                // Use pickup_location and city (no business name) for accuracy
                 const addr = job.pickup_location;
                 const city = job.city || "Brandon";
-                waypointStrings.push(encodeURIComponent(`${addr}, ${city}`));
-            }
-            const waypoints = waypointStrings.join("|");
+                const key = `${addr}, ${city}`;
+                if (seenLocs.has(key)) return "";
+                seenLocs.add(key);
+                stopsAdded++;
+                return encodeURIComponent(key);
+            }).filter(w => w !== "").join("|");
 
             const userAgent = navigator.userAgent || navigator.vendor || window.opera;
             if (/android/i.test(userAgent)) {
@@ -1110,6 +788,89 @@
             } else {
                 window.open(`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&waypoints=${waypoints}&travelmode=driving`, '_blank');
             }
+        }
+
+        // ---------- ETA CALCULATION (kept for reference, but not used) ----------
+        function calculateETA() {
+            // This function is no longer called by a button, but kept for potential use.
+            if (!optimizedOrder || optimizedOrder.length === 0) {
+                alert("No stops to calculate ETA.");
+                return;
+            }
+            // Group jobs by address (like in updateRoute)
+            const pendingJobs = Object.entries(jobs)
+                .filter(([id, job]) => job.status === 'pending_pickup')
+                .map(([id, job]) => ({ id, ...job }));
+            // Group by address+city
+            const groupMap = new Map();
+            pendingJobs.forEach(job => {
+                const key = `${job.pickup_location}, ${job.city}`.toLowerCase();
+                if (!groupMap.has(key)) {
+                    groupMap.set(key, { key, jobs: [], addrString: `${job.pickup_location}, ${job.city}` });
+                }
+                groupMap.get(key).jobs.push(job);
+            });
+            const groups = Array.from(groupMap.values());
+            // Order groups based on optimizedOrder
+            const jobIdToGroup = {};
+            groups.forEach(group => {
+                group.jobs.forEach(job => jobIdToGroup[job.id] = group);
+            });
+            const orderedGroups = [];
+            const seenGroups = new Set();
+            optimizedOrder.forEach(id => {
+                const group = jobIdToGroup[id];
+                if (group && !seenGroups.has(group.key)) {
+                    seenGroups.add(group.key);
+                    orderedGroups.push(group);
+                }
+            });
+
+            const origin = "1604 Moreland Ave, Brandon MB";
+            const destination = "1604 Moreland Ave, Brandon MB";
+            const waypoints = orderedGroups.map(g => ({ address: g.addrString }));
+
+            fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Goog-Api-Key": "AIzaSyA6umETP8wBUEV41ugAtiNiChUeLmmwmZI",
+                    "X-Goog-FieldMask": "routes.duration,routes.distanceMeters,routes.legs.duration,routes.legs.distanceMeters"
+                },
+                body: JSON.stringify({
+                    origin: { address: origin },
+                    destination: { address: destination },
+                    intermediates: waypoints,
+                    travelMode: "DRIVE",
+                    optimizeWaypointOrder: false
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.routes && data.routes[0]) {
+                    const route = data.routes[0];
+                    let totalDurationSeconds = 0;
+                    let totalDistanceMeters = 0;
+                    if (route.legs) {
+                        route.legs.forEach(leg => {
+                            totalDurationSeconds += parseFloat(leg.duration.replace('s', ''));
+                            totalDistanceMeters += parseFloat(leg.distanceMeters);
+                        });
+                    } else {
+                        totalDurationSeconds = parseFloat(route.duration.replace('s', ''));
+                        totalDistanceMeters = parseFloat(route.distanceMeters);
+                    }
+                    etaTotalMinutes = totalDurationSeconds / 60;
+                    etaTotalKm = totalDistanceMeters / 1000;
+                    updateETADisplay();
+                } else {
+                    alert("Could not calculate route.");
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Error calculating ETA.");
+            });
         }
 
         // ---------- UPDATE ETA DISPLAY ----------
@@ -1124,6 +885,7 @@
                 display.classList.remove('eta-glow');
                 return;
             }
+            // Format time
             const totalMinutes = etaTotalMinutes;
             const hours = Math.floor(totalMinutes / 60);
             const mins = Math.round(totalMinutes % 60);
@@ -1131,6 +893,7 @@
             if (hours > 0) timeStr += hours + 'h ';
             timeStr += mins + 'm';
             etaTime.textContent = timeStr;
+            // Adjusted time
             const stops = optimizedOrder.length;
             const adjustedMinutes = totalMinutes + 3 * stops;
             const adjHours = Math.floor(adjustedMinutes / 60);
@@ -1140,6 +903,7 @@
             adjStr += adjMins + 'm';
             etaAdjustedTime.textContent = adjStr;
             etaAdjusted.style.display = 'inline';
+            // Distance
             etaDistance.textContent = etaTotalKm.toFixed(1);
             display.style.display = 'block';
             display.classList.add('eta-glow');
@@ -1161,6 +925,7 @@
             }
         });
 
+        // ---------- UTILS ----------
         function formatTime12(ts) { /* not used but kept for consistency */ }
     </script>
 </body>
