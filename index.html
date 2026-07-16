@@ -162,7 +162,7 @@
             to { stroke-dashoffset: 0; }
         }
 
-        /* InfoWindow button style */
+        /* InfoWindow button style - modified to transparent background */
         .done-infowindow-btn {
             border: 3px solid #00aa00;
             padding: 8px 20px;
@@ -170,18 +170,25 @@
             font-weight: bold;
             font-size: 16px;
             cursor: pointer;
-            background: #fff;
+            background: transparent;
             color: #000;
             display: inline-block;
         }
         .done-infowindow-btn:active {
-            background: #e0e0e0;
+            background: rgba(0,0,0,0.1);
         }
         .gm-style .gm-style-iw-c {
             padding: 10px !important;
+            background: transparent !important;
+            box-shadow: none !important;
         }
         .gm-style .gm-style-iw-d {
             overflow: hidden !important;
+            background: transparent !important;
+        }
+        /* Hide the default close button (x) */
+        .gm-style-iw button[title="Close"] {
+            display: none !important;
         }
 
         @media (max-width: 768px) {
@@ -209,6 +216,7 @@
     </div>
     <div style="display: flex; align-items: center; gap: 6px; margin-left: auto;">
         <button id="route-btn" class="map-btn" onclick="openExternalRoute()" aria-label="Route"><svg viewBox="0 0 24 24" width="20" height="20" stroke="white" fill="none" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></button>
+        <button id="share-btn" class="map-btn" onclick="shareRoute()" aria-label="Share"><svg viewBox="0 0 24 24" width="20" height="20" stroke="white" fill="none" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
         <button id="map-btn" class="map-btn" onclick="openMap()" aria-label="Map" style="background: url('//mt.google.com/vt/lyrs=m&x=235&y=348&z=10') center/cover; border: 1px solid #fff;"></button>
     </div>
 </header>
@@ -968,15 +976,36 @@
                 <button class="done-infowindow-btn" id="done-infowindow-btn">Done?</button>
             `;
             const infowindow = new google.maps.InfoWindow({
-                content: contentDiv
+                content: contentDiv,
+                disableAutoPan: false
             });
             infowindow.open(map, marker);
             activeInfoWindow = infowindow;
 
+            // Modify InfoWindow container after open
+            google.maps.event.addListener(infowindow, 'domready', function() {
+                // Get the InfoWindow container
+                const iwContainer = document.querySelector('.gm-style-iw');
+                if (iwContainer) {
+                    // Remove background and box-shadow
+                    iwContainer.style.background = 'transparent';
+                    iwContainer.style.boxShadow = 'none';
+                    // Remove padding from parent
+                    const parent = iwContainer.parentElement;
+                    if (parent) {
+                        parent.style.background = 'transparent';
+                        parent.style.boxShadow = 'none';
+                    }
+                }
+                // Also ensure the close button is hidden (already via CSS)
+                const closeBtn = document.querySelector('.gm-style-iw button[title="Close"]');
+                if (closeBtn) closeBtn.style.display = 'none';
+            });
+
             // Handle click on Done button
             const doneBtn = contentDiv.querySelector('#done-infowindow-btn');
             doneBtn.addEventListener('click', function() {
-                // Replace button with checkmark animation
+                // Replace button with checkmark animation (same as list)
                 const checkSvg = `
                     <svg class="checkmark-svg" viewBox="0 0 60 60">
                         <path class="checkmark-path" d="M10 30 L25 45 L50 15" />
@@ -1092,6 +1121,87 @@
             } else {
                 window.open(`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&waypoints=${waypoints}&travelmode=driving`, '_blank');
             }
+        }
+
+        // ---------- SHARE ROUTE ----------
+        function shareRoute() {
+            if (!optimizedOrder || optimizedOrder.length === 0) {
+                alert("No stops to share.");
+                return;
+            }
+            // Prompt for route label
+            const label = prompt("Route Label:", "My Route");
+            if (label === null) return; // user cancelled
+
+            // Build text content
+            const now = new Date();
+            const dateStr = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
+            let content = `${label} - ${dateStr}\n\n`;
+
+            // ETA data
+            let etaStr = '';
+            if (etaTotalMinutes > 0) {
+                const hours = Math.floor(etaTotalMinutes / 60);
+                const mins = Math.round(etaTotalMinutes % 60);
+                let timeStr = '';
+                if (hours > 0) timeStr += hours + 'h ';
+                timeStr += mins + 'm';
+                const adjustedMinutes = etaTotalMinutes + 3 * optimizedOrder.length;
+                const adjHours = Math.floor(adjustedMinutes / 60);
+                const adjMins = Math.round(adjustedMinutes % 60);
+                let adjStr = '';
+                if (adjHours > 0) adjStr += adjHours + 'h ';
+                adjStr += adjMins + 'm';
+                etaStr = `Total ETA: ${timeStr} (Adjusted: ${adjStr}) | ${etaTotalKm.toFixed(1)} km`;
+            } else {
+                etaStr = 'ETA: Not calculated';
+            }
+            content += etaStr + '\n\n';
+
+            // Route Stops header with count
+            content += `Route Stops (${optimizedOrder.length})\n`;
+            content += '----------------------------------------\n';
+
+            // List stops in order
+            optimizedOrder.forEach((id, index) => {
+                const job = jobs[id];
+                if (!job) return;
+                const stopNum = index + 1;
+                const name = job.name || 'No name';
+                const address = job.pickup_location || '';
+                const city = job.city || '';
+                content += `${stopNum}. ${name} - ${address}, ${city}\n`;
+            });
+
+            // Create file
+            const blob = new Blob([content], { type: 'text/plain' });
+            const file = new File([blob], `${label || 'route'}.txt`, { type: 'text/plain' });
+
+            // Try using Web Share API
+            if (navigator.share) {
+                navigator.share({
+                    files: [file],
+                    title: 'Route Stops'
+                }).catch(err => {
+                    if (err.name !== 'AbortError') {
+                        console.warn('Share failed, falling back to download.', err);
+                        downloadFile(file);
+                    }
+                });
+            } else {
+                downloadFile(file);
+            }
+        }
+
+        function downloadFile(file) {
+            const url = URL.createObjectURL(file);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = file.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         // ---------- ETA CALCULATION (kept for reference, but not used) ----------
