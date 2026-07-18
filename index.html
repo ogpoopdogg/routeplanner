@@ -350,6 +350,45 @@
             color: #fff;
         }
 
+        /* New styles for pin button and map picker controls */
+        #pin-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            z-index: 5;
+        }
+        #map-picker-controls {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px;
+            display: none;
+            width: 80%;
+            max-width: 400px;
+        }
+        #map-picker-controls input {
+            flex: 1;
+            padding: 8px;
+            border-radius: 4px;
+            border: none;
+        }
+        #map-picker-controls button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
         @media (max-width: 768px) {
             header { padding: 8px 12px; }
             .header-logo { height: 20px; }
@@ -413,8 +452,13 @@
                 </div>
             </div>
             <div class="flex-row">
-                <div class="input-wrap" style="flex: 0.7;">
-                    <input type="text" id="f-address" placeholder="Address">
+                <div class="input-wrap" style="flex: 0.7; position: relative;">
+                    <input type="text" id="f-address" placeholder="Address" style="padding-right: 40px;">
+                    <button id="pin-btn" onclick="openMapPicker()" aria-label="Pick location on map">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="red" stroke="white" stroke-width="1">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                        </svg>
+                    </button>
                 </div>
                 <div class="input-wrap" style="flex: 0.3;">
                     <input type="text" id="f-city" placeholder="City" oninput="handleCityInput(this.value)">
@@ -456,6 +500,17 @@
         <button id="zoom-out-btn" class="close-map" onclick="zoomToAll()" style="top:70px; background:#448800;">ZOOM OUT</button>
         <button id="reset-driver-view-btn" onclick="resetMapView()" style="display:none;">← BACK</button>
         <div id="map"></div>
+        <!-- Map picker controls -->
+        <div id="map-picker-controls">
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="map-search-city" placeholder="Enter city name">
+                <button id="map-search-go" onclick="searchCity()">Go</button>
+            </div>
+            <div style="margin-top: 8px; display: flex; gap: 8px; justify-content: center;">
+                <button id="map-picker-confirm" onclick="confirmLocation()" style="background:#4CAF50; color:white;">Confirm Location</button>
+                <button id="map-picker-cancel" onclick="closeMapPicker()" style="background:#f44336; color:white;">Cancel</button>
+            </div>
+        </div>
     </div>
 
     <!-- Install App Button -->
@@ -512,6 +567,13 @@
 
         // Global for date selection
         let pendingShareDate = null;
+
+        // Global for map picker mode
+        let mapPickerMode = false;
+        let pickerMarker = null;
+        let pickerLatLng = null;
+        let mapClickListener = null;
+        let savedPolylines = null; // to restore
 
         // Theme handling (copied from command.html)
         if (localStorage.getItem('ec_theme') === 'light') document.body.classList.add('light-mode');
@@ -1075,6 +1137,13 @@
                     stopTracking();
                 } else {
                     startTracking();
+                }
+            });
+
+            // Add map click listener for picker mode
+            map.addListener('click', function(e) {
+                if (mapPickerMode) {
+                    handleMapClick(e);
                 }
             });
         }
@@ -1822,6 +1891,11 @@
         }
 
         function closeMap() {
+            if (mapPickerMode) {
+                // If picker is active, cancel it
+                closeMapPicker();
+                return;
+            }
             document.getElementById('map-modal').style.display = 'none';
         }
 
@@ -1836,6 +1910,155 @@
         function resetMapView() {
             // Similar to resetDriverView but without driver
             zoomToAll();
+        }
+
+        // ---------- MAP PICKER FUNCTIONS ----------
+        function openMapPicker() {
+            // Open the map modal in picker mode
+            mapPickerMode = true;
+            document.getElementById('map-modal').style.display = 'block';
+            document.getElementById('map-picker-controls').style.display = 'block';
+            // Hide route controls and markers while in picker mode
+            document.getElementById('close-map-btn').style.display = 'none';
+            document.getElementById('zoom-out-btn').style.display = 'none';
+            document.getElementById('reset-driver-view-btn').style.display = 'none';
+            // Hide route polyline and markers
+            if (activePolyline) {
+                activePolyline.setMap(null);
+                // Store to restore later
+                savedPolylines = activePolyline;
+            }
+            // Hide mapMarkers
+            Object.values(mapMarkers).forEach(m => m.setMap(null));
+            // Also hide user tracking markers
+            if (userMarker) userMarker.setMap(null);
+            if (userCircle) userCircle.setMap(null);
+
+            // Center map on default or last known location
+            if (pickerLatLng) {
+                map.setCenter(pickerLatLng);
+                map.setZoom(15);
+            } else {
+                map.setCenter({ lat: 49.8425, lng: -99.9497 });
+                map.setZoom(12);
+            }
+            // Remove any existing picker marker
+            if (pickerMarker) {
+                pickerMarker.setMap(null);
+                pickerMarker = null;
+            }
+            // Ensure map is resized
+            setTimeout(() => {
+                google.maps.event.trigger(map, 'resize');
+            }, 100);
+        }
+
+        function closeMapPicker() {
+            mapPickerMode = false;
+            document.getElementById('map-picker-controls').style.display = 'none';
+            // Restore route controls
+            document.getElementById('close-map-btn').style.display = 'flex';
+            document.getElementById('zoom-out-btn').style.display = 'flex';
+            document.getElementById('reset-driver-view-btn').style.display = 'none';
+            // Restore route polyline
+            if (savedPolylines) {
+                savedPolylines.setMap(map);
+                activePolyline = savedPolylines;
+                savedPolylines = null;
+            }
+            // Restore markers
+            Object.values(mapMarkers).forEach(m => m.setMap(map));
+            // Restore user tracking markers if tracking
+            if (isTracking) {
+                // Recreate user marker/circle (but we have a function to restart tracking? We can just refresh)
+                // We'll just call startTracking again? Actually better to just re-add them if we have last position.
+                // Simplest: if tracking, we can re-add the user marker from stored location? Not stored.
+                // We'll just set tracking off and on? For simplicity, we'll just rely on the watch to re-add.
+                // But we removed them, so we need to re-add. We'll just call startTracking again? But that will re-watch.
+                // Better to just not remove user markers in picker mode? But they might clutter.
+                // We'll remove them in openMapPicker, and restore by setting them back? But we need to know their state.
+                // We'll store them and restore.
+                // We'll store userMarker and userCircle in variables and restore.
+                // We'll add restore later.
+                // For simplicity, we'll just re-start tracking if it was on.
+                if (isTracking) {
+                    // Restart tracking (this will re-watch)
+                    // But we might have lost the watch, so we need to restart.
+                    // We'll just call startTracking again, but careful not to duplicate.
+                    // Better: we stop and start.
+                    stopTracking();
+                    startTracking();
+                }
+            }
+            // Remove picker marker
+            if (pickerMarker) {
+                pickerMarker.setMap(null);
+                pickerMarker = null;
+            }
+            // Close the map modal
+            document.getElementById('map-modal').style.display = 'none';
+        }
+
+        function handleMapClick(e) {
+            if (!mapPickerMode) return;
+            const latLng = e.latLng;
+            placePickerMarker(latLng);
+        }
+
+        function placePickerMarker(latLng) {
+            if (pickerMarker) {
+                pickerMarker.setPosition(latLng);
+            } else {
+                pickerMarker = new google.maps.Marker({
+                    position: latLng,
+                    map: map,
+                    draggable: true,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 10,
+                        fillColor: 'red',
+                        fillOpacity: 1,
+                        strokeColor: 'white',
+                        strokeWeight: 2
+                    }
+                });
+                // Add dragend listener
+                pickerMarker.addListener('dragend', function() {
+                    pickerLatLng = this.getPosition();
+                });
+            }
+            pickerLatLng = latLng;
+            map.panTo(latLng);
+        }
+
+        function confirmLocation() {
+            if (!pickerLatLng) {
+                alert("Please select a location on the map.");
+                return;
+            }
+            const lat = pickerLatLng.lat();
+            const lng = pickerLatLng.lng();
+            // Format coordinates (6 decimal places)
+            const coordStr = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+            document.getElementById('f-address').value = coordStr;
+            closeMapPicker();
+        }
+
+        function searchCity() {
+            const cityInput = document.getElementById('map-search-city');
+            const city = cityInput.value.trim();
+            if (!city) return;
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ address: city, region: 'ca' }, function(results, status) {
+                if (status === 'OK' && results[0]) {
+                    const location = results[0].geometry.location;
+                    map.setCenter(location);
+                    map.setZoom(13);
+                    // Optionally place a marker at the city center? Not necessary.
+                } else {
+                    alert("City not found. Please try again.");
+                }
+            });
         }
 
         // ---------- EXTERNAL ROUTE NAVIGATION (similar to driver.html) ----------
