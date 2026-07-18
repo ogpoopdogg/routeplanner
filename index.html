@@ -350,9 +350,134 @@
             color: #fff;
         }
 
+        /* ---- Address Picker Modal styles ---- */
+        #address-picker-modal {
+            display: none;
+            position: fixed;
+            z-index: 4000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: #111;
+        }
+        #address-picker-modal .picker-header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            z-index: 10;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: rgba(0,0,0,0.7);
+            padding: 10px 16px;
+            border-radius: 8px;
+            backdrop-filter: blur(4px);
+        }
+        #address-picker-modal .picker-header input {
+            flex: 1;
+            padding: 10px 14px;
+            border-radius: 6px;
+            border: 1px solid #555;
+            background: #222;
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+        }
+        #address-picker-modal .picker-header input:focus {
+            border-color: var(--accent);
+        }
+        #address-picker-modal .picker-close {
+            background: #b71c1c;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #address-picker-modal .picker-map {
+            width: 100%;
+            height: 100%;
+        }
+        #address-picker-modal .picker-info {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.85);
+            color: #fff;
+            padding: 16px 24px;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 90%;
+            backdrop-filter: blur(4px);
+            border: 1px solid #444;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+            z-index: 10;
+            min-width: 200px;
+        }
+        #address-picker-modal .picker-info .addr-detail {
+            font-size: 14px;
+            word-break: break-word;
+        }
+        #address-picker-modal .picker-info .plus-code {
+            font-size: 12px;
+            color: #aaa;
+            background: #222;
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid #555;
+        }
+        #address-picker-modal .picker-info .picker-confirm {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 8px 24px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        /* pin button inside address input */
+        .address-pin-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent);
+            font-size: 20px;
+            line-height: 1;
+        }
+        .address-pin-btn svg {
+            width: 22px;
+            height: 22px;
+            fill: var(--accent);
+            stroke: #333;
+            stroke-width: 1;
+        }
+        .address-pin-btn:hover {
+            opacity: 0.8;
+        }
+
         @media (max-width: 768px) {
             header { padding: 8px 12px; }
             .header-logo { height: 20px; }
+            #address-picker-modal .picker-header { flex-wrap: wrap; }
+            #address-picker-modal .picker-info { bottom: 20px; min-width: auto; width: 90%; }
         }
     </style>
 </head>
@@ -413,8 +538,13 @@
                 </div>
             </div>
             <div class="flex-row">
-                <div class="input-wrap" style="flex: 0.7;">
+                <div class="input-wrap" style="flex: 0.7; position: relative;">
                     <input type="text" id="f-address" placeholder="Address">
+                    <button class="address-pin-btn" onclick="openAddressPicker()" aria-label="Pick address from map">
+                        <svg viewBox="0 0 24 24" width="22" height="22">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                        </svg>
+                    </button>
                 </div>
                 <div class="input-wrap" style="flex: 0.3;">
                     <input type="text" id="f-city" placeholder="City" oninput="handleCityInput(this.value)">
@@ -456,6 +586,20 @@
         <button id="zoom-out-btn" class="close-map" onclick="zoomToAll()" style="top:70px; background:#448800;">ZOOM OUT</button>
         <button id="reset-driver-view-btn" onclick="resetMapView()" style="display:none;">← BACK</button>
         <div id="map"></div>
+    </div>
+
+    <!-- Address Picker Modal -->
+    <div id="address-picker-modal">
+        <div class="picker-header">
+            <input type="text" id="picker-search" placeholder="Search for a town, city, or area..." autocomplete="off">
+            <button class="picker-close" onclick="closeAddressPicker()">✕</button>
+        </div>
+        <div id="picker-map" class="picker-map"></div>
+        <div class="picker-info" id="picker-info">
+            <div class="addr-detail" id="picker-address-display">Select a location on the map</div>
+            <div class="plus-code" id="picker-pluscode-display">Plus Code: —</div>
+            <button class="picker-confirm" id="picker-confirm-btn" onclick="confirmAddress()">Use this address</button>
+        </div>
     </div>
 
     <!-- Install App Button -->
@@ -1077,6 +1221,9 @@
                     startTracking();
                 }
             });
+
+            // Initialize address picker map after main map is ready
+            initAddressPickerMap();
         }
 
         // ---- Location Tracking ----
@@ -1892,6 +2039,207 @@
 
         // ---------- UTILS ----------
         function formatTime12(ts) { /* not used but kept for consistency */ }
+
+        // ========== ADDRESS PICKER FUNCTIONS ==========
+        let pickerMap = null;
+        let pickerMarker = null;
+        let pickerGeocoder = null;
+        let pickerAutocomplete = null;
+        let pickerInitialized = false;
+        let selectedLocation = null; // {lat, lng, address, plusCode}
+
+        function initAddressPickerMap() {
+            if (pickerInitialized) return;
+            const container = document.getElementById('picker-map');
+            if (!container) return;
+            if (!google.maps) return;
+
+            const defaultCenter = { lat: 49.8425, lng: -99.9497 };
+            pickerMap = new google.maps.Map(container, {
+                center: defaultCenter,
+                zoom: 12,
+                mapTypeId: 'roadmap',
+                styles: mapStyles
+            });
+
+            // Geocoder
+            pickerGeocoder = new google.maps.Geocoder();
+
+            // Draggable marker
+            pickerMarker = new google.maps.Marker({
+                position: defaultCenter,
+                map: pickerMap,
+                draggable: true,
+                animation: google.maps.Animation.DROP,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 12,
+                    fillColor: '#ff0000',
+                    fillOpacity: 0.9,
+                    strokeColor: '#ffffff',
+                    strokeWeight: 2
+                }
+            });
+
+            // When marker is dragged, update info
+            pickerMarker.addListener('dragend', function() {
+                const pos = pickerMarker.getPosition();
+                updatePickerInfo(pos.lat(), pos.lng());
+            });
+
+            // Click on map to move marker
+            pickerMap.addListener('click', function(e) {
+                const lat = e.latLng.lat();
+                const lng = e.latLng.lng();
+                pickerMarker.setPosition({ lat, lng });
+                updatePickerInfo(lat, lng);
+            });
+
+            // Setup Places Autocomplete for search input
+            const searchInput = document.getElementById('picker-search');
+            if (searchInput) {
+                pickerAutocomplete = new google.maps.places.Autocomplete(searchInput, {
+                    types: ['(regions)'], // towns, cities, areas
+                    componentRestrictions: { country: 'ca' }
+                });
+                pickerAutocomplete.addListener('place_changed', function() {
+                    const place = pickerAutocomplete.getPlace();
+                    if (!place.geometry) return;
+                    const location = place.geometry.location;
+                    const lat = location.lat();
+                    const lng = location.lng();
+                    pickerMap.panTo({ lat, lng });
+                    pickerMap.setZoom(14);
+                    pickerMarker.setPosition({ lat, lng });
+                    updatePickerInfo(lat, lng);
+                });
+            }
+
+            // Initially set marker to Brandon center and get address
+            updatePickerInfo(defaultCenter.lat, defaultCenter.lng);
+
+            pickerInitialized = true;
+        }
+
+        function openAddressPicker() {
+            const modal = document.getElementById('address-picker-modal');
+            modal.style.display = 'block';
+            // Ensure map is initialized
+            if (!pickerInitialized) {
+                initAddressPickerMap();
+            }
+            // Trigger resize
+            setTimeout(() => {
+                if (pickerMap) {
+                    google.maps.event.trigger(pickerMap, 'resize');
+                    // If we have a selected location, center there, else center on current marker
+                    const pos = pickerMarker.getPosition();
+                    if (pos) {
+                        pickerMap.setCenter(pos);
+                    }
+                }
+            }, 100);
+            // Clear search input
+            document.getElementById('picker-search').value = '';
+            // Update info if marker is set
+            if (pickerMarker) {
+                const pos = pickerMarker.getPosition();
+                if (pos) {
+                    updatePickerInfo(pos.lat(), pos.lng());
+                }
+            }
+        }
+
+        function closeAddressPicker() {
+            document.getElementById('address-picker-modal').style.display = 'none';
+        }
+
+        function updatePickerInfo(lat, lng) {
+            const latLng = { lat, lng };
+            // Reverse geocode to get address and plus code
+            pickerGeocoder.geocode({ location: latLng }, function(results, status) {
+                let address = '';
+                let plusCode = '';
+                if (status === 'OK' && results.length > 0) {
+                    // Get formatted address
+                    address = results[0].formatted_address || '';
+                    // Look for plus code in results
+                    for (let result of results) {
+                        if (result.types && result.types.includes('plus_code')) {
+                            // This is a plus code result
+                            plusCode = result.formatted_address || '';
+                            break;
+                        }
+                        // Some results have address_components with plus_code? Actually plus code is a separate type.
+                        // Also check for plus_code in the result's address_components? Not typical.
+                        // Alternatively, we can use the Geocoding API's plus_code field.
+                        // Since we are using the client-side geocoder, the plus code might be in the result's plus_code property.
+                        if (result.plus_code) {
+                            plusCode = result.plus_code.compound_code || result.plus_code.global_code || '';
+                        }
+                    }
+                    // If no plus code found, try to get from address components? Not reliable.
+                    // We can also generate plus code using the library? Not directly.
+                    // Fallback: use the lat/lng to construct a plus code using the Open Location Code library? Not included.
+                    // We'll just use what we have.
+                } else {
+                    address = `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
+                }
+
+                // If plusCode is empty, try to get from results again
+                if (!plusCode) {
+                    // Sometimes the plus code is in the address_components with type 'plus_code'
+                    for (let result of results) {
+                        if (result.address_components) {
+                            for (let comp of result.address_components) {
+                                if (comp.types && comp.types.includes('plus_code')) {
+                                    plusCode = comp.long_name || comp.short_name || '';
+                                    break;
+                                }
+                            }
+                        }
+                        if (plusCode) break;
+                    }
+                }
+
+                // Store selected location
+                selectedLocation = {
+                    lat: lat,
+                    lng: lng,
+                    address: address,
+                    plusCode: plusCode || ''
+                };
+
+                // Update UI
+                document.getElementById('picker-address-display').textContent = address || 'Address not found';
+                document.getElementById('picker-pluscode-display').textContent = plusCode ? `Plus Code: ${plusCode}` : 'Plus Code: —';
+            });
+        }
+
+        function confirmAddress() {
+            if (!selectedLocation) {
+                alert("No location selected.");
+                return;
+            }
+            // Fill the address field with the plus code or the address
+            let addressToUse = selectedLocation.plusCode || selectedLocation.address;
+            if (!addressToUse) {
+                alert("Could not determine address.");
+                return;
+            }
+            document.getElementById('f-address').value = addressToUse;
+            // Optionally, we can also set the city if we can extract it from address, but not required.
+            // Close the picker
+            closeAddressPicker();
+        }
+
+        // Override the initMap to also initialize picker after map is ready (already done inside initMap)
+        // But we need to ensure initAddressPickerMap is called when map is ready.
+        // We already added call inside initMap.
+
+        // Ensure that the map styles are also applied to picker map when theme changes?
+        // Not necessary for now.
+
     </script>
 </body>
 </html>
