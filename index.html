@@ -1530,13 +1530,26 @@
         }
 
         // ---------- SAVE ROUTE ----------
-        function saveCurrentRoute() {
+        async function saveCurrentRoute() {
             if (!optimizedOrder || optimizedOrder.length === 0) {
                 alert("No stops to save.");
                 return;
             }
-            const label = prompt("Enter a label for this saved route:", "");
-            if (label === null || label.trim() === "") return;
+            // Check if ETA is calculated; if not, ask user
+            if (etaTotalMinutes === 0) {
+                const calculate = confirm("Calculate ETA for this route?");
+                if (calculate) {
+                    await calculateETAOnDemand();
+                    // If still zero (maybe error), continue? We'll allow save anyway.
+                }
+            }
+            const labelInput = prompt("Enter a label for this saved route:", "");
+            if (labelInput === null || labelInput.trim() === "") return;
+            // Capitalize first letter
+            let label = labelInput.trim();
+            if (label.length > 0) {
+                label = label.charAt(0).toUpperCase() + label.slice(1);
+            }
             // Build array of job objects in order
             const stops = [];
             optimizedOrder.forEach(id => {
@@ -1555,9 +1568,11 @@
             });
             if (stops.length === 0) return;
             const routeData = {
-                label: label.trim(),
+                label: label,
                 timestamp: Date.now(),
-                stops: stops
+                stops: stops,
+                etaTotalMinutes: etaTotalMinutes,
+                etaTotalKm: etaTotalKm
             };
             db.ref('developer/route_planner/saved_routes').push(routeData)
                 .then(() => {
@@ -1642,6 +1657,9 @@
                     alert("Route is empty.");
                     return;
                 }
+                // Set ETA from saved data
+                etaTotalMinutes = data.etaTotalMinutes || 0;
+                etaTotalKm = data.etaTotalKm || 0;
                 // Clear current jobs
                 db.ref('developer/route_planner/jobs').remove();
                 // Add each stop as a new job, preserving details
@@ -1668,20 +1686,31 @@
                     const orderArray = Object.values(newJobs);
                     db.ref('developer/route_planner/manual_order').set(orderArray);
                     // updateRoute will be triggered automatically
+                    // Also update ETA display with loaded ETA
+                    if (etaTotalMinutes > 0) {
+                        updateETADisplay();
+                    }
                 }).catch(err => alert("Error loading route: " + err.message));
             }).catch(err => alert("Error loading saved route: " + err.message));
         }
 
         // ---------- SHARE ROUTE (composes email with route info) ----------
-        function buildRouteBody(routeLabel, stops, etaInfo, dateStr) {
+        function buildRouteBody(routeLabel, stops, etaMinutes, etaKm, dateStr) {
             let lines = [];
             lines.push(`=== ${routeLabel} ===`);
             lines.push(`Date: ${dateStr}`);
-            if (etaInfo) {
-                lines.push(etaInfo);
+            let etaInfo = '';
+            if (etaMinutes > 0) {
+                const hours = Math.floor(etaMinutes / 60);
+                const mins = Math.round(etaMinutes % 60);
+                let timeStr = '';
+                if (hours > 0) timeStr += hours + 'h ';
+                timeStr += mins + 'm';
+                etaInfo = `Total ETA: ${timeStr} | ${etaKm.toFixed(1)} km`;
             } else {
-                lines.push('ETA: Not calculated');
+                etaInfo = 'ETA: Not calculated';
             }
+            lines.push(etaInfo);
             lines.push(`Stops: ${stops.length}`);
             lines.push('----------------------------------------');
             stops.forEach((stop, idx) => {
@@ -1738,7 +1767,9 @@
                     const label = route.label || 'Unnamed';
                     const stops = route.stops || [];
                     if (stops.length === 0) return;
-                    const content = buildRouteBody(label, stops, null, dateStr);
+                    const etaMinutes = route.etaTotalMinutes || 0;
+                    const etaKm = route.etaTotalKm || 0;
+                    const content = buildRouteBody(label, stops, etaMinutes, etaKm, dateStr);
                     bodyParts.push(content);
                 });
 
@@ -1756,16 +1787,7 @@
                         }
                     });
                     if (currentStops.length > 0) {
-                        let etaInfo = '';
-                        if (etaTotalMinutes > 0) {
-                            const hours = Math.floor(etaTotalMinutes / 60);
-                            const mins = Math.round(etaTotalMinutes % 60);
-                            let timeStr = '';
-                            if (hours > 0) timeStr += hours + 'h ';
-                            timeStr += mins + 'm';
-                            etaInfo = `Total ETA: ${timeStr} | ${etaTotalKm.toFixed(1)} km`;
-                        }
-                        const content = buildRouteBody('Current Route', currentStops, etaInfo, dateStr);
+                        const content = buildRouteBody('Current Route', currentStops, etaTotalMinutes, etaTotalKm, dateStr);
                         bodyParts.push(content);
                     }
                 }
