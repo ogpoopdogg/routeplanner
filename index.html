@@ -2059,7 +2059,8 @@
                 center: defaultCenter,
                 zoom: 12,
                 mapTypeId: 'roadmap',
-                styles: mapStyles
+                styles: mapStyles,
+                gestureHandling: 'greedy'
             });
 
             // Geocoder
@@ -2073,9 +2074,9 @@
                 animation: google.maps.Animation.DROP,
                 icon: {
                     path: google.maps.SymbolPath.CIRCLE,
-                    scale: 12,
-                    fillColor: '#ff0000',
-                    fillOpacity: 0.9,
+                    scale: 8,
+                    fillColor: '#ff9800',
+                    fillOpacity: 1,
                     strokeColor: '#ffffff',
                     strokeWeight: 2
                 }
@@ -2099,7 +2100,7 @@
             const searchInput = document.getElementById('picker-search');
             if (searchInput) {
                 pickerAutocomplete = new google.maps.places.Autocomplete(searchInput, {
-                    types: ['(regions)'], // towns, cities, areas
+                    types: ['geocode'],
                     componentRestrictions: { country: 'ca' }
                 });
                 pickerAutocomplete.addListener('place_changed', function() {
