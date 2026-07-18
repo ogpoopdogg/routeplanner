@@ -7,8 +7,6 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="gold">
     <link href="//fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- JSZip for creating zip files -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         /* Combined and simplified CSS from both files */
         :root {
@@ -1603,7 +1601,7 @@
             }).catch(err => alert("Error loading saved route: " + err.message));
         }
 
-        // ---------- SHARE ROUTE (generates zip with all saved routes + current) ----------
+        // ---------- SHARE ROUTE (generates separate text files and shares them) ----------
         function buildRouteFileContent(label, stops, etaInfo) {
             let lines = [];
             lines.push(`${label}`);
@@ -1633,7 +1631,7 @@
             const savedRoutesRef = db.ref('developer/route_planner/saved_routes');
             savedRoutesRef.once('value').then(snap => {
                 const savedData = snap.val() || {};
-                const routeFiles = [];
+                const files = [];
 
                 // Build files for each saved route
                 const keys = Object.keys(savedData);
@@ -1642,14 +1640,15 @@
                     const label = route.label || 'Unnamed';
                     const stops = route.stops || [];
                     if (stops.length === 0) return;
-                    const content = buildRouteFileContent(label, stops, null); // no eta for saved
+                    const content = buildRouteFileContent(label, stops, null);
                     const filename = `route_${label.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
-                    routeFiles.push({ filename, content });
+                    const blob = new Blob([content], { type: 'text/plain' });
+                    const file = new File([blob], filename, { type: 'text/plain' });
+                    files.push(file);
                 });
 
                 // Check current route
                 if (optimizedOrder && optimizedOrder.length > 0) {
-                    // Build stops in order from jobs
                     const currentStops = [];
                     optimizedOrder.forEach(id => {
                         const job = jobs[id];
@@ -1662,10 +1661,7 @@
                         }
                     });
                     if (currentStops.length > 0) {
-                        // Prompt for label
-                        let label = prompt("Label for current route:", "Current Route");
-                        if (label === null) label = "Current Route";
-                        if (label.trim() === "") label = "Current Route";
+                        const label = "Current Route";
                         let etaInfo = '';
                         if (etaTotalMinutes > 0) {
                             const hours = Math.floor(etaTotalMinutes / 60);
@@ -1675,52 +1671,57 @@
                             timeStr += mins + 'm';
                             etaInfo = `Total ETA: ${timeStr} | ${etaTotalKm.toFixed(1)} km`;
                         }
-                        const content = buildRouteFileContent(label.trim(), currentStops, etaInfo);
-                        const filename = `route_${label.trim().replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
-                        routeFiles.push({ filename, content });
+                        const content = buildRouteFileContent(label, currentStops, etaInfo);
+                        const filename = `route_${label.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+                        const blob = new Blob([content], { type: 'text/plain' });
+                        const file = new File([blob], filename, { type: 'text/plain' });
+                        files.push(file);
                     }
                 }
 
-                if (routeFiles.length === 0) {
+                if (files.length === 0) {
                     alert("No routes to share.");
                     return;
                 }
 
-                // Create zip
-                const zip = new JSZip();
-                routeFiles.forEach(f => {
-                    zip.file(f.filename, f.content);
-                });
-                zip.generateAsync({ type: 'blob' }).then(blob => {
-                    // Share or download
-                    if (navigator.share) {
-                        const file = new File([blob], 'routes.zip', { type: 'application/zip' });
-                        navigator.share({
-                            files: [file],
-                            title: 'Route Plans'
-                        }).catch(err => {
-                            if (err.name !== 'AbortError') {
-                                console.warn('Share failed, downloading zip instead.', err);
-                                downloadFile(blob, 'routes.zip');
-                            }
-                        });
-                    } else {
-                        downloadFile(blob, 'routes.zip');
-                    }
-                }).catch(err => alert("Error creating zip: " + err.message));
+                // Attempt to share using Web Share API
+                if (navigator.share && navigator.canShare({ files: files })) {
+                    navigator.share({
+                        files: files,
+                        title: 'Route Plans'
+                    }).catch(err => {
+                        if (err.name !== 'AbortError') {
+                            console.warn('Share failed, falling back to individual downloads.', err);
+                            downloadFilesIndividually(files);
+                        }
+                    });
+                } else {
+                    // Fallback: download each file individually
+                    downloadFilesIndividually(files);
+                }
 
             }).catch(err => alert("Error loading saved routes: " + err.message));
         }
 
-        function downloadFile(blob, filename) {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+        function downloadFilesIndividually(files) {
+            // Download each file sequentially with a small delay
+            let index = 0;
+            function downloadNext() {
+                if (index >= files.length) return;
+                const file = files[index];
+                const url = URL.createObjectURL(file);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = file.name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                index++;
+                // Delay to allow browser to handle multiple downloads
+                setTimeout(downloadNext, 500);
+            }
+            downloadNext();
         }
 
         // ---------- MAP FUNCTIONS (continued) ----------
