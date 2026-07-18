@@ -299,6 +299,57 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Date modal */
+        #date-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 9998;
+            align-items: center;
+            justify-content: center;
+        }
+        #date-modal .date-box {
+            background: var(--card);
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 350px;
+            width: 90%;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        #date-modal .date-box input[type="date"] {
+            width: 100%;
+            padding: 12px;
+            background: var(--input-bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 16px;
+            margin: 16px 0;
+        }
+        #date-modal .date-box .date-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        #date-modal .date-box button {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #date-modal .date-box .confirm-date {
+            background: var(--accent);
+            color: #000;
+        }
+        #date-modal .date-box .cancel-date {
+            background: #666;
+            color: #fff;
+        }
+
         @media (max-width: 768px) {
             header { padding: 8px 12px; }
             .header-logo { height: 20px; }
@@ -313,6 +364,18 @@
             <input type="email" id="login-user" class="login-input" placeholder="Email" autofocus>
             <input type="password" id="login-pin" class="login-input" placeholder="Password">
             <button class="login-submit" onclick="attemptLogin()">Authorize</button>
+        </div>
+    </div>
+
+    <!-- Date Selection Modal -->
+    <div id="date-modal">
+        <div class="date-box">
+            <h3 style="margin-top:0;">Select Route Date</h3>
+            <input type="date" id="route-date-input">
+            <div class="date-actions">
+                <button class="confirm-date" onclick="confirmDate()">Confirm</button>
+                <button class="cancel-date" onclick="cancelDate()">Cancel</button>
+            </div>
         </div>
     </div>
 
@@ -446,6 +509,9 @@
 
         // Global for open details dropdowns
         let openDetailsDropdown = null; // holds jobId of currently open dropdown
+
+        // Global for date selection
+        let pendingShareDate = null;
 
         // Theme handling (copied from command.html)
         if (localStorage.getItem('ec_theme') === 'light') document.body.classList.add('light-mode');
@@ -1495,7 +1561,12 @@
             };
             db.ref('developer/route_planner/saved_routes').push(routeData)
                 .then(() => {
-                    // Optionally notify
+                    // After saving, clear all jobs from the route stops
+                    db.ref('developer/route_planner/jobs').remove();
+                    etaTotalMinutes = 0;
+                    etaTotalKm = 0;
+                    document.getElementById('eta-display').style.display = 'none';
+                    document.getElementById('eta-display').classList.remove('eta-glow');
                 })
                 .catch(err => alert("Error saving route: " + err.message));
         }
@@ -1601,17 +1672,17 @@
             }).catch(err => alert("Error loading saved route: " + err.message));
         }
 
-        // ---------- SHARE ROUTE (generates separate text files and shares them) ----------
-        function buildRouteFileContent(label, stops, etaInfo) {
+        // ---------- SHARE ROUTE (composes email with route info) ----------
+        function buildRouteBody(routeLabel, stops, etaInfo, dateStr) {
             let lines = [];
-            lines.push(`${label}`);
+            lines.push(`=== ${routeLabel} ===`);
+            lines.push(`Date: ${dateStr}`);
             if (etaInfo) {
                 lines.push(etaInfo);
             } else {
                 lines.push('ETA: Not calculated');
             }
-            lines.push('');
-            lines.push(`Route Stops (${stops.length})`);
+            lines.push(`Stops: ${stops.length}`);
             lines.push('----------------------------------------');
             stops.forEach((stop, idx) => {
                 const name = stop.name || 'No name';
@@ -1619,35 +1690,59 @@
                 const details = stop.shipment_details || '';
                 lines.push(`${idx+1}. ${name}, ${city}`);
                 if (details) {
-                    lines.push(details);
+                    lines.push(`   Details: ${details}`);
                 }
-                lines.push(''); // blank line after each stop
+                lines.push('');
             });
             return lines.join('\n');
         }
 
         function shareRoute() {
-            // Gather all saved routes
+            // Show date modal
+            document.getElementById('date-modal').style.display = 'flex';
+            // Set default date to today
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('route-date-input').value = today;
+            pendingShareDate = null;
+        }
+
+        function confirmDate() {
+            const dateInput = document.getElementById('route-date-input');
+            const selectedDate = dateInput.value;
+            if (!selectedDate) {
+                alert("Please select a date.");
+                return;
+            }
+            document.getElementById('date-modal').style.display = 'none';
+            // Format date for display
+            const dateObj = new Date(selectedDate + 'T00:00:00');
+            const dateStr = dateObj.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+            // Now build email
+            buildAndSendEmail(dateStr);
+        }
+
+        function cancelDate() {
+            document.getElementById('date-modal').style.display = 'none';
+        }
+
+        function buildAndSendEmail(dateStr) {
             const savedRoutesRef = db.ref('developer/route_planner/saved_routes');
             savedRoutesRef.once('value').then(snap => {
                 const savedData = snap.val() || {};
-                const files = [];
+                let bodyParts = [];
 
-                // Build files for each saved route
+                // Process saved routes
                 const keys = Object.keys(savedData);
                 keys.forEach(key => {
                     const route = savedData[key];
                     const label = route.label || 'Unnamed';
                     const stops = route.stops || [];
                     if (stops.length === 0) return;
-                    const content = buildRouteFileContent(label, stops, null);
-                    const filename = `route_${label.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
-                    const blob = new Blob([content], { type: 'text/plain' });
-                    const file = new File([blob], filename, { type: 'text/plain' });
-                    files.push(file);
+                    const content = buildRouteBody(label, stops, null, dateStr);
+                    bodyParts.push(content);
                 });
 
-                // Check current route
+                // Process current route
                 if (optimizedOrder && optimizedOrder.length > 0) {
                     const currentStops = [];
                     optimizedOrder.forEach(id => {
@@ -1661,7 +1756,6 @@
                         }
                     });
                     if (currentStops.length > 0) {
-                        const label = "Current Route";
                         let etaInfo = '';
                         if (etaTotalMinutes > 0) {
                             const hours = Math.floor(etaTotalMinutes / 60);
@@ -1671,57 +1765,22 @@
                             timeStr += mins + 'm';
                             etaInfo = `Total ETA: ${timeStr} | ${etaTotalKm.toFixed(1)} km`;
                         }
-                        const content = buildRouteFileContent(label, currentStops, etaInfo);
-                        const filename = `route_${label.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
-                        const blob = new Blob([content], { type: 'text/plain' });
-                        const file = new File([blob], filename, { type: 'text/plain' });
-                        files.push(file);
+                        const content = buildRouteBody('Current Route', currentStops, etaInfo, dateStr);
+                        bodyParts.push(content);
                     }
                 }
 
-                if (files.length === 0) {
+                if (bodyParts.length === 0) {
                     alert("No routes to share.");
                     return;
                 }
 
-                // Attempt to share using Web Share API
-                if (navigator.share && navigator.canShare({ files: files })) {
-                    navigator.share({
-                        files: files,
-                        title: 'Route Plans'
-                    }).catch(err => {
-                        if (err.name !== 'AbortError') {
-                            console.warn('Share failed, falling back to individual downloads.', err);
-                            downloadFilesIndividually(files);
-                        }
-                    });
-                } else {
-                    // Fallback: download each file individually
-                    downloadFilesIndividually(files);
-                }
+                const emailBody = bodyParts.join('\n\n========================================\n\n');
+                const subject = `Route Manifest for ${dateStr}`;
+                const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+                window.location.href = mailtoLink;
 
             }).catch(err => alert("Error loading saved routes: " + err.message));
-        }
-
-        function downloadFilesIndividually(files) {
-            // Download each file sequentially with a small delay
-            let index = 0;
-            function downloadNext() {
-                if (index >= files.length) return;
-                const file = files[index];
-                const url = URL.createObjectURL(file);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = file.name;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                index++;
-                // Delay to allow browser to handle multiple downloads
-                setTimeout(downloadNext, 500);
-            }
-            downloadNext();
         }
 
         // ---------- MAP FUNCTIONS (continued) ----------
