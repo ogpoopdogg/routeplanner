@@ -739,6 +739,8 @@
             if (coords) {
                 newJob.lat = coords.lat;
                 newJob.lng = coords.lng;
+                // For coordinate jobs, we may not have a real city; set city to empty or use coords
+                // We keep the city as entered (could be empty)
             }
             // Push job to Firebase
             const newJobRef = db.ref('developer/route_planner/jobs').push();
@@ -917,23 +919,25 @@
                         originAddr = prevGroup.addrString;
                         originLoc = prevGroup.location;
                     }
-                    let destAddr, intermediates;
+                    let destAddr, destLoc;
                     if (end === totalGroups) {
                         destAddr = depotAddress;
-                        intermediates = segmentGroups.map(g => {
-                            if (g.location) return { location: g.location };
-                            else return { address: g.addrString };
-                        });
+                        destLoc = null;
                     } else {
-                        // destination is last group in segment
                         const lastGroup = segmentGroups[segmentGroups.length - 1];
                         destAddr = lastGroup.addrString;
-                        intermediates = segmentGroups.slice(0, -1).map(g => {
-                            if (g.location) return { location: g.location };
-                            else return { address: g.addrString };
-                        });
+                        destLoc = lastGroup.location;
                     }
-                    segments.push({ originAddr, originLoc, destAddr, intermediates, segmentGroups });
+                    let intermediates = segmentGroups.map(g => {
+                        if (g.location) return { location: g.location };
+                        else return { address: g.addrString };
+                    });
+                    // If the destination is the last group, we don't include it as an intermediate
+                    if (end < totalGroups) {
+                        // The last group is the destination, remove it from intermediates
+                        intermediates = intermediates.slice(0, -1);
+                    }
+                    segments.push({ originAddr, originLoc, destAddr, destLoc, intermediates, segmentGroups });
                     start = end;
                 }
 
@@ -941,7 +945,7 @@
 
                 for (let seg of segments) {
                     const origin = seg.originLoc ? { location: seg.originLoc } : { address: seg.originAddr };
-                    const destination = { address: seg.destAddr };
+                    const destination = seg.destLoc ? { location: seg.destLoc } : { address: seg.destAddr };
                     const waypoints = seg.intermediates;
                     const requestBody = {
                         origin: origin,
