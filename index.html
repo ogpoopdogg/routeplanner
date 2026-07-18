@@ -586,6 +586,23 @@
         // Map styles (from command.html)
         const mapStyles = [{"featureType":"all","elementType":"all","stylers":[{"invert_lightness":!0},{"saturation":10},{"lightness":30},{"gamma":0.5},{"hue":"#435158"}]}];
 
+        // ---------- HELPER: parse coordinates ----------
+        function parseCoordinates(str) {
+            if (!str) return null;
+            // Trim and remove any extra spaces
+            const trimmed = str.trim();
+            // Match pattern: numbers with optional minus, comma, optional space, numbers
+            const match = trimmed.match(/^([-+]?\d+\.?\d*)\s*,\s*([-+]?\d+\.?\d*)$/);
+            if (match) {
+                const lat = parseFloat(match[1]);
+                const lng = parseFloat(match[2]);
+                if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                    return { lat, lng };
+                }
+            }
+            return null;
+        }
+
         // ---------- LOGIN (copied from command.html) ----------
         function attemptLogin() {
             const email = document.getElementById('login-user').value.trim();
@@ -717,6 +734,12 @@
                 created_by: currentUser,
                 manual_priority: false
             };
+            // Check if address is coordinates, parse and store lat/lng
+            const coords = parseCoordinates(address);
+            if (coords) {
+                newJob.lat = coords.lat;
+                newJob.lng = coords.lng;
+            }
             // Push job to Firebase
             const newJobRef = db.ref('developer/route_planner/jobs').push();
             newJobRef.set(newJob).then(() => {
@@ -783,13 +806,19 @@
                 return;
             }
 
-            // Group jobs by identical address + city
+            // Group jobs by identical address + city, but also consider coordinates if no city
             const groups = [];
             const groupMap = new Map();
             pendingJobs.forEach(job => {
-                const key = `${job.pickup_location}, ${job.city}`.toLowerCase();
+                // If city is empty and job has lat/lng, use coords as key
+                let key;
+                if (!job.city && job.lat != null && job.lng != null) {
+                    key = `${job.lat.toFixed(6)},${job.lng.toFixed(6)}`;
+                } else {
+                    key = `${job.pickup_location}, ${job.city}`.toLowerCase();
+                }
                 if (!groupMap.has(key)) {
-                    groupMap.set(key, { key, jobs: [], addrString: `${job.pickup_location}, ${job.city}` });
+                    groupMap.set(key, { key, jobs: [], addrString: `${job.pickup_location}, ${job.city}`, location: (job.lat != null && job.lng != null) ? { lat: job.lat, lng: job.lng } : null });
                 }
                 groupMap.get(key).jobs.push(job);
             });
@@ -817,18 +846,24 @@
                 // Determine origin for normal group optimization
                 // If there are priority groups, start from the last priority group's address; otherwise start from depot
                 let originAddress;
+                let originLocation = null;
                 if (priorityGroups.length > 0) {
-                    // Last priority group's address
-                    originAddress = priorityGroups[priorityGroups.length - 1].addrString;
+                    // Last priority group's address or location
+                    const lastGroup = priorityGroups[priorityGroups.length - 1];
+                    originAddress = lastGroup.addrString;
+                    originLocation = lastGroup.location;
                 } else {
                     originAddress = "1604 Moreland Ave, Brandon MB"; // depot
                 }
-                const destinationAddress = "1604 Moreland Ave, Brandon MB"; // depot
+                const destinationAddress = "1604 Moreland Ave, Brandon MB";
 
                 try {
-                    const origin = { address: originAddress };
+                    const origin = originLocation ? { location: originLocation } : { address: originAddress };
                     const destination = { address: destinationAddress };
-                    const waypoints = normalGroups.map(g => ({ address: g.addrString }));
+                    const waypoints = normalGroups.map(g => {
+                        if (g.location) return { location: g.location };
+                        else return { address: g.addrString };
+                    });
                     const response = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
                         method: "POST",
                         headers: {
@@ -873,25 +908,41 @@
                 while (start < totalGroups) {
                     let end = Math.min(start + maxIntermediates, totalGroups);
                     let segmentGroups = finalGroups.slice(start, end);
-                    let originAddr = (start === 0) ? depotAddress : finalGroups[start - 1].addrString;
+                    let originAddr, originLoc;
+                    if (start === 0) {
+                        originAddr = depotAddress;
+                        originLoc = null;
+                    } else {
+                        const prevGroup = finalGroups[start - 1];
+                        originAddr = prevGroup.addrString;
+                        originLoc = prevGroup.location;
+                    }
                     let destAddr, intermediates;
                     if (end === totalGroups) {
                         destAddr = depotAddress;
-                        intermediates = segmentGroups.map(g => g.addrString);
+                        intermediates = segmentGroups.map(g => {
+                            if (g.location) return { location: g.location };
+                            else return { address: g.addrString };
+                        });
                     } else {
-                        destAddr = segmentGroups[segmentGroups.length - 1].addrString;
-                        intermediates = segmentGroups.slice(0, -1).map(g => g.addrString);
+                        // destination is last group in segment
+                        const lastGroup = segmentGroups[segmentGroups.length - 1];
+                        destAddr = lastGroup.addrString;
+                        intermediates = segmentGroups.slice(0, -1).map(g => {
+                            if (g.location) return { location: g.location };
+                            else return { address: g.addrString };
+                        });
                     }
-                    segments.push({ originAddr, destAddr, intermediates, segmentGroups });
+                    segments.push({ originAddr, originLoc, destAddr, intermediates, segmentGroups });
                     start = end;
                 }
 
                 let combinedPath = [];
 
                 for (let seg of segments) {
-                    const origin = { address: seg.originAddr };
+                    const origin = seg.originLoc ? { location: seg.originLoc } : { address: seg.originAddr };
                     const destination = { address: seg.destAddr };
-                    const waypoints = seg.intermediates.map(addr => ({ address: addr }));
+                    const waypoints = seg.intermediates;
                     const requestBody = {
                         origin: origin,
                         destination: destination,
@@ -919,7 +970,6 @@
                             for (let i = 0; i < seg.segmentGroups.length; i++) {
                                 let leg = route.legs[i];
                                 if (leg && leg.endLocation) {
-                                    // We'll use this to place markers (no ETA needed)
                                     let group = seg.segmentGroups[i];
                                     let loc = leg.endLocation.latLng;
                                     if (loc) {
@@ -952,7 +1002,6 @@
                 if (map) {
                     Object.values(mapMarkers).forEach(m => m.setMap(null));
                     mapMarkers = {};
-                    // We need to iterate over finalGroups in order and get the first job's lat/lng
                     let counter = 0;
                     for (let group of finalGroups) {
                         let firstJob = group.jobs[0];
@@ -979,7 +1028,6 @@
                                     strokeWeight: 2
                                 }
                             });
-                            // Attach click listener for "Done?" overlay
                             marker.addListener('click', (function(marker, jobId) {
                                 return function() {
                                     showDoneOverlayForMarker(marker, jobId);
@@ -1491,9 +1539,14 @@
                     .map(([id, job]) => ({ id, ...job }));
                 const groupMap = new Map();
                 pendingJobs.forEach(job => {
-                    const key = `${job.pickup_location}, ${job.city}`.toLowerCase();
+                    let key;
+                    if (!job.city && job.lat != null && job.lng != null) {
+                        key = `${job.lat.toFixed(6)},${job.lng.toFixed(6)}`;
+                    } else {
+                        key = `${job.pickup_location}, ${job.city}`.toLowerCase();
+                    }
                     if (!groupMap.has(key)) {
-                        groupMap.set(key, { key, jobs: [], addrString: `${job.pickup_location}, ${job.city}` });
+                        groupMap.set(key, { key, jobs: [], addrString: `${job.pickup_location}, ${job.city}`, location: (job.lat != null && job.lng != null) ? { lat: job.lat, lng: job.lng } : null });
                     }
                     groupMap.get(key).jobs.push(job);
                 });
@@ -1513,9 +1566,12 @@
                     }
                 });
 
-                const origin = "1604 Moreland Ave, Brandon MB";
-                const destination = "1604 Moreland Ave, Brandon MB";
-                const waypoints = orderedGroups.map(g => ({ address: g.addrString }));
+                const origin = { address: "1604 Moreland Ave, Brandon MB" };
+                const destination = { address: "1604 Moreland Ave, Brandon MB" };
+                const waypoints = orderedGroups.map(g => {
+                    if (g.location) return { location: g.location };
+                    else return { address: g.addrString };
+                });
 
                 const response = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
                     method: "POST",
@@ -1525,8 +1581,8 @@
                         "X-Goog-FieldMask": "routes.duration,routes.distanceMeters,routes.legs.duration,routes.legs.distanceMeters"
                     },
                     body: JSON.stringify({
-                        origin: { address: origin },
-                        destination: { address: destination },
+                        origin: origin,
+                        destination: destination,
                         intermediates: waypoints,
                         travelMode: "DRIVE",
                         optimizeWaypointOrder: false
@@ -1970,25 +2026,9 @@
             Object.values(mapMarkers).forEach(m => m.setMap(map));
             // Restore user tracking markers if tracking
             if (isTracking) {
-                // Recreate user marker/circle (but we have a function to restart tracking? We can just refresh)
-                // We'll just call startTracking again? Actually better to just re-add them if we have last position.
-                // Simplest: if tracking, we can re-add the user marker from stored location? Not stored.
-                // We'll just set tracking off and on? For simplicity, we'll just rely on the watch to re-add.
-                // But we removed them, so we need to re-add. We'll just call startTracking again? But that will re-watch.
-                // Better to just not remove user markers in picker mode? But they might clutter.
-                // We'll remove them in openMapPicker, and restore by setting them back? But we need to know their state.
-                // We'll store them and restore.
-                // We'll store userMarker and userCircle in variables and restore.
-                // We'll add restore later.
-                // For simplicity, we'll just re-start tracking if it was on.
-                if (isTracking) {
-                    // Restart tracking (this will re-watch)
-                    // But we might have lost the watch, so we need to restart.
-                    // We'll just call startTracking again, but careful not to duplicate.
-                    // Better: we stop and start.
-                    stopTracking();
-                    startTracking();
-                }
+                // Restart tracking (this will re-watch)
+                stopTracking();
+                startTracking();
             }
             // Remove picker marker
             if (pickerMarker) {
