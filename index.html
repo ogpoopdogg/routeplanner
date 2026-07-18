@@ -591,7 +591,8 @@
     <!-- Address Picker Modal -->
     <div id="address-picker-modal">
         <div class="picker-header">
-            <input type="text" id="picker-search" placeholder="Search for a town, city, or area..." autocomplete="off">
+            <input type="text" id="picker-search" placeholder="Search for a town, city, or area..." autocomplete="off" style="flex:1;">
+            <button id="picker-go-btn" style="background:#22c55e; color:#000; border:none; padding:8px 16px; border-radius:6px; font-weight:bold; cursor:pointer;" onclick="searchAddressPicker()">Go</button>
             <button class="picker-close" onclick="closeAddressPicker()">✕</button>
         </div>
         <div id="picker-map" class="picker-map"></div>
@@ -1153,7 +1154,8 @@
             container.querySelectorAll('.job-item').forEach(item => {
                 item.addEventListener('click', function(e) {
                     // Ignore clicks on star or delete icons (they have their own handlers)
-                    if (e.target.closest('.star-icon') || e.target.closest('.delete-icon')) return;
+                    if (e.target.closest('.star-icon')) return;
+                    if (e.target.closest('.delete-icon')) return;
                     const jobId = this.dataset.id;
                     if (!jobId) return;
                     // Check if there's already an overlay; if so, don't add another
@@ -2180,7 +2182,7 @@
                         }
                     }
                     // If no plus code found, try to get from address components? Not reliable.
-                    // We can also generate plus code using the library? Not directly.
+                    // We can also generate plus code using the library? Not included.
                     // Fallback: use the lat/lng to construct a plus code using the Open Location Code library? Not included.
                     // We'll just use what we have.
                 } else {
@@ -2217,20 +2219,39 @@
             });
         }
 
+        // ---------- New: Search Address Picker (Go button) ----------
+        function searchAddressPicker() {
+            const input = document.getElementById('picker-search');
+            const query = input.value.trim();
+            if (!query) return;
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ address: query, region: 'ca' }, function(results, status) {
+                if (status === 'OK' && results.length > 0) {
+                    const location = results[0].geometry.location;
+                    const lat = location.lat();
+                    const lng = location.lng();
+                    pickerMap.panTo({ lat, lng });
+                    pickerMap.setZoom(14);
+                    pickerMarker.setPosition({ lat, lng });
+                    updatePickerInfo(lat, lng);
+                } else {
+                    alert('Location not found.');
+                }
+            });
+        }
+
         function confirmAddress() {
             if (!selectedLocation) {
                 alert("No location selected.");
                 return;
             }
-            // Fill the address field with the plus code or the address
-            let addressToUse = selectedLocation.plusCode || selectedLocation.address;
+            // Prioritize actual address over plus code
+            let addressToUse = selectedLocation.address || selectedLocation.plusCode;
             if (!addressToUse) {
                 alert("Could not determine address.");
                 return;
             }
             document.getElementById('f-address').value = addressToUse;
-            // Optionally, we can also set the city if we can extract it from address, but not required.
-            // Close the picker
             closeAddressPicker();
         }
 
