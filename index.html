@@ -1987,7 +1987,7 @@
             }).catch(err => alert("Error loading saved route: " + err.message));
         }
 
-               // ---------- SHARE ROUTE (composes email with route info) ----------
+                     // ---------- SHARE ROUTE (composes email with route info) ----------
         function buildRouteBody(routeLabel, stops, etaMinutes, etaKm, dateStr) {
             let lines = [];
             // Simple header with spaces
@@ -2008,18 +2008,18 @@
             }
             lines.push(`Stops: ${stops.length}`);
             lines.push('');
-            // List stops with details
+            // List stops with details – new format: quantity then category
             stops.forEach((stop, idx) => {
                 const name = stop.name || 'No name';
                 const city = stop.city || '';
                 let details = [];
-                if (stop.box_qty) details.push(`Box: ${stop.box_qty}`);
-                if (stop.piece_qty) details.push(`Piece: ${stop.piece_qty}`);
-                if (stop.envelope_qty) details.push(`Envelope: ${stop.envelope_qty}`);
-                if (stop.skid_qty) details.push(`Skid: ${stop.skid_qty}`);
+                if (stop.box_qty) details.push(`${stop.box_qty} Box`);
+                if (stop.piece_qty) details.push(`${stop.piece_qty} Piece`);
+                if (stop.envelope_qty) details.push(`${stop.envelope_qty} Envelope`);
+                if (stop.skid_qty) details.push(`${stop.skid_qty} Skid`);
                 if (stop.weight_lbs) details.push(`Weight: ${stop.weight_lbs} LBS`);
                 if (stop.other_details) details.push(`Other: ${stop.other_details}`);
-                const detailsStr = details.length ? details.join(' | ') : 'No details';
+                const detailsStr = details.length ? details.join(' ') : 'No details';
                 lines.push(`${idx+1}. ${name}`);
                 lines.push(`   Location: ${city}`);
                 lines.push(`   Details: ${detailsStr}`);
