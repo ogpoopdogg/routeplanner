@@ -236,7 +236,7 @@
             gap: 8px;
             margin-top: 10px;
         }
-          .saved-route-pill {
+              .saved-route-pill {
             background: gold;
             color: #000;
             padding: 4px 12px;
@@ -250,8 +250,6 @@
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
-            -webkit-touch-callout: none;
-            touch-action: manipulation;
         }
         .saved-route-pill:hover {
             background: #ffd700;
@@ -1902,7 +1900,7 @@
                 .catch(err => alert("Error deleting saved routes: " + err.message));
         }
 
-               // ---------- RENDER SAVED ROUTES PILLS ----------
+                    // ---------- RENDER SAVED ROUTES PILLS ----------
         function renderSavedPills(data) {
             const container = document.getElementById('saved-routes-container');
             container.innerHTML = '';
@@ -1915,69 +1913,44 @@
                 pill.className = 'saved-route-pill';
                 pill.textContent = label;
                 pill.dataset.key = key;
-
-                // Variables to handle long-press
-                let longPressTimer = null;
-                let isLongPress = false;
-
-                // Click to load – but only if it's not a long-press
+                // Click to load
                 pill.addEventListener('click', function(e) {
                     if (this.classList.contains('loading')) return;
-                    // If a long-press was just triggered, ignore this click
-                    if (isLongPress) {
-                        isLongPress = false;
-                        return;
-                    }
                     if (confirm(`Load route "${label}"? This will replace your current stops.`)) {
                         loadSavedRoute(key);
                     }
                 });
-
-                // Helper to clear timer and reset flag
-                function clearLongPress() {
-                    if (longPressTimer) {
-                        clearTimeout(longPressTimer);
-                        longPressTimer = null;
-                    }
-                    isLongPress = false;
-                }
-
-                // Mouse events
+                // Long press to delete (mousedown + mouseup timer)
+                let timer = null;
                 pill.addEventListener('mousedown', function(e) {
-                    clearLongPress(); // clear any previous
-                    longPressTimer = setTimeout(() => {
-                        isLongPress = true;
+                    timer = setTimeout(() => {
                         if (confirm(`Delete saved route "${label}"?`)) {
                             db.ref(`developer/route_planner/saved_routes/${key}`).remove()
                                 .catch(err => alert("Error deleting route: " + err.message));
-                        } else {
-                            isLongPress = false; // user cancelled
                         }
-                        longPressTimer = null;
                     }, 2000);
                 });
-
-                pill.addEventListener('mouseup', clearLongPress);
-                pill.addEventListener('mouseleave', clearLongPress);
-
+                pill.addEventListener('mouseup', function(e) {
+                    if (timer) { clearTimeout(timer); timer = null; }
+                });
+                pill.addEventListener('mouseleave', function(e) {
+                    if (timer) { clearTimeout(timer); timer = null; }
+                });
                 // Touch events for mobile
                 pill.addEventListener('touchstart', function(e) {
-                    clearLongPress();
-                    longPressTimer = setTimeout(() => {
-                        isLongPress = true;
+                    timer = setTimeout(() => {
                         if (confirm(`Delete saved route "${label}"?`)) {
                             db.ref(`developer/route_planner/saved_routes/${key}`).remove()
                                 .catch(err => alert("Error deleting route: " + err.message));
-                        } else {
-                            isLongPress = false;
                         }
-                        longPressTimer = null;
                     }, 2000);
                 });
-
-                pill.addEventListener('touchend', clearLongPress);
-                pill.addEventListener('touchmove', clearLongPress);
-
+                pill.addEventListener('touchend', function(e) {
+                    if (timer) { clearTimeout(timer); timer = null; }
+                });
+                pill.addEventListener('touchmove', function(e) {
+                    if (timer) { clearTimeout(timer); timer = null; }
+                });
                 container.appendChild(pill);
             });
         }
