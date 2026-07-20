@@ -123,7 +123,7 @@
             background: #ffcc00;
         }
 
-        /* Done overlay for list items */
+        /* Done overlay for list items (removed but keep old styles for possible references) */
         .done-overlay {
             position: absolute;
             top: 0;
@@ -163,7 +163,7 @@
         @keyframes draw-check {
             to { stroke-dashoffset: 0; }
         }
-        /* New styles for Details button inside overlay */
+        /* New styles for Details button inside overlay (no longer used) */
         .done-overlay .details-btn {
             background: #fff;
             border: 3px solid #3b82f6;
@@ -183,7 +183,7 @@
             justify-content: center;
         }
 
-        /* Details dropdown */
+        /* Details dropdown (old) - keep for reference but not used */
         .details-dropdown {
             background: var(--card);
             border: 1px solid var(--border);
@@ -473,6 +473,158 @@
             opacity: 0.8;
         }
 
+        /* ---------- NEW STYLES FOR DETAILS MODAL ---------- */
+        #details-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 6000;
+            background: rgba(0,0,0,0.75);
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        #details-modal .details-modal-content {
+            background: var(--card);
+            border-radius: 20px;
+            padding: 30px 40px;
+            max-width: 700px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 3px solid #3b82f6;
+            box-shadow: 0 0 30px rgba(59,130,246,0.7);
+            animation: pulseGlow 1.5s infinite alternate;
+            position: relative;
+        }
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 20px rgba(59,130,246,0.5); border-color: #3b82f6; }
+            100% { box-shadow: 0 0 50px rgba(59,130,246,0.9); border-color: #60a5fa; }
+        }
+        #details-modal .details-modal-content .stop-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--accent);
+            margin: 0 0 20px 0;
+            text-align: center;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 12px;
+        }
+        #details-modal .detail-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 24px;
+        }
+        #details-modal .detail-row:last-of-type {
+            border-bottom: none;
+        }
+        #details-modal .detail-row .category-label {
+            font-weight: 600;
+            min-width: 120px;
+            color: var(--text);
+        }
+        #details-modal .detail-row .qty-controls {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+        #details-modal .detail-row .qty-controls button {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: none;
+            font-size: 28px;
+            font-weight: 700;
+            background: var(--accent);
+            color: #000;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        #details-modal .detail-row .qty-controls button:active {
+            background: #e5b800;
+        }
+        #details-modal .detail-row .qty-controls .qty-display {
+            font-size: 32px;
+            font-weight: 700;
+            min-width: 50px;
+            text-align: center;
+            color: var(--text);
+        }
+        #details-modal .detail-row .other-input {
+            flex: 1;
+            padding: 12px 16px;
+            font-size: 24px;
+            background: var(--input-bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            min-width: 0;
+        }
+        #details-modal .detail-row .other-input:focus {
+            border-color: var(--accent);
+            outline: none;
+        }
+        #details-modal .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 16px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid var(--border);
+        }
+        #details-modal .modal-actions button {
+            padding: 14px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 20px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        #details-modal .modal-actions .save-details-btn {
+            background: var(--accent);
+            color: #000;
+        }
+        #details-modal .modal-actions .close-details-btn {
+            background: #666;
+            color: #fff;
+        }
+        @media (max-width: 768px) {
+            #details-modal .details-modal-content {
+                padding: 20px;
+                max-width: 100%;
+            }
+            #details-modal .detail-row {
+                font-size: 20px;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            #details-modal .detail-row .category-label {
+                min-width: 80px;
+            }
+            #details-modal .detail-row .qty-controls button {
+                width: 40px;
+                height: 40px;
+                font-size: 24px;
+            }
+            #details-modal .detail-row .qty-controls .qty-display {
+                font-size: 28px;
+                min-width: 40px;
+            }
+            #details-modal .detail-row .other-input {
+                font-size: 20px;
+            }
+            #details-modal .modal-actions button {
+                font-size: 18px;
+                padding: 12px 24px;
+            }
+        }
+
         @media (max-width: 768px) {
             header { padding: 8px 12px; }
             .header-logo { height: 20px; }
@@ -603,6 +755,55 @@
         </div>
     </div>
 
+    <!-- Details Modal -->
+    <div id="details-modal">
+        <div class="details-modal-content">
+            <div class="stop-title" id="details-stop-title">Stop Name</div>
+            <div id="details-controls">
+                <div class="detail-row">
+                    <span class="category-label">Box</span>
+                    <div class="qty-controls">
+                        <button class="qty-minus" data-category="box">−</button>
+                        <span class="qty-display" id="box-display">0</span>
+                        <button class="qty-plus" data-category="box">+</button>
+                    </div>
+                </div>
+                <div class="detail-row">
+                    <span class="category-label">Piece</span>
+                    <div class="qty-controls">
+                        <button class="qty-minus" data-category="piece">−</button>
+                        <span class="qty-display" id="piece-display">0</span>
+                        <button class="qty-plus" data-category="piece">+</button>
+                    </div>
+                </div>
+                <div class="detail-row">
+                    <span class="category-label">Envelope</span>
+                    <div class="qty-controls">
+                        <button class="qty-minus" data-category="envelope">−</button>
+                        <span class="qty-display" id="envelope-display">0</span>
+                        <button class="qty-plus" data-category="envelope">+</button>
+                    </div>
+                </div>
+                <div class="detail-row">
+                    <span class="category-label">Skid</span>
+                    <div class="qty-controls">
+                        <button class="qty-minus" data-category="skid">−</button>
+                        <span class="qty-display" id="skid-display">0</span>
+                        <button class="qty-plus" data-category="skid">+</button>
+                    </div>
+                </div>
+                <div class="detail-row">
+                    <span class="category-label">Other</span>
+                    <input type="text" id="other-input" class="other-input" placeholder="Details..." inputmode="text">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="close-details-btn" onclick="closeDetailsModal()">Cancel</button>
+                <button class="save-details-btn" onclick="saveDetailsFromModal()">Save</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Install App Button -->
     <button id="install-btn">Install App</button>
 
@@ -652,8 +853,9 @@
         // Global for ETA calculation status
         let etaCalculating = false;
 
-        // Global for open details dropdowns
-        let openDetailsDropdown = null; // holds jobId of currently open dropdown
+        // Global for details modal
+        let currentDetailsJobId = null;
+        let detailsData = {};
 
         // Global for date selection
         let pendingShareDate = null;
@@ -798,7 +1000,12 @@
                 status: 'pending_pickup',
                 timestamp: Date.now(),
                 created_by: currentUser,
-                manual_priority: false
+                manual_priority: false,
+                box_qty: 0,
+                piece_qty: 0,
+                envelope_qty: 0,
+                skid_qty: 0,
+                other_details: ''
             };
             // Push job to Firebase
             const newJobRef = db.ref('developer/route_planner/jobs').push();
@@ -1062,12 +1269,7 @@
                                     strokeWeight: 2
                                 }
                             });
-                            // Attach click listener for "Done?" overlay
-                            marker.addListener('click', (function(marker, jobId) {
-                                return function() {
-                                    showDoneOverlayForMarker(marker, jobId);
-                                };
-                            })(marker, firstJob.id));
+                            // Removed click listener for Done? overlay; now does nothing
                             mapMarkers[firstJob.id] = marker;
                             counter++;
                         }
@@ -1150,7 +1352,7 @@
             });
             container.innerHTML = html;
 
-            // Attach click listeners to job items for "Done?" overlay, excluding star and delete
+            // Attach click listeners to job items - now directly open details modal
             container.querySelectorAll('.job-item').forEach(item => {
                 item.addEventListener('click', function(e) {
                     // Ignore clicks on star or delete icons (they have their own handlers)
@@ -1158,9 +1360,8 @@
                     if (e.target.closest('.delete-icon')) return;
                     const jobId = this.dataset.id;
                     if (!jobId) return;
-                    // Check if there's already an overlay; if so, don't add another
-                    if (this.querySelector('.done-overlay')) return;
-                    showDoneOverlayForListItem(this, jobId);
+                    // Open details modal
+                    openDetailsModal(jobId);
                 });
             });
 
@@ -1180,8 +1381,10 @@
                 draggable: '.job-item',
                 ghostClass: 'sortable-ghost',
                 onStart: function() {
-                    // Close any open details dropdown when dragging starts
-                    closeAllDetailsDropdowns();
+                    // Close any open details modal if open
+                    if (document.getElementById('details-modal').style.display === 'flex') {
+                        closeDetailsModal();
+                    }
                 },
                 onEnd: function(evt) {
                     // Get new order from DOM
@@ -1196,6 +1399,85 @@
                     }
                 }
             });
+        }
+
+        // ---------- DETAILS MODAL FUNCTIONS ----------
+        function openDetailsModal(jobId) {
+            const job = jobs[jobId];
+            if (!job) return;
+            currentDetailsJobId = jobId;
+            // Populate modal with current data
+            document.getElementById('details-stop-title').textContent = job.name || 'Stop';
+            // Set quantities
+            document.getElementById('box-display').textContent = job.box_qty || 0;
+            document.getElementById('piece-display').textContent = job.piece_qty || 0;
+            document.getElementById('envelope-display').textContent = job.envelope_qty || 0;
+            document.getElementById('skid-display').textContent = job.skid_qty || 0;
+            document.getElementById('other-input').value = job.other_details || '';
+            // Store current values in detailsData for saving
+            detailsData = {
+                box_qty: job.box_qty || 0,
+                piece_qty: job.piece_qty || 0,
+                envelope_qty: job.envelope_qty || 0,
+                skid_qty: job.skid_qty || 0,
+                other_details: job.other_details || ''
+            };
+            // Show modal
+            document.getElementById('details-modal').style.display = 'flex';
+            // Ensure the modal is scrolled to top
+            document.querySelector('.details-modal-content').scrollTop = 0;
+        }
+
+        function closeDetailsModal() {
+            document.getElementById('details-modal').style.display = 'none';
+            currentDetailsJobId = null;
+            detailsData = {};
+        }
+
+        function updateQuantity(category, delta) {
+            const displayId = category + '-display';
+            const display = document.getElementById(displayId);
+            if (!display) return;
+            let val = parseInt(display.textContent) || 0;
+            val = Math.max(0, val + delta);
+            display.textContent = val;
+            // Update detailsData
+            const key = category + '_qty';
+            detailsData[key] = val;
+        }
+
+        // Attach event listeners to +/- buttons (done in modal HTML)
+        document.addEventListener('DOMContentLoaded', function() {
+            // Plus buttons
+            document.querySelectorAll('.qty-plus').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const category = this.dataset.category;
+                    updateQuantity(category, 1);
+                });
+            });
+            document.querySelectorAll('.qty-minus').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const category = this.dataset.category;
+                    updateQuantity(category, -1);
+                });
+            });
+        });
+
+        function saveDetailsFromModal() {
+            if (!currentDetailsJobId) return;
+            // Get other text
+            const otherVal = document.getElementById('other-input').value;
+            detailsData.other_details = otherVal;
+            // Update job in Firebase
+            const updates = {};
+            for (let key in detailsData) {
+                updates[key] = detailsData[key];
+            }
+            db.ref(`developer/route_planner/jobs/${currentDetailsJobId}`).update(updates)
+                .then(() => {
+                    closeDetailsModal();
+                })
+                .catch(err => alert("Error saving details: " + err.message));
         }
 
         // ---------- MAP FUNCTIONS (from command.html) ----------
@@ -1331,225 +1613,6 @@
                 map.setCenter({ lat: 49.8425, lng: -99.9497 });
                 map.setZoom(12);
             }
-        }
-
-        // ---------- "DONE?" OVERLAY FOR MARKERS ----------
-        function showDoneOverlayForMarker(marker, jobId) {
-            // Close any existing info window
-            if (activeInfoWindow) {
-                activeInfoWindow.close();
-                activeInfoWindow = null;
-            }
-            // Create info window content
-            const contentDiv = document.createElement('div');
-            contentDiv.id = 'done-infowindow-content';
-            contentDiv.innerHTML = `
-                <button class="done-infowindow-btn" id="done-infowindow-btn">Done?</button>
-            `;
-            const infowindow = new google.maps.InfoWindow({
-                content: contentDiv,
-                disableAutoPan: false
-            });
-            infowindow.open(map, marker);
-            activeInfoWindow = infowindow;
-
-            // Modify InfoWindow container after open
-            google.maps.event.addListener(infowindow, 'domready', function() {
-                // Get the InfoWindow container
-                const iwContainer = document.querySelector('.gm-style-iw');
-                if (iwContainer) {
-                    // Remove background and box-shadow
-                    iwContainer.style.background = 'transparent';
-                    iwContainer.style.boxShadow = 'none';
-                    // Remove padding from parent
-                    const parent = iwContainer.parentElement;
-                    if (parent) {
-                        parent.style.background = 'transparent';
-                        parent.style.boxShadow = 'none';
-                    }
-                }
-                // Also ensure the close button is hidden (already via CSS)
-                const closeBtn = document.querySelector('.gm-style-iw button[title="Close"]');
-                if (closeBtn) closeBtn.style.display = 'none';
-            });
-
-            // Handle click on Done button
-            const doneBtn = contentDiv.querySelector('#done-infowindow-btn');
-            doneBtn.addEventListener('click', function() {
-                // Replace button with checkmark animation (same as list)
-                const checkSvg = `
-                    <svg class="checkmark-svg" viewBox="0 0 60 60">
-                        <path class="checkmark-path" d="M10 30 L25 45 L50 15" />
-                    </svg>
-                `;
-                contentDiv.innerHTML = checkSvg;
-                // After 1.5s, delete job and close infowindow
-                setTimeout(() => {
-                    // Delete job
-                    db.ref(`developer/route_planner/jobs/${jobId}`).remove();
-                    if (activeInfoWindow) {
-                        activeInfoWindow.close();
-                        activeInfoWindow = null;
-                    }
-                }, 1500);
-            });
-        }
-
-        // ---------- "DONE?" OVERLAY FOR LIST ITEMS (with Details button) ----------
-        function showDoneOverlayForListItem(listItem, jobId) {
-            // Create overlay
-            const overlay = document.createElement('div');
-            overlay.className = 'done-overlay';
-            overlay.innerHTML = `
-                <button class="done-btn" id="done-list-btn">Done?</button>
-                <button class="details-btn" id="details-list-btn" data-jobid="${jobId}">Details</button>
-            `;
-            listItem.style.position = 'relative'; // ensure absolute works
-            listItem.appendChild(overlay);
-
-            // Handle click on Done button
-            const doneBtn = overlay.querySelector('#done-list-btn');
-            doneBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                // Replace button with checkmark
-                const checkSvg = `
-                    <svg class="checkmark-svg" viewBox="0 0 60 60">
-                        <path class="checkmark-path" d="M10 30 L25 45 L50 15" />
-                    </svg>
-                `;
-                overlay.innerHTML = checkSvg;
-                // After 1.5s, delete job and remove overlay
-                setTimeout(() => {
-                    db.ref(`developer/route_planner/jobs/${jobId}`).remove();
-                    // overlay will be removed when job item is removed from DOM
-                }, 1500);
-            });
-
-            // Handle click on Details button
-            const detailsBtn = overlay.querySelector('#details-list-btn');
-            detailsBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                // Remove the overlay (so user can interact with the item)
-                overlay.remove();
-                // Toggle details dropdown for this job
-                toggleDetailsDropdown(jobId);
-            });
-        }
-
-        // ---------- DETAILS DROPDOWN MANAGEMENT ----------
-        function toggleDetailsDropdown(jobId) {
-            // If there is an open dropdown and it's the same, close it
-            if (openDetailsDropdown === jobId) {
-                // Save and close
-                closeDetailsDropdown(jobId);
-                return;
-            }
-            // Close any existing open dropdown
-            closeAllDetailsDropdowns();
-
-            // Find the job item element
-            const jobItem = document.querySelector(`.job-item[data-id="${jobId}"]`);
-            if (!jobItem) return;
-            // Check if there is already a dropdown sibling; if so, it should have been closed, so we remove it.
-            let existingDropdown = jobItem.nextElementSibling;
-            if (existingDropdown && existingDropdown.classList.contains('details-dropdown')) {
-                existingDropdown.remove();
-            }
-
-            // Create dropdown
-            const dropdown = document.createElement('div');
-            dropdown.className = 'details-dropdown';
-            dropdown.dataset.jobid = jobId;
-            const job = jobs[jobId];
-            const detailsText = (job && job.shipment_details) ? job.shipment_details : '';
-            dropdown.innerHTML = `
-                <textarea id="details-textarea-${jobId}" placeholder="Enter shipment details...">${detailsText}</textarea>
-                <button class="details-close-btn" data-jobid="${jobId}">Close</button>
-            `;
-            // Insert after jobItem
-            jobItem.parentNode.insertBefore(dropdown, jobItem.nextSibling);
-
-            // Focus textarea
-            const textarea = dropdown.querySelector('textarea');
-            textarea.focus();
-
-            // Close button saves and closes
-            const closeBtn = dropdown.querySelector('.details-close-btn');
-            closeBtn.addEventListener('click', function() {
-                saveAndCloseDetails(jobId);
-            });
-
-            // Also close if user clicks outside (we'll handle via global click maybe, but for simplicity we use close button)
-            openDetailsDropdown = jobId;
-
-            // Mark the Details button as open (if it exists - but it's removed)
-            // We can style the item's details button if we had one, but we removed overlay.
-            // Instead we could add a class to the job item to indicate details open.
-            jobItem.classList.add('details-open');
-        }
-
-        function closeDetailsDropdown(jobId) {
-            const jobItem = document.querySelector(`.job-item[data-id="${jobId}"]`);
-            if (!jobItem) return;
-            const dropdown = jobItem.nextElementSibling;
-            if (dropdown && dropdown.classList.contains('details-dropdown')) {
-                // Save any unsaved text before removing
-                const textarea = dropdown.querySelector('textarea');
-                if (textarea) {
-                    saveDetails(jobId, textarea.value);
-                }
-                dropdown.remove();
-                jobItem.classList.remove('details-open');
-                if (openDetailsDropdown === jobId) {
-                    openDetailsDropdown = null;
-                }
-            }
-        }
-
-        function saveAndCloseDetails(jobId) {
-            const jobItem = document.querySelector(`.job-item[data-id="${jobId}"]`);
-            if (!jobItem) return;
-            const dropdown = jobItem.nextElementSibling;
-            if (dropdown && dropdown.classList.contains('details-dropdown')) {
-                const textarea = dropdown.querySelector('textarea');
-                if (textarea) {
-                    saveDetails(jobId, textarea.value);
-                }
-                dropdown.remove();
-                jobItem.classList.remove('details-open');
-                if (openDetailsDropdown === jobId) {
-                    openDetailsDropdown = null;
-                }
-            }
-        }
-
-        function closeAllDetailsDropdowns() {
-            if (openDetailsDropdown !== null) {
-                // Save and close the open one
-                const jobId = openDetailsDropdown;
-                const jobItem = document.querySelector(`.job-item[data-id="${jobId}"]`);
-                if (jobItem) {
-                    const dropdown = jobItem.nextElementSibling;
-                    if (dropdown && dropdown.classList.contains('details-dropdown')) {
-                        const textarea = dropdown.querySelector('textarea');
-                        if (textarea) {
-                            saveDetails(jobId, textarea.value);
-                        }
-                        dropdown.remove();
-                        jobItem.classList.remove('details-open');
-                    }
-                }
-                openDetailsDropdown = null;
-            }
-        }
-
-        function saveDetails(jobId, text) {
-            // Update local jobs object
-            if (jobs[jobId]) {
-                jobs[jobId].shipment_details = text;
-            }
-            // Update Firebase
-            db.ref(`developer/route_planner/jobs/${jobId}/shipment_details`).set(text);
         }
 
         // ---------- ETA ON-DEMAND CALCULATION ----------
@@ -1709,7 +1772,11 @@
                         pickup_location: job.pickup_location,
                         city: job.city,
                         manual_priority: job.manual_priority || false,
-                        shipment_details: job.shipment_details || '',
+                        box_qty: job.box_qty || 0,
+                        piece_qty: job.piece_qty || 0,
+                        envelope_qty: job.envelope_qty || 0,
+                        skid_qty: job.skid_qty || 0,
+                        other_details: job.other_details || '',
                         timestamp: job.timestamp,
                         created_by: job.created_by
                     });
@@ -1823,7 +1890,11 @@
                         timestamp: stop.timestamp || Date.now(),
                         created_by: stop.created_by || currentUser,
                         manual_priority: stop.manual_priority || false,
-                        shipment_details: stop.shipment_details || ''
+                        box_qty: stop.box_qty || 0,
+                        piece_qty: stop.piece_qty || 0,
+                        envelope_qty: stop.envelope_qty || 0,
+                        skid_qty: stop.skid_qty || 0,
+                        other_details: stop.other_details || ''
                     };
                     const newRef = db.ref('developer/route_planner/jobs').push();
                     promises.push(newRef.set(newJob));
@@ -1865,11 +1936,15 @@
             stops.forEach((stop, idx) => {
                 const name = stop.name || 'No name';
                 const city = stop.city || '';
-                const details = stop.shipment_details || '';
+                let details = '';
+                if (stop.box_qty) details += ` Box:${stop.box_qty}`;
+                if (stop.piece_qty) details += ` Piece:${stop.piece_qty}`;
+                if (stop.envelope_qty) details += ` Envelope:${stop.envelope_qty}`;
+                if (stop.skid_qty) details += ` Skid:${stop.skid_qty}`;
+                if (stop.other_details) details += ` Other:${stop.other_details}`;
+                if (!details) details = 'No details';
                 lines.push(`${idx+1}. ${name}, ${city}`);
-                if (details) {
-                    lines.push(`   Details: ${details}`);
-                }
+                lines.push(`   Details: ${details}`);
                 lines.push('');
             });
             return lines.join('\n');
@@ -1931,7 +2006,11 @@
                             currentStops.push({
                                 name: job.name,
                                 city: job.city,
-                                shipment_details: job.shipment_details || ''
+                                box_qty: job.box_qty || 0,
+                                piece_qty: job.piece_qty || 0,
+                                envelope_qty: job.envelope_qty || 0,
+                                skid_qty: job.skid_qty || 0,
+                                other_details: job.other_details || ''
                             });
                         }
                     });
