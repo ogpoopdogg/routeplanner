@@ -570,6 +570,27 @@
             border-color: var(--accent);
             outline: none;
         }
+        /* Weight row specific */
+        #details-modal .detail-row .weight-input {
+            width: 120px;
+            padding: 12px 16px;
+            font-size: 24px;
+            background: var(--input-bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            text-align: center;
+        }
+        #details-modal .detail-row .weight-input:focus {
+            border-color: var(--accent);
+            outline: none;
+        }
+        #details-modal .detail-row .weight-label {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text);
+            margin-left: 8px;
+        }
         #details-modal .modal-actions {
             display: flex;
             justify-content: flex-end;
@@ -617,6 +638,13 @@
                 min-width: 40px;
             }
             #details-modal .detail-row .other-input {
+                font-size: 20px;
+            }
+            #details-modal .detail-row .weight-input {
+                width: 100px;
+                font-size: 20px;
+            }
+            #details-modal .detail-row .weight-label {
                 font-size: 20px;
             }
             #details-modal .modal-actions button {
@@ -790,6 +818,14 @@
                         <button class="qty-minus" data-category="skid">−</button>
                         <span class="qty-display" id="skid-display">0</span>
                         <button class="qty-plus" data-category="skid">+</button>
+                    </div>
+                </div>
+                <!-- New row for Weight -->
+                <div class="detail-row">
+                    <span class="category-label">Weight</span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input type="number" id="weight-input" class="weight-input" min="0" max="9999" inputmode="numeric" placeholder="0">
+                        <span class="weight-label">LBS</span>
                     </div>
                 </div>
                 <div class="detail-row">
@@ -1005,6 +1041,7 @@
                 piece_qty: 0,
                 envelope_qty: 0,
                 skid_qty: 0,
+                weight_lbs: 0,
                 other_details: ''
             };
             // Push job to Firebase
@@ -1413,6 +1450,7 @@
             document.getElementById('piece-display').textContent = job.piece_qty || 0;
             document.getElementById('envelope-display').textContent = job.envelope_qty || 0;
             document.getElementById('skid-display').textContent = job.skid_qty || 0;
+            document.getElementById('weight-input').value = job.weight_lbs || 0;
             document.getElementById('other-input').value = job.other_details || '';
             // Store current values in detailsData for saving
             detailsData = {
@@ -1420,6 +1458,7 @@
                 piece_qty: job.piece_qty || 0,
                 envelope_qty: job.envelope_qty || 0,
                 skid_qty: job.skid_qty || 0,
+                weight_lbs: job.weight_lbs || 0,
                 other_details: job.other_details || ''
             };
             // Show modal
@@ -1465,8 +1504,10 @@
 
         function saveDetailsFromModal() {
             if (!currentDetailsJobId) return;
-            // Get other text
+            // Get weight and other text
+            const weightVal = parseInt(document.getElementById('weight-input').value) || 0;
             const otherVal = document.getElementById('other-input').value;
+            detailsData.weight_lbs = Math.min(9999, Math.max(0, weightVal));
             detailsData.other_details = otherVal;
             // Update job in Firebase
             const updates = {};
@@ -1776,6 +1817,7 @@
                         piece_qty: job.piece_qty || 0,
                         envelope_qty: job.envelope_qty || 0,
                         skid_qty: job.skid_qty || 0,
+                        weight_lbs: job.weight_lbs || 0,
                         other_details: job.other_details || '',
                         timestamp: job.timestamp,
                         created_by: job.created_by
@@ -1894,6 +1936,7 @@
                         piece_qty: stop.piece_qty || 0,
                         envelope_qty: stop.envelope_qty || 0,
                         skid_qty: stop.skid_qty || 0,
+                        weight_lbs: stop.weight_lbs || 0,
                         other_details: stop.other_details || ''
                     };
                     const newRef = db.ref('developer/route_planner/jobs').push();
@@ -1917,36 +1960,43 @@
         // ---------- SHARE ROUTE (composes email with route info) ----------
         function buildRouteBody(routeLabel, stops, etaMinutes, etaKm, dateStr) {
             let lines = [];
-            lines.push(`=== ${routeLabel} ===`);
-            lines.push(`Date: ${dateStr}`);
-            let etaInfo = '';
+            // Professional header
+            lines.push('================================================');
+            lines.push('     E&C ROUTE PLANNER – MANIFEST');
+            lines.push('================================================');
+            lines.push(`  Route: ${routeLabel}`);
+            lines.push(`  Date : ${dateStr}`);
             if (etaMinutes > 0) {
                 const hours = Math.floor(etaMinutes / 60);
                 const mins = Math.round(etaMinutes % 60);
                 let timeStr = '';
                 if (hours > 0) timeStr += hours + 'h ';
                 timeStr += mins + 'm';
-                etaInfo = `Total ETA: ${timeStr} | ${etaKm.toFixed(1)} km`;
+                lines.push(`  ETA  : ${timeStr}  (${etaKm.toFixed(1)} km)`);
             } else {
-                etaInfo = 'ETA: Not calculated';
+                lines.push('  ETA  : Not calculated');
             }
-            lines.push(etaInfo);
-            lines.push(`Stops: ${stops.length}`);
-            lines.push('----------------------------------------');
+            lines.push(`  Stops: ${stops.length}`);
+            lines.push('------------------------------------------------');
             stops.forEach((stop, idx) => {
                 const name = stop.name || 'No name';
                 const city = stop.city || '';
-                let details = '';
-                if (stop.box_qty) details += ` Box:${stop.box_qty}`;
-                if (stop.piece_qty) details += ` Piece:${stop.piece_qty}`;
-                if (stop.envelope_qty) details += ` Envelope:${stop.envelope_qty}`;
-                if (stop.skid_qty) details += ` Skid:${stop.skid_qty}`;
-                if (stop.other_details) details += ` Other:${stop.other_details}`;
-                if (!details) details = 'No details';
-                lines.push(`${idx+1}. ${name}, ${city}`);
-                lines.push(`   Details: ${details}`);
+                let details = [];
+                if (stop.box_qty) details.push(`Box:${stop.box_qty}`);
+                if (stop.piece_qty) details.push(`Piece:${stop.piece_qty}`);
+                if (stop.envelope_qty) details.push(`Envelope:${stop.envelope_qty}`);
+                if (stop.skid_qty) details.push(`Skid:${stop.skid_qty}`);
+                if (stop.weight_lbs) details.push(`Weight:${stop.weight_lbs} LBS`);
+                if (stop.other_details) details.push(`Other:${stop.other_details}`);
+                const detailsStr = details.length ? details.join(', ') : 'No details';
+                lines.push(`${idx+1}. ${name}`);
+                lines.push(`   ${city}`);
+                lines.push(`   ${detailsStr}`);
                 lines.push('');
             });
+            lines.push('------------------------------------------------');
+            lines.push('  End of Manifest');
+            lines.push('================================================');
             return lines.join('\n');
         }
 
@@ -2010,6 +2060,7 @@
                                 piece_qty: job.piece_qty || 0,
                                 envelope_qty: job.envelope_qty || 0,
                                 skid_qty: job.skid_qty || 0,
+                                weight_lbs: job.weight_lbs || 0,
                                 other_details: job.other_details || ''
                             });
                         }
@@ -2025,7 +2076,7 @@
                     return;
                 }
 
-                const emailBody = bodyParts.join('\n\n========================================\n\n');
+                const emailBody = bodyParts.join('\n\n');
                 const subject = `Route Manifest for ${dateStr}`;
                 const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
                 window.location.href = mailtoLink;
