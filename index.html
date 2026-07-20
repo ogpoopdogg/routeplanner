@@ -15,14 +15,20 @@
             --header-bg: #030712; --input-bg: #374151; --border: #4b5563; --modal-bg: #111827;
             --shadow-soft: 0 10px 15px -3px rgba(0,0,0,0.3), 0 4px 6px -4px rgba(0,0,0,0.3);
         }
-        body.light-mode {
+                body.light-mode {
             --bg: #f3f4f6; --card: #ffffff; --text: #111827; --card-text: #374151; --header-bg: #ffffff;
             --input-bg: #f9fafb; --border: #e5e7eb; --modal-bg: #ffffff; --accent: #2563eb; --active-green: #16a34a;
         }
         body.light-mode * { color: #000 !important; }
         body.light-mode button { background: #fff !important; color: #000 !important; border: 1px solid #ccc !important; }
         body.light-mode .primary { background: #fff !important; border: 2px solid #00b32d !important; }
-
+        body.light-mode .map-btn {
+            background: #fff !important;
+            border: 1px solid #333 !important;
+        }
+        body.light-mode .map-btn svg {
+            stroke: #000 !important;
+        }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden; }
         header { padding: 16px 24px; background: var(--header-bg); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-soft); }
         .header-logo { height: 24px; width: auto; margin-right: 12px; vertical-align: middle; filter: drop-shadow(0 0 3px var(--accent)); cursor: pointer; }
