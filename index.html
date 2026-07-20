@@ -1987,49 +1987,47 @@
             }).catch(err => alert("Error loading saved route: " + err.message));
         }
 
-        // ---------- SHARE ROUTE (composes email with route info) ----------
+               // ---------- SHARE ROUTE (composes email with route info) ----------
         function buildRouteBody(routeLabel, stops, etaMinutes, etaKm, dateStr) {
             let lines = [];
-            // Professional header
-            lines.push('================================================');
-            lines.push('     E&C ROUTE PLANNER – MANIFEST');
-            lines.push('================================================');
-            lines.push(`  Route: ${routeLabel}`);
-            lines.push(`  Date : ${dateStr}`);
+            // Simple header with spaces
+            lines.push('E&C ROUTE PLANNER');
+            lines.push('Manifest');
+            lines.push('');
+            lines.push(`Route: ${routeLabel}`);
+            lines.push(`Date:  ${dateStr}`);
             if (etaMinutes > 0) {
                 const hours = Math.floor(etaMinutes / 60);
                 const mins = Math.round(etaMinutes % 60);
                 let timeStr = '';
                 if (hours > 0) timeStr += hours + 'h ';
                 timeStr += mins + 'm';
-                lines.push(`  ETA  : ${timeStr}  (${etaKm.toFixed(1)} km)`);
+                lines.push(`ETA:   ${timeStr}  (${etaKm.toFixed(1)} km)`);
             } else {
-                lines.push('  ETA  : Not calculated');
+                lines.push('ETA:   Not calculated');
             }
-            lines.push(`  Stops: ${stops.length}`);
-            lines.push('------------------------------------------------');
+            lines.push(`Stops: ${stops.length}`);
+            lines.push('');
+            // List stops with details
             stops.forEach((stop, idx) => {
                 const name = stop.name || 'No name';
                 const city = stop.city || '';
                 let details = [];
-                if (stop.box_qty) details.push(`Box:${stop.box_qty}`);
-                if (stop.piece_qty) details.push(`Piece:${stop.piece_qty}`);
-                if (stop.envelope_qty) details.push(`Envelope:${stop.envelope_qty}`);
-                if (stop.skid_qty) details.push(`Skid:${stop.skid_qty}`);
-                if (stop.weight_lbs) details.push(`Weight:${stop.weight_lbs} LBS`);
-                if (stop.other_details) details.push(`Other:${stop.other_details}`);
-                const detailsStr = details.length ? details.join(', ') : 'No details';
+                if (stop.box_qty) details.push(`Box: ${stop.box_qty}`);
+                if (stop.piece_qty) details.push(`Piece: ${stop.piece_qty}`);
+                if (stop.envelope_qty) details.push(`Envelope: ${stop.envelope_qty}`);
+                if (stop.skid_qty) details.push(`Skid: ${stop.skid_qty}`);
+                if (stop.weight_lbs) details.push(`Weight: ${stop.weight_lbs} LBS`);
+                if (stop.other_details) details.push(`Other: ${stop.other_details}`);
+                const detailsStr = details.length ? details.join(' | ') : 'No details';
                 lines.push(`${idx+1}. ${name}`);
-                lines.push(`   ${city}`);
-                lines.push(`   ${detailsStr}`);
+                lines.push(`   Location: ${city}`);
+                lines.push(`   Details: ${detailsStr}`);
                 lines.push('');
             });
-            lines.push('------------------------------------------------');
-            lines.push('  End of Manifest');
-            lines.push('================================================');
+            // No decorative lines or "End of Manifest"
             return lines.join('\n');
         }
-
         function shareRoute() {
             // Show date modal
             document.getElementById('date-modal').style.display = 'flex';
