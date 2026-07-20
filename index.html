@@ -1928,7 +1928,7 @@
                             db.ref(`developer/route_planner/saved_routes/${key}`).remove()
                                 .catch(err => alert("Error deleting route: " + err.message));
                         }
-                    }, 1000);
+                    }, 500);
                 });
                 pill.addEventListener('mouseup', function(e) {
                     if (timer) { clearTimeout(timer); timer = null; }
@@ -1943,7 +1943,7 @@
                             db.ref(`developer/route_planner/saved_routes/${key}`).remove()
                                 .catch(err => alert("Error deleting route: " + err.message));
                         }
-                    }, 1000);
+                    }, 500);
                 });
                 pill.addEventListener('touchend', function(e) {
                     if (timer) { clearTimeout(timer); timer = null; }
