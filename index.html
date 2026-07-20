@@ -1485,7 +1485,7 @@
             detailsData[key] = val;
         }
 
-                // Attach event listeners to +/- buttons and inputs for scrolling
+                       // Attach event listeners to +/- buttons and inputs for scrolling
         document.addEventListener('DOMContentLoaded', function() {
             // Plus buttons
             document.querySelectorAll('.qty-plus').forEach(btn => {
@@ -1501,24 +1501,24 @@
                 });
             });
 
-            // Scroll modal content down when focusing on inputs, so Save button is visible
-            const scrollToBottom = function() {
-                const modalContent = document.querySelector('.details-modal-content');
-                if (modalContent) {
+            // Scroll modal content so that the Save button is visible when focusing on inputs
+            const scrollActionsIntoView = function() {
+                const actions = document.querySelector('.modal-actions');
+                if (actions) {
                     setTimeout(() => {
-                        modalContent.scrollTop = modalContent.scrollHeight;
+                        actions.scrollIntoView({ block: 'end', behavior: 'smooth' });
                     }, 300);
                 }
             };
 
             const weightInput = document.getElementById('weight-input');
             if (weightInput) {
-                weightInput.addEventListener('focus', scrollToBottom);
+                weightInput.addEventListener('focus', scrollActionsIntoView);
             }
 
             const otherInput = document.getElementById('other-input');
             if (otherInput) {
-                otherInput.addEventListener('focus', scrollToBottom);
+                otherInput.addEventListener('focus', scrollActionsIntoView);
             }
         });
 
