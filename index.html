@@ -1450,7 +1450,7 @@
             document.getElementById('piece-display').textContent = job.piece_qty || 0;
             document.getElementById('envelope-display').textContent = job.envelope_qty || 0;
             document.getElementById('skid-display').textContent = job.skid_qty || 0;
-            document.getElementById('weight-input').value = job.weight_lbs || 0;
+           document.getElementById('weight-input').value = job.weight_lbs ? job.weight_lbs : '';
             document.getElementById('other-input').value = job.other_details || '';
             // Store current values in detailsData for saving
             detailsData = {
