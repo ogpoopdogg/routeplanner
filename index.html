@@ -1485,7 +1485,7 @@
             detailsData[key] = val;
         }
 
-                       // Attach event listeners to +/- buttons and inputs for scrolling
+                              // Attach event listeners to +/- buttons and inputs for scrolling
         document.addEventListener('DOMContentLoaded', function() {
             // Plus buttons
             document.querySelectorAll('.qty-plus').forEach(btn => {
@@ -1501,27 +1501,27 @@
                 });
             });
 
-            // Scroll modal content so that the Save button is visible when focusing on inputs
-            const scrollActionsIntoView = function() {
-                const actions = document.querySelector('.modal-actions');
-                if (actions) {
+            // Scroll the modal content all the way to the bottom when focusing on inputs
+            const scrollToBottom = function() {
+                const modalContent = document.querySelector('.details-modal-content');
+                if (modalContent) {
+                    // Wait for keyboard to appear, then scroll to absolute bottom
                     setTimeout(() => {
-                        actions.scrollIntoView({ block: 'end', behavior: 'smooth' });
-                    }, 300);
+                        modalContent.scrollTop = modalContent.scrollHeight;
+                    }, 400);
                 }
             };
 
             const weightInput = document.getElementById('weight-input');
             if (weightInput) {
-                weightInput.addEventListener('focus', scrollActionsIntoView);
+                weightInput.addEventListener('focus', scrollToBottom);
             }
 
             const otherInput = document.getElementById('other-input');
             if (otherInput) {
-                otherInput.addEventListener('focus', scrollActionsIntoView);
+                otherInput.addEventListener('focus', scrollToBottom);
             }
         });
-
         function saveDetailsFromModal() {
             if (!currentDetailsJobId) return;
             // Get weight and other text
