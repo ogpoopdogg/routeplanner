@@ -1916,15 +1916,15 @@
             if (keys.length === 0) return;
             keys.forEach(key => {
                 const route = data[key];
-                const label = route.label || 'Unnamed';
+                // const label = route.label || 'Unnamed'; // removed label from pill
                 const pill = document.createElement('div');
                 pill.className = 'saved-route-pill';
-                pill.textContent = key + ': ' + label;  // show username: label
+                pill.textContent = key; // only show the username key
                 pill.dataset.key = key;
                 // Click to load
                 pill.addEventListener('click', function(e) {
                     if (this.classList.contains('loading')) return;
-                    if (confirm(`Load route for "${key}" (${label})? This will replace your current stops.`)) {
+                    if (confirm(`Load route for "${key}"? This will replace your current stops.`)) {
                         loadSavedRoute(key);
                     }
                 });
@@ -2114,11 +2114,23 @@
                 keys.forEach(key => {
                     const route = savedData[key];
                     const label = route.label || 'Unnamed';
-                    const stops = route.stops || [];
-                    if (stops.length === 0) return;
+                    // Build stops array from route.stops (object) and route.order
+                    let stopsArray = [];
+                    if (Array.isArray(route.stops)) {
+                        stopsArray = route.stops;
+                    } else {
+                        const stopsObj = route.stops || {};
+                        const orderArray = route.order || Object.keys(stopsObj);
+                        orderArray.forEach(id => {
+                            if (stopsObj[id]) {
+                                stopsArray.push(stopsObj[id]);
+                            }
+                        });
+                    }
+                    if (stopsArray.length === 0) return;
                     const etaMinutes = route.etaTotalMinutes || 0;
                     const etaKm = route.etaTotalKm || 0;
-                    const content = buildRouteBody(label, stops, etaMinutes, etaKm, dateStr);
+                    const content = buildRouteBody(label, stopsArray, etaMinutes, etaKm, dateStr);
                     bodyParts.push(content);
                 });
 
