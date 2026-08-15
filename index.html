@@ -1845,6 +1845,11 @@
                     // If still zero (maybe error), continue? We'll allow save anyway.
                 }
             }
+            // Prompt for driver username
+            const usernameInput = prompt("Enter driver username (e.g., alysha):", "");
+            if (usernameInput === null || usernameInput.trim() === "") return;
+            let username = usernameInput.trim().toLowerCase();
+            // Prompt for route label
             const labelInput = prompt("Enter a label for this saved route:", "");
             if (labelInput === null || labelInput.trim() === "") return;
             // Capitalize first letter
@@ -1852,7 +1857,7 @@
             if (label.length > 0) {
                 label = label.charAt(0).toUpperCase() + label.slice(1);
             }
-            // Build array of job objects in order
+            // Build array of job objects in order, including lat/lng if available
             const stops = [];
             optimizedOrder.forEach(id => {
                 const job = jobs[id];
@@ -1869,7 +1874,9 @@
                         weight_lbs: job.weight_lbs || 0,
                         other_details: job.other_details || '',
                         timestamp: job.timestamp,
-                        created_by: job.created_by
+                        created_by: job.created_by,
+                        lat: job.lat || null,
+                        lng: job.lng || null
                     });
                 }
             });
@@ -1879,9 +1886,11 @@
                 timestamp: Date.now(),
                 stops: stops,
                 etaTotalMinutes: etaTotalMinutes,
-                etaTotalKm: etaTotalKm
+                etaTotalKm: etaTotalKm,
+                driverUsername: username
             };
-            db.ref('developer/route_planner/saved_routes').push(routeData)
+            // Save under the username key (overwrite any existing route for that driver)
+            db.ref('developer/route_planner/saved_routes/' + username).set(routeData)
                 .then(() => {
                     // After saving, clear all jobs from the route stops
                     db.ref('developer/route_planner/jobs').remove();
@@ -1911,12 +1920,12 @@
                 const label = route.label || 'Unnamed';
                 const pill = document.createElement('div');
                 pill.className = 'saved-route-pill';
-                pill.textContent = label;
+                pill.textContent = key + ': ' + label;  // show username: label
                 pill.dataset.key = key;
                 // Click to load
                 pill.addEventListener('click', function(e) {
                     if (this.classList.contains('loading')) return;
-                    if (confirm(`Load route "${label}"? This will replace your current stops.`)) {
+                    if (confirm(`Load route for "${key}" (${label})? This will replace your current stops.`)) {
                         loadSavedRoute(key);
                     }
                 });
@@ -1924,7 +1933,7 @@
                 let timer = null;
                 pill.addEventListener('mousedown', function(e) {
                     timer = setTimeout(() => {
-                        if (confirm(`Delete saved route "${label}"?`)) {
+                        if (confirm(`Delete saved route for "${key}"?`)) {
                             db.ref(`developer/route_planner/saved_routes/${key}`).remove()
                                 .catch(err => alert("Error deleting route: " + err.message));
                         }
@@ -1939,7 +1948,7 @@
                 // Touch events for mobile
                 pill.addEventListener('touchstart', function(e) {
                     timer = setTimeout(() => {
-                        if (confirm(`Delete saved route "${label}"?`)) {
+                        if (confirm(`Delete saved route for "${key}"?`)) {
                             db.ref(`developer/route_planner/saved_routes/${key}`).remove()
                                 .catch(err => alert("Error deleting route: " + err.message));
                         }
@@ -1985,7 +1994,9 @@
                         envelope_qty: stop.envelope_qty || 0,
                         skid_qty: stop.skid_qty || 0,
                         weight_lbs: stop.weight_lbs || 0,
-                        other_details: stop.other_details || ''
+                        other_details: stop.other_details || '',
+                        lat: stop.lat || null,
+                        lng: stop.lng || null
                     };
                     const newRef = db.ref('developer/route_planner/jobs').push();
                     promises.push(newRef.set(newJob));
