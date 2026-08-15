@@ -1972,9 +1972,18 @@
             const ref = db.ref(`developer/route_planner/saved_routes/${key}`);
             ref.once('value').then(snap => {
                 const data = snap.val();
-                if (!data || !data.stops || data.stops.length === 0) {
+                if (!data || !data.stops) {
                     alert("Route is empty.");
                     return;
+                }
+                let stopEntries;
+                if (Array.isArray(data.stops)) {
+                    if (data.stops.length === 0) { alert("Route is empty."); return; }
+                    stopEntries = data.stops.map((stop, idx) => ({ id: 'stop_' + idx, stop }));
+                } else {
+                    const order = data.order || Object.keys(data.stops);
+                    if (order.length === 0) { alert("Route is empty."); return; }
+                    stopEntries = order.map(id => ({ id, stop: data.stops[id] }));
                 }
                 // Set ETA from saved data
                 etaTotalMinutes = data.etaTotalMinutes || 0;
@@ -1984,7 +1993,8 @@
                 // Add each stop as a new job, preserving details
                 const newJobs = {};
                 const promises = [];
-                data.stops.forEach((stop, index) => {
+                stopEntries.forEach((entry, index) => {
+                    const stop = entry.stop;
                     const newJob = {
                         name: stop.name || '',
                         pickup_location: stop.pickup_location || '',
