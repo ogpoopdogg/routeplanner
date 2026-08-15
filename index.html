@@ -1849,14 +1849,8 @@
             const usernameInput = prompt("Enter driver username (e.g., alysha):", "");
             if (usernameInput === null || usernameInput.trim() === "") return;
             let username = usernameInput.trim().toLowerCase();
-            // Prompt for route label
-            const labelInput = prompt("Enter a label for this saved route:", "");
-            if (labelInput === null || labelInput.trim() === "") return;
-            // Capitalize first letter
-            let label = labelInput.trim();
-            if (label.length > 0) {
-                label = label.charAt(0).toUpperCase() + label.slice(1);
-            }
+            // Use username as label
+            let label = username.charAt(0).toUpperCase() + username.slice(1);
             // Build object of job objects in order, including lat/lng if available
             const stopsObj = {};
             optimizedOrder.forEach(id => {
