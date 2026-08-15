@@ -1857,12 +1857,12 @@
             if (label.length > 0) {
                 label = label.charAt(0).toUpperCase() + label.slice(1);
             }
-            // Build array of job objects in order, including lat/lng if available
-            const stops = [];
+            // Build object of job objects in order, including lat/lng if available
+            const stopsObj = {};
             optimizedOrder.forEach(id => {
                 const job = jobs[id];
                 if (job) {
-                    stops.push({
+                    stopsObj[id] = {
                         name: job.name,
                         pickup_location: job.pickup_location,
                         city: job.city,
@@ -1877,14 +1877,18 @@
                         created_by: job.created_by,
                         lat: job.lat || null,
                         lng: job.lng || null
-                    });
+                    };
                 }
             });
-            if (stops.length === 0) return;
+            if (Object.keys(stopsObj).length === 0) return;
+
             const routeData = {
                 label: label,
                 timestamp: Date.now(),
-                stops: stops,
+                stops: stopsObj,
+                order: optimizedOrder,
+                assignedIndices: {},
+                isFinalized: false,
                 etaTotalMinutes: etaTotalMinutes,
                 etaTotalKm: etaTotalKm,
                 driverUsername: username
