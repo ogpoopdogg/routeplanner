@@ -672,7 +672,14 @@
             }
         }
 
-        /* ====== NEW STYLES FROM REF.HTML ====== */
+        @media (max-width: 768px) {
+            header { padding: 8px 12px; }
+            .header-logo { height: 20px; }
+            #address-picker-modal .picker-header { flex-wrap: wrap; }
+            #address-picker-modal .picker-info { bottom: 20px; min-width: auto; width: 90%; }
+        }
+
+        /* ---------- ADDED STYLES FOR CREATE ROUTE, OVERLAYS ---------- */
         .create-route-btn {
             background: #2563eb;
             color: #fff;
@@ -700,9 +707,9 @@
             box-shadow: 0 0 20px #ff6600;
         }
         .create-route-btn.pulse-glow {
-            animation: pulseGlow 1.5s infinite;
+            animation: pulseGlowBtn 1.5s infinite;
         }
-        @keyframes pulseGlow {
+        @keyframes pulseGlowBtn {
             0% { box-shadow: 0 0 5px #2563eb; }
             50% { box-shadow: 0 0 25px #3b82f6, 0 0 40px #2563eb; }
             100% { box-shadow: 0 0 5px #2563eb; }
@@ -797,13 +804,6 @@
             font-weight: 700;
             text-shadow: 0 0 2px #000;
         }
-
-        @media (max-width: 768px) {
-            header { padding: 8px 12px; }
-            .header-logo { height: 20px; }
-            #address-picker-modal .picker-header { flex-wrap: wrap; }
-            #address-picker-modal .picker-info { bottom: 20px; min-width: auto; width: 90%; }
-        }
     </style>
 </head>
 <body>
@@ -884,10 +884,9 @@
                 </div>
                 <button class="btn-clear" onclick="clearAllJobs()">CLEAR ALL</button>
             </div>
+            <!-- CREATE ROUTE button (main page) -->
+            <button id="create-route-main" class="create-route-btn" style="margin-top: 15px;" onclick="startCreateRoute()">CREATE ROUTE</button>
         </div>
-
-        <!-- CREATE ROUTE button -->
-        <button id="create-route-main" class="create-route-btn" style="margin-top: 15px;" onclick="startCreateRoute()">CREATE ROUTE</button>
 
         <!-- Saved Routes Pills -->
         <div id="saved-routes-container"></div>
@@ -912,12 +911,15 @@
     <div id="map-modal">
         <button id="close-map-btn" class="close-map" onclick="closeMap()">CLOSE MAP</button>
         <button id="zoom-out-btn" class="close-map" onclick="zoomToAll()" style="top:70px; background:#448800;">ZOOM OUT</button>
+        <button id="reset-driver-view-btn" onclick="resetMapView()" style="display:none;">← BACK</button>
         <!-- CREATE ROUTE button inside map -->
         <button id="create-route-map" class="create-route-btn map-modal-btn" onclick="startCreateRoute()">CREATE ROUTE</button>
-        <button id="reset-driver-view-btn" onclick="resetMapView()" style="display:none;">← BACK</button>
         <div id="map-stop-counter"></div>
         <div id="calculating-route-indicator">Calculating route...</div>
-        <button id="undo-assignment-btn" onclick="undoLastAssignment()">Undo</button>
+        <button id="undo-assignment-btn" onclick="undoLastAssignment()" aria-label="Undo last assignment">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 7"/></svg>
+            Undo
+        </button>
         <button id="finish-early-btn" onclick="finishRouteEarly()">Finish Early</button>
         <div id="map"></div>
     </div>
@@ -1050,7 +1052,7 @@
         // Global for date selection
         let pendingShareDate = null;
 
-        // ---------- NEW STATE FROM REF.HTML ----------
+        // ======== NEW STATE FOR TAP-TO-ORDER ========
         let forwardSegments = [];
         let returnPath = null;
         let forwardPolylines = [];
@@ -1093,6 +1095,7 @@
                     if (snap.val() === true) {
                         currentUser = username;
                         document.getElementById('login-overlay').style.display = 'none';
+                        // Removed user-display line
                         initApp();
                     } else {
                         alert("ACCESS DENIED");
@@ -1113,24 +1116,13 @@
             // Listen for jobs under developer/route_planner/jobs
             db.ref('developer/route_planner/jobs').on('value', snap => {
                 jobs = snap.val() || {};
-                if (isOrderingMode || routeState.isFinalized) {
-                    // Update UI without running auto-optimizer
-                    renderList();
-                    updateMapMarkersForOrdering();
-                    updateOrderingOverlays();
-                    updateCreateRouteButton();
-                } else {
-                    updateRoute();
-                }
+                updateRoute();  // Re-optimize and render
             });
 
             // Listen for manual order
             db.ref('developer/route_planner/manual_order').on('value', snap => {
                 manualOrder = snap.val() || [];
-                // Only apply if not in ordering mode
-                if (!isOrderingMode && !routeState.isFinalized) {
-                    updateRoute();
-                }
+                updateRoute();  // Re-optimize with new order
             });
 
             // Listen for saved routes
@@ -1140,7 +1132,6 @@
 
             // Initialize Places Autocomplete on address field
             initPlaces();
-
             createRouteMainBtn = document.getElementById('create-route-main');
             createRouteMapBtn = document.getElementById('create-route-map');
             updateCreateRouteButton();
@@ -1229,7 +1220,7 @@
             // Push job to Firebase
             const newJobRef = db.ref('developer/route_planner/jobs').push();
             newJobRef.set(newJob).then(() => {
-                // After job is saved, update address_lookup
+                // After job is added, update address_lookup
                 const sanitizedKey = name.replace(/[.#$\[\]\/]/g, "").trim();
                 const updateObj = {
                     address: address,
@@ -1243,61 +1234,22 @@
 
         function deleteJob(id) {
             if (confirm("Remove this job from route?")) {
-                // If in ordering mode, also remove from routeState
-                if (isOrderingMode || routeState.isFinalized) {
-                    const idx = routeState.order.indexOf(id);
-                    if (idx !== -1) {
-                        routeState.order.splice(idx, 1);
-                        delete routeState.assignedIndices[id];
-                        // Rebuild assignedIndices with correct numbers
-                        const newAssigned = {};
-                        routeState.order.forEach((id2, i) => { newAssigned[id2] = i + 1; });
-                        routeState.assignedIndices = newAssigned;
-                        // Remove from forwardSegments accordingly? We can rebuild later.
-                        // For simplicity, we'll clear forwardSegments and redraw.
-                        forwardSegments = [];
-                        returnPath = null;
-                        clearRoutePolylines();
-                        if (routeState.order.length === 0) {
-                            routeState.isFinalized = false;
-                            isOrderingMode = false;
-                        }
-                        // Update UI
-                        renderList();
-                        updateMapMarkersForOrdering();
-                        updateOrderingOverlays();
-                        updateCreateRouteButton();
-                        if (routeState.isFinalized && routeState.order.length > 0) {
-                            redrawRouteFromCurrentState();
-                        } else if (isOrderingMode && routeState.order.length > 0) {
-                            redrawRouteFromCurrentState();
-                        }
-                    }
-                }
                 db.ref(`developer/route_planner/jobs/${id}`).remove();
-                document.getElementById('eta-display').style.display = 'none';
-                document.getElementById('eta-display').classList.remove('eta-glow');
             }
         }
 
         function clearAllJobs() {
             if (confirm("Clear all jobs?")) {
-                // Reset ordering state as well
-                routeState = { order: [], isFinalized: false, assignedIndices: {} };
-                isOrderingMode = false;
-                forwardSegments = [];
-                returnPath = null;
-                clearRoutePolylines();
-                stopPulsingAll();
                 db.ref('developer/route_planner/jobs').remove();
                 document.getElementById('eta-display').style.display = 'none';
                 document.getElementById('eta-display').classList.remove('eta-glow');
                 document.getElementById('stop-counter').style.display = 'none';
                 etaTotalMinutes = 0;
                 etaTotalKm = 0;
-                updateCreateRouteButton();
-                updateOrderingOverlays();
-                renderList();
+                // Reset ordering state if active
+                if (isOrderingMode || routeState.isFinalized) {
+                    resetOrderingState();
+                }
             }
         }
 
@@ -1309,12 +1261,19 @@
 
         // ---------- ROUTE OPTIMIZATION (adapted from driver.html's updateRoute) ----------
         async function updateRoute() {
-            if (!jobs) return;
-
-            // If ordering mode or finalized, skip auto-optimizer
+            // If we are in ordering mode or have a finalized tap-ordered route, use that instead
             if (isOrderingMode || routeState.isFinalized) {
+                // Just render the ordering list, update markers and polylines
+                renderList();
+                if (map) {
+                    updateMapMarkersForOrdering();
+                    redrawRouteFromCurrentState();
+                }
+                updateCreateRouteButton();
                 return;
             }
+
+            if (!jobs) return;
 
             // Filter only pending_pickup jobs (all jobs in this app)
             const pendingJobs = Object.entries(jobs)
@@ -1581,7 +1540,7 @@
 
         // ---------- RENDER JOB LIST (simplified from driver.html) ----------
         function renderList() {
-            // If in ordering mode or finalized, use ordering list
+            // If in ordering mode or finalized, use the ordering list rendering
             if (isOrderingMode || routeState.isFinalized) {
                 renderOrderingList();
                 return;
@@ -1642,37 +1601,31 @@
             initSortable();
         }
 
-        // ---------- ORDERING LIST RENDER (from ref.html) ----------
+        // ---------- ORDERING LIST RENDER ----------
         function renderOrderingList() {
             const container = document.getElementById('job-list');
             const emptyState = document.getElementById('empty-state');
             const counter = document.getElementById('stop-counter');
 
-            const pendingJobs = Object.keys(jobs).filter(id => jobs[id].status === 'pending_pickup');
-            if (pendingJobs.length === 0) {
+            // Get pending jobs
+            const pendingIds = Object.keys(jobs).filter(id => jobs[id].status === 'pending_pickup');
+            if (pendingIds.length === 0) {
                 container.innerHTML = '';
                 emptyState.style.display = 'block';
                 counter.style.display = 'none';
                 return;
             }
             emptyState.style.display = 'none';
-
-            // Build display order: routeState.order first, then remaining unassigned pending jobs (if not finalized)
-            let displayOrder = [];
-            if (routeState.isFinalized) {
-                displayOrder = routeState.order.filter(id => jobs[id] && jobs[id].status === 'pending_pickup');
-                const extra = pendingJobs.filter(id => !displayOrder.includes(id));
-                displayOrder = displayOrder.concat(extra);
-            } else {
-                // Ordering mode: show assigned first, then unassigned
-                const assigned = routeState.order.filter(id => jobs[id] && jobs[id].status === 'pending_pickup');
-                const unassigned = pendingJobs.filter(id => !routeState.assignedIndices[id]);
-                displayOrder = assigned.concat(unassigned);
-            }
-
-            // Update counter
-            counter.textContent = displayOrder.length;
+            counter.textContent = pendingIds.length;
             counter.style.display = 'inline-block';
+
+            // Build order: first those in routeState.order (assigned), then unassigned appended
+            let displayOrder = [];
+            const assignedIds = Object.keys(routeState.assignedIndices);
+            // Ensure assignedIds are in the order they appear in routeState.order
+            const orderedAssigned = routeState.order.filter(id => assignedIds.includes(id));
+            const unassigned = pendingIds.filter(id => !assignedIds.includes(id));
+            displayOrder = orderedAssigned.concat(unassigned);
 
             let html = '';
             displayOrder.forEach(id => {
@@ -1680,28 +1633,22 @@
                 if (!job) return;
                 const number = routeState.assignedIndices[id] || null;
                 const numberDisplay = number !== null ? number : '';
-                const isPending = number === null;
-                const pendingClass = isPending ? 'pending' : '';
+                const pendingClass = number === null ? 'pending' : '';
                 html += `
-                    <div class="job-item ${pendingClass}" data-id="${id}" onclick="openJobInMaps('${id}')">
+                    <div class="job-item ${pendingClass}" data-id="${id}" style="cursor:default;">
                         <span class="job-number">${numberDisplay}</span>
                         <div class="job-info">
                             <div class="job-name">${job.name || 'No name'}</div>
                             <div class="job-address">${job.pickup_location || ''}, ${job.city || ''}</div>
                         </div>
-                        <svg class="delete-icon" viewBox="0 0 24 24" onclick="deleteJob('${id}'); event.stopPropagation();">
+                        <svg class="delete-icon" viewBox="0 0 24 24" onclick="deleteJob('${id}')">
                             <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
                         </svg>
                     </div>
                 `;
             });
             container.innerHTML = html;
-
-            // Disable Sortable in ordering mode (no drag)
-            if (sortableInstance) {
-                sortableInstance.destroy();
-                sortableInstance = null;
-            }
+            // No sortable, no click listeners for details (details modal not used in ordering mode)
         }
 
         // ---------- SORTABLE (drag & drop) ----------
@@ -1877,6 +1824,17 @@
 
             // Initialize address picker map after main map is ready
             initAddressPickerMap();
+
+            // Add origin marker for tap-order
+            new google.maps.Marker({
+                position: DEPOT,
+                map: map,
+                title: '1604 Moreland Ave (Origin)'
+            });
+
+            // Draw initial ordering polylines if any
+            redrawRouteFromCurrentState();
+            updateUI();
         }
 
         // ---- Location Tracking ----
@@ -2110,11 +2068,9 @@
             display.classList.add('eta-glow');
         }
 
-        // =====================================================================
-        // PORTED FUNCTIONS FROM REF.HTML
-        // =====================================================================
+        // ======== PORTED TAP-TO-ORDER FUNCTIONS ========
 
-        // ---------- GEOCODING ----------
+        // ---- Geocoding ----
         function geocodeJob(jobId) {
             const job = jobs[jobId];
             if (!job) return Promise.reject("Job not found");
@@ -2147,7 +2103,7 @@
             return Promise.all(promises);
         }
 
-        // ---------- DRIVING PATH (cached) ----------
+        // ---- Route API helpers ----
         async function getDrivingPath(originLatLng, destLatLng) {
             const cacheKey = originLatLng.lat.toFixed(6) + ',' + originLatLng.lng.toFixed(6) + '_' + destLatLng.lat.toFixed(6) + ',' + destLatLng.lng.toFixed(6);
             if (segmentCache[cacheKey]) {
@@ -2185,7 +2141,6 @@
             }
         }
 
-        // ---------- POLYLINE HELPERS ----------
         function computePathPointAtFraction(path, fraction) {
             const totalDist = google.maps.geometry.spherical.computeLength(path);
             const targetDist = totalDist * fraction;
@@ -2205,6 +2160,7 @@
             return { point: path[last], heading };
         }
 
+        // ---- Polyline drawing ----
         function clearRoutePolylines() {
             forwardPolylines.forEach(p => p.setMap(null));
             forwardPolylines = [];
@@ -2297,7 +2253,7 @@
             }
         }
 
-        // ---------- UPDATE FORWARD ROUTE ----------
+        // ---- Update forward/return routes ----
         async function updateForwardRoute() {
             if (!map) return;
             const order = routeState.order;
@@ -2308,10 +2264,11 @@
             }
 
             const originLatLng = DEPOT;
+            const stopIds = order;
             const segments = [];
             let prev = originLatLng;
-            for (let i = 0; i < order.length; i++) {
-                const id = order[i];
+            for (let i = 0; i < stopIds.length; i++) {
+                const id = stopIds[i];
                 const job = jobs[id];
                 if (!job || !job.lat || !job.lng) {
                     continue;
@@ -2331,7 +2288,6 @@
             updatePolyline();
         }
 
-        // ---------- FETCH RETURN ROUTE ----------
         async function fetchReturnRoute() {
             if (!map) return;
             const order = routeState.order;
@@ -2359,7 +2315,6 @@
             updatePolyline();
         }
 
-        // ---------- REDRAW ROUTE FROM CURRENT STATE ----------
         function redrawRouteFromCurrentState() {
             if (!map) return;
             clearRoutePolylines();
@@ -2378,7 +2333,7 @@
             }
         }
 
-        // ---------- ORDERING MODE FUNCTIONS ----------
+        // ---- Ordering mode functions ----
         function startCreateRoute() {
             const pendingJobs = Object.keys(jobs).filter(id => jobs[id].status === 'pending_pickup');
             if (pendingJobs.length === 0) {
@@ -2395,9 +2350,14 @@
                     forwardSegments = [];
                     returnPath = null;
                     clearRoutePolylines();
+                    // reset any active polyline from auto-optimizer
+                    if (activePolyline) activePolyline.setMap(null);
+                    activePolyline = null;
+                    renderList();
                     updateUI();
                 }
 
+                // If already in ordering mode, just open map
                 if (isOrderingMode) {
                     openMap(true);
                     zoomToAllWaypoints();
@@ -2406,9 +2366,14 @@
                     return;
                 }
 
+                // Enter ordering mode
                 isOrderingMode = true;
+                // Clear any auto-optimized polyline
+                if (activePolyline) activePolyline.setMap(null);
+                activePolyline = null;
                 openMap(true);
                 zoomToAllWaypoints();
+                renderList();
                 updateUI();
                 updateCreateRouteButton();
                 updateOrderingOverlays();
@@ -2454,6 +2419,7 @@
             routeState.assignedIndices[jobId] = nextNumber;
             routeState.order.push(jobId);
 
+            // Remove pulsing if any
             if (pulsingMarkers[jobId]) {
                 clearInterval(pulsingMarkers[jobId].interval);
                 if (pulsingMarkers[jobId].circle) pulsingMarkers[jobId].circle.setMap(null);
@@ -2486,9 +2452,8 @@
                 addSegmentToRoute(jobId).then(() => {
                     if (indicator) indicator.style.display = 'none';
                     renderList();
-                    updateMapMarkersForOrdering();
                     updatePolyline();
-
+                    // Check if all stops assigned
                     const pendingIds = Object.keys(jobs).filter(id => jobs[id].status === 'pending_pickup');
                     const assignedIdsNow = Object.keys(routeState.assignedIndices);
                     if (pendingIds.length === assignedIdsNow.length && pendingIds.length > 0) {
@@ -2548,7 +2513,6 @@
             delete routeState.assignedIndices[lastId];
             if (forwardSegments.length > 0) forwardSegments.pop();
             renderList();
-            updateMapMarkersForOrdering();
             updatePolyline();
             updateOrderingOverlays();
             zoomToAllWaypoints();
@@ -2615,11 +2579,11 @@
             updateOrderingOverlays();
             fetchReturnRoute().then(() => {
                 renderList();
-                updateMapMarkersForOrdering();
-                updateCreateRouteButton();
+                updateUI();
                 if (createRouteMainBtn) createRouteMainBtn.classList.remove('active');
                 if (createRouteMapBtn) createRouteMapBtn.classList.remove('active');
                 if (etaTotalMinutes > 0) updateETADisplay();
+                updateCreateRouteButton();
             });
         }
 
@@ -2671,6 +2635,7 @@
                         }
                     }
                 } else {
+                    // Main page button
                     const unassigned = Object.keys(jobs).filter(id => jobs[id].status === 'pending_pickup' && !routeState.assignedIndices[id]).length;
                     if (!hasStops || (isFinal && unassigned === 0)) {
                         btn.disabled = true;
@@ -2688,19 +2653,20 @@
             });
         }
 
-        // ---------- MAP MARKERS FOR ORDERING MODE ----------
+        // ---- Map markers for ordering mode ----
         function updateMapMarkersForOrdering() {
             if (!map) return;
-            // Clear existing markers (but keep origin marker? We'll manage separately)
+            // Clear existing markers from auto-optimizer (they are in mapMarkers)
             Object.values(mapMarkers).forEach(m => m.setMap(null));
             mapMarkers = {};
+            // Stop pulsing
             stopPulsingAll();
 
             const pendingJobs = Object.keys(jobs).filter(id => jobs[id].status === 'pending_pickup');
             if (pendingJobs.length === 0) return;
 
-            const isOrdering = isOrderingMode;
             const isFinal = routeState.isFinalized;
+            const isOrdering = isOrderingMode;
 
             pendingJobs.forEach(id => {
                 const job = jobs[id];
@@ -2714,6 +2680,7 @@
 
                 let marker;
                 if (isFinal) {
+                    // For unassigned jobs, display with larger gold label
                     let labelOptions;
                     let finalIconColor;
                     if (number === null) {
@@ -2770,7 +2737,7 @@
                             }
                         });
                     } else {
-                        // Unassigned: pulsing amber/gold
+                        // Unassigned: pulsing amber/gold with gold label
                         marker = new google.maps.Marker({
                             position: { lat, lng },
                             map: map,
@@ -2826,41 +2793,42 @@
                         marker.addListener('click', () => handleUnassignedMarkerClick(id, { lat, lng }));
                     }
                 }
-                mapMarkers[id] = marker;
+                if (marker) mapMarkers[id] = marker;
             });
         }
 
-        // ---------- OPEN JOB IN MAPS ----------
-        function openJobInMaps(jobId) {
-            const job = jobs[jobId];
-            if (!job) return;
-            const address = `${job.pickup_location}, ${job.city}`;
-            const encoded = encodeURIComponent(address);
-            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-            if (/android/i.test(userAgent)) {
-                window.location.href = `intent://maps.google.com/maps?daddr=${encoded}&directionsmode=driving#Intent;scheme=https;package=com.google.android.apps.maps;end`;
-            } else if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
-                window.location.href = `comgooglemaps://?daddr=${encoded}&directionsmode=driving`;
-            } else {
-                window.open(`https://www.google.com/maps/dir/?api=1&destination=${encoded}&travelmode=driving`, '_blank');
+        // ---- Reset ordering state ----
+        function resetOrderingState() {
+            if (isOrderingMode) {
+                isOrderingMode = false;
+                stopPulsingAll();
             }
+            routeState.order = [];
+            routeState.assignedIndices = {};
+            routeState.isFinalized = false;
+            forwardSegments = [];
+            returnPath = null;
+            clearRoutePolylines();
+            if (activePolyline) activePolyline.setMap(null);
+            activePolyline = null;
+            renderList();
+            updateUI();
+            updateCreateRouteButton();
+            updateOrderingOverlays();
         }
 
-        // =====================================================================
-        // END PORTED FUNCTIONS
-        // =====================================================================
-
-        // ---------- SAVE ROUTE (modified to write ref.html schema) ----------
+        // ---------- SAVE ROUTE ----------
         async function saveCurrentRoute() {
-            // Determine which order to use
             let order = [];
             let assignedIndices = {};
+
+            // Determine order source
             if (routeState.isFinalized && routeState.order.length > 0) {
                 order = routeState.order;
                 assignedIndices = routeState.assignedIndices;
             } else if (optimizedOrder && optimizedOrder.length > 0) {
                 order = optimizedOrder;
-                // Build assignedIndices synthetically
+                // Build synthetic assignedIndices
                 order.forEach((id, i) => { assignedIndices[id] = i + 1; });
             } else {
                 alert("No stops to save.");
@@ -2872,13 +2840,20 @@
                 return;
             }
 
-            // Prompt for username
+            // Check if ETA is calculated; if not, ask user
+            if (etaTotalMinutes === 0) {
+                const calculate = confirm("Calculate ETA for this route?");
+                if (calculate) {
+                    await calculateETAOnDemand();
+                }
+            }
+
             const usernameInput = prompt("Enter driver username (e.g., alysha):", "");
             if (usernameInput === null || usernameInput.trim() === "") return;
             let username = usernameInput.trim().toLowerCase();
             let label = username.charAt(0).toUpperCase() + username.slice(1);
 
-            // Build stopsObj
+            // Build stopsObj from jobs in order
             const stopsObj = {};
             order.forEach(id => {
                 const job = jobs[id];
@@ -2917,24 +2892,26 @@
                 driverUsername: username
             };
 
+            // Save under the username key
             db.ref('developer/route_planner/saved_routes/' + username).set(routeData)
                 .then(() => {
-                    // Clear jobs
+                    // After saving, clear all jobs from the route stops
                     db.ref('developer/route_planner/jobs').remove();
-                    // Reset routeState and ordering mode
-                    routeState = { order: [], isFinalized: false, assignedIndices: {} };
-                    isOrderingMode = false;
-                    forwardSegments = [];
-                    returnPath = null;
-                    clearRoutePolylines();
-                    stopPulsingAll();
                     etaTotalMinutes = 0;
                     etaTotalKm = 0;
                     document.getElementById('eta-display').style.display = 'none';
                     document.getElementById('eta-display').classList.remove('eta-glow');
-                    updateCreateRouteButton();
-                    updateOrderingOverlays();
+                    // Reset ordering state
+                    resetOrderingState();
+                    // Also clear optimizedOrder
+                    optimizedOrder = [];
                     renderList();
+                    if (map) {
+                        Object.values(mapMarkers).forEach(m => m.setMap(null));
+                        mapMarkers = {};
+                        if (activePolyline) activePolyline.setMap(null);
+                        activePolyline = null;
+                    }
                 })
                 .catch(err => alert("Error saving route: " + err.message));
         }
@@ -2946,7 +2923,7 @@
                 .catch(err => alert("Error deleting saved routes: " + err.message));
         }
 
-        // ---------- RENDER SAVED ROUTES PILLS ----------
+                    // ---------- RENDER SAVED ROUTES PILLS ----------
         function renderSavedPills(data) {
             const container = document.getElementById('saved-routes-container');
             container.innerHTML = '';
@@ -2954,16 +2931,19 @@
             if (keys.length === 0) return;
             keys.forEach(key => {
                 const route = data[key];
+                // const label = route.label || 'Unnamed'; // removed label from pill
                 const pill = document.createElement('div');
                 pill.className = 'saved-route-pill';
-                pill.textContent = key;
+                pill.textContent = key; // only show the username key
                 pill.dataset.key = key;
+                // Click to load
                 pill.addEventListener('click', function(e) {
                     if (this.classList.contains('loading')) return;
                     if (confirm(`Load route for "${key}"? This will replace your current stops.`)) {
                         loadSavedRoute(key);
                     }
                 });
+                // Long press to delete (mousedown + mouseup timer)
                 let timer = null;
                 pill.addEventListener('mousedown', function(e) {
                     timer = setTimeout(() => {
@@ -2979,6 +2959,7 @@
                 pill.addEventListener('mouseleave', function(e) {
                     if (timer) { clearTimeout(timer); timer = null; }
                 });
+                // Touch events for mobile
                 pill.addEventListener('touchstart', function(e) {
                     timer = setTimeout(() => {
                         if (confirm(`Delete saved route for "${key}"?`)) {
@@ -2996,8 +2977,7 @@
                 container.appendChild(pill);
             });
         }
-
-        // ---------- LOAD SAVED ROUTE (modified to use routeState) ----------
+        // ---------- LOAD SAVED ROUTE ----------
         function loadSavedRoute(key) {
             const ref = db.ref(`developer/route_planner/saved_routes/${key}`);
             ref.once('value').then(snap => {
@@ -3006,45 +2986,64 @@
                     alert("Route is empty.");
                     return;
                 }
-                // Clear current jobs
-                db.ref('developer/route_planner/jobs').remove();
-                // Wait for removal then write jobs with original IDs
-                db.ref('developer/route_planner/jobs').set(data.stops)
-                    .then(() => {
-                        // Update local jobs object
-                        jobs = data.stops || {};
-                        // Populate routeState from saved data
-                        routeState.order = data.order || [];
-                        routeState.assignedIndices = data.assignedIndices || {};
-                        routeState.isFinalized = data.isFinalized || false;
-                        isOrderingMode = false;
-                        etaTotalMinutes = data.etaTotalMinutes || 0;
-                        etaTotalKm = data.etaTotalKm || 0;
+                // Reset current jobs
+                db.ref('developer/route_planner/jobs').remove().then(() => {
+                    // Write stops back using their original ids
+                    const stopsObj = data.stops;
+                    const order = data.order || Object.keys(stopsObj);
+                    const assignedIndices = data.assignedIndices || {};
+                    const isFinalized = data.isFinalized || false;
+                    const etaMin = data.etaTotalMinutes || 0;
+                    const etaKm = data.etaTotalKm || 0;
 
-                        // Clear any existing polylines and redraw
-                        forwardSegments = [];
-                        returnPath = null;
-                        clearRoutePolylines();
-                        if (routeState.isFinalized && routeState.order.length > 0) {
+                    // Set local jobs
+                    jobs = {};
+                    Object.keys(stopsObj).forEach(id => {
+                        jobs[id] = stopsObj[id];
+                    });
+
+                    // Write to Firebase under developer/route_planner/jobs
+                    const updates = {};
+                    Object.keys(stopsObj).forEach(id => {
+                        updates[id] = stopsObj[id];
+                    });
+                    db.ref('developer/route_planner/jobs').update(updates).then(() => {
+                        // Set routeState from saved data
+                        routeState.order = order;
+                        routeState.assignedIndices = assignedIndices;
+                        routeState.isFinalized = isFinalized;
+                        isOrderingMode = false;
+                        etaTotalMinutes = etaMin;
+                        etaTotalKm = etaKm;
+
+                        // Clear any auto-optimized polyline
+                        if (activePolyline) activePolyline.setMap(null);
+                        activePolyline = null;
+
+                        // Force UI update
+                        renderList();
+                        if (map) {
+                            updateMapMarkersForOrdering();
                             redrawRouteFromCurrentState();
                         }
-                        // Update UI
-                        renderList();
-                        updateMapMarkersForOrdering();
-                        updateOrderingOverlays();
                         updateCreateRouteButton();
+                        updateOrderingOverlays();
                         if (etaTotalMinutes > 0) {
+                            updateETADisplay();
                             document.getElementById('eta-display').style.display = 'block';
                             document.getElementById('eta-display').classList.add('eta-glow');
-                            updateETADisplay();
+                        } else {
+                            document.getElementById('eta-display').style.display = 'none';
+                            document.getElementById('eta-display').classList.remove('eta-glow');
                         }
-                    })
-                    .catch(err => alert("Error loading route: " + err.message));
+                    });
+                });
             }).catch(err => alert("Error loading saved route: " + err.message));
         }
 
-        // ---------- SHARE ROUTE (composes email with route info) ----------
+                            // ---------- SHARE ROUTE (composes email with route info) ----------
         function buildRouteBody(routeLabel, stops, etaMinutes, etaKm, dateStr) {
+            // Helper to pluralize category names
             function pluralize(count, word) {
                 if (count === 1) return word;
                 if (word === 'Box') return 'Boxes';
@@ -3055,6 +3054,7 @@
             }
 
             let lines = [];
+            // Simple header with spaces
             lines.push('E&C Daily Manifest');
             lines.push('');
             lines.push(`Route: ${routeLabel}`);
@@ -3071,6 +3071,7 @@
             }
             lines.push(`Stops: ${stops.length}`);
             lines.push('');
+            // List stops with details – pluralized quantities
             stops.forEach((stop, idx) => {
                 const name = stop.name || 'No name';
                 const city = stop.city || '';
@@ -3087,11 +3088,13 @@
                 lines.push(`   Details: ${detailsStr}`);
                 lines.push('');
             });
+            // No decorative lines or "End of Manifest"
             return lines.join('\n');
         }
-
         function shareRoute() {
+            // Show date modal
             document.getElementById('date-modal').style.display = 'flex';
+            // Set default date to today
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('route-date-input').value = today;
             pendingShareDate = null;
@@ -3105,8 +3108,10 @@
                 return;
             }
             document.getElementById('date-modal').style.display = 'none';
+            // Format date for display
             const dateObj = new Date(selectedDate + 'T00:00:00');
             const dateStr = dateObj.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+            // Now build email
             buildAndSendEmail(dateStr);
         }
 
@@ -3120,10 +3125,12 @@
                 const savedData = snap.val() || {};
                 let bodyParts = [];
 
+                // Process saved routes
                 const keys = Object.keys(savedData);
                 keys.forEach(key => {
                     const route = savedData[key];
                     const label = route.label || 'Unnamed';
+                    // Build stops array from route.stops (object) and route.order
                     let stopsArray = [];
                     if (Array.isArray(route.stops)) {
                         stopsArray = route.stops;
@@ -3143,8 +3150,7 @@
                     bodyParts.push(content);
                 });
 
-                // Current route (if any)
-                let currentStops = [];
+                // Process current route
                 let currentOrder = [];
                 if (routeState.isFinalized && routeState.order.length > 0) {
                     currentOrder = routeState.order;
@@ -3152,6 +3158,7 @@
                     currentOrder = optimizedOrder;
                 }
                 if (currentOrder.length > 0) {
+                    const currentStops = [];
                     currentOrder.forEach(id => {
                         const job = jobs[id];
                         if (job) {
@@ -3167,10 +3174,10 @@
                             });
                         }
                     });
-                }
-                if (currentStops.length > 0) {
-                    const content = buildRouteBody('Current Route', currentStops, etaTotalMinutes, etaTotalKm, dateStr);
-                    bodyParts.push(content);
+                    if (currentStops.length > 0) {
+                        const content = buildRouteBody('Current Route', currentStops, etaTotalMinutes, etaTotalKm, dateStr);
+                        bodyParts.push(content);
+                    }
                 }
 
                 if (bodyParts.length === 0) {
@@ -3194,21 +3201,42 @@
                 if (zoomToAll) {
                     zoomToAllWaypoints();
                 } else {
-                    // If in ordering mode or finalized, keep current view
+                    // If in ordering mode or finalized, use that; else auto-optimized
                     if (isOrderingMode || routeState.isFinalized) {
-                        // Do not auto-fit; keep current view
+                        if (routeState.order.length > 0) {
+                            const bounds = new google.maps.LatLngBounds();
+                            bounds.extend(DEPOT);
+                            routeState.order.forEach(id => {
+                                const job = jobs[id];
+                                if (job && job.lat && job.lng) {
+                                    bounds.extend({ lat: job.lat, lng: job.lng });
+                                }
+                            });
+                            if (!bounds.isEmpty()) map.fitBounds(bounds);
+                        } else {
+                            map.setCenter(DEPOT);
+                            map.setZoom(12);
+                        }
                     } else {
                         map.setCenter({ lat: 49.8425, lng: -99.9497 });
                         map.setZoom(12);
                     }
                 }
-                // Update markers based on state
+                // Update markers/polylines based on mode
                 if (isOrderingMode || routeState.isFinalized) {
                     updateMapMarkersForOrdering();
+                    redrawRouteFromCurrentState();
                 } else {
-                    // Existing markers are managed by updateRoute, but we can call it again
-                    updateRoute(); // or just rely on existing
+                    // Existing markers from updateRoute? They should already be there.
+                    // But we might need to redraw if map was closed and opened.
+                    // updateRoute will be called when jobs change; but if we just opened map, we can manually call it.
+                    // However, to avoid duplicate calls, we can just render whatever is in optimizedOrder.
+                    if (optimizedOrder.length > 0 && activePolyline) {
+                        // Ensure polyline is on map
+                        activePolyline.setMap(map);
+                    }
                 }
+                updateUI();
             }, 100);
         }
 
@@ -3218,35 +3246,51 @@
 
         function zoomToAll() {
             if (isOrderingMode || routeState.isFinalized) {
-                zoomToAllWaypoints();
+                const bounds = new google.maps.LatLngBounds();
+                bounds.extend(DEPOT);
+                routeState.order.forEach(id => {
+                    const job = jobs[id];
+                    if (job && job.lat && job.lng) {
+                        bounds.extend({ lat: job.lat, lng: job.lng });
+                    }
+                });
+                if (!bounds.isEmpty()) map.fitBounds(bounds);
+                else { map.setCenter(DEPOT); map.setZoom(12); }
+            } else if (activePolyline) {
+                const bounds = new google.maps.LatLngBounds();
+                activePolyline.getPath().forEach(p => bounds.extend(p));
+                if (!bounds.isEmpty()) map.fitBounds(bounds);
+                else { map.setCenter({ lat: 49.8425, lng: -99.9497 }); map.setZoom(12); }
             } else {
-                if (activePolyline) {
-                    const bounds = new google.maps.LatLngBounds();
-                    activePolyline.getPath().forEach(p => bounds.extend(p));
-                    map.fitBounds(bounds);
-                } else {
-                    map.setCenter({ lat: 49.8425, lng: -99.9497 });
-                    map.setZoom(12);
-                }
+                map.setCenter({ lat: 49.8425, lng: -99.9497 });
+                map.setZoom(12);
             }
         }
 
-        function resetMapView() {
-            zoomToAll();
-        }
+        function resetMapView() { zoomToAll(); }
 
         // ---------- EXTERNAL ROUTE NAVIGATION (similar to driver.html) ----------
         function openExternalRoute() {
-            if (optimizedOrder.length === 0) {
+            let order = [];
+            if (routeState.isFinalized && routeState.order.length > 0) {
+                order = routeState.order;
+            } else if (optimizedOrder && optimizedOrder.length > 0) {
+                order = optimizedOrder;
+            } else {
+                alert("No stops to route.");
+                return;
+            }
+            if (order.length === 0) {
                 alert("No stops to route.");
                 return;
             }
             const origin = "1604 Moreland Ave, Brandon MB";
             const destination = "1604 Moreland Ave, Brandon MB";
             const seenLocs = new Set();
+            // Limit to first 25 stops for the external maps link (Google Maps URL limit)
             const maxStopsForExternal = 25;
             let stopsAdded = 0;
-            const waypoints = optimizedOrder.map(id => {
+            const waypoints = order.map(id => {
                 if (stopsAdded >= maxStopsForExternal) return "";
                 const job = jobs[id];
                 if (!job) return "";
@@ -3294,7 +3338,7 @@
         let pickerGeocoder = null;
         let pickerAutocomplete = null;
         let pickerInitialized = false;
-        let selectedLocation = null;
+        let selectedLocation = null; // {lat, lng, address, plusCode}
 
         function initAddressPickerMap() {
             if (pickerInitialized) return;
@@ -3311,8 +3355,10 @@
                 gestureHandling: 'greedy'
             });
 
+            // Geocoder
             pickerGeocoder = new google.maps.Geocoder();
 
+            // Draggable marker
             pickerMarker = new google.maps.Marker({
                 position: defaultCenter,
                 map: pickerMap,
@@ -3328,11 +3374,13 @@
                 }
             });
 
+            // When marker is dragged, update info
             pickerMarker.addListener('dragend', function() {
                 const pos = pickerMarker.getPosition();
                 updatePickerInfo(pos.lat(), pos.lng());
             });
 
+            // Click on map to move marker
             pickerMap.addListener('click', function(e) {
                 const lat = e.latLng.lat();
                 const lng = e.latLng.lng();
@@ -3340,6 +3388,7 @@
                 updatePickerInfo(lat, lng);
             });
 
+            // Setup Places Autocomplete for search input
             const searchInput = document.getElementById('picker-search');
             if (searchInput) {
                 pickerAutocomplete = new google.maps.places.Autocomplete(searchInput, {
@@ -3359,26 +3408,33 @@
                 });
             }
 
+            // Initially set marker to Brandon center and get address
             updatePickerInfo(defaultCenter.lat, defaultCenter.lng);
+
             pickerInitialized = true;
         }
 
         function openAddressPicker() {
             const modal = document.getElementById('address-picker-modal');
             modal.style.display = 'block';
+            // Ensure map is initialized
             if (!pickerInitialized) {
                 initAddressPickerMap();
             }
+            // Trigger resize
             setTimeout(() => {
                 if (pickerMap) {
                     google.maps.event.trigger(pickerMap, 'resize');
+                    // If we have a selected location, center there, else center on current marker
                     const pos = pickerMarker.getPosition();
                     if (pos) {
                         pickerMap.setCenter(pos);
                     }
                 }
             }, 100);
+            // Clear search input
             document.getElementById('picker-search').value = '';
+            // Update info if marker is set
             if (pickerMarker) {
                 const pos = pickerMarker.getPosition();
                 if (pos) {
@@ -3393,22 +3449,39 @@
 
         function updatePickerInfo(lat, lng) {
             const latLng = { lat, lng };
+            // Reverse geocode to get address and plus code
             pickerGeocoder.geocode({ location: latLng }, function(results, status) {
                 let address = '';
                 let plusCode = '';
                 if (status === 'OK' && results.length > 0) {
+                    // Get formatted address
                     address = results[0].formatted_address || '';
+                    // Look for plus code in results
                     for (let result of results) {
-                        if (result.plus_code) {
-                            plusCode = result.plus_code.compound_code || result.plus_code.global_code || '';
+                        if (result.types && result.types.includes('plus_code')) {
+                            // This is a plus code result
+                            plusCode = result.formatted_address || '';
                             break;
                         }
+                        // Some results have address_components with plus_code? Actually plus code is a separate type.
+                        // Also check for plus_code in the result's address_components? Not typical.
+                        // Alternatively, we can use the Geocoding API's plus_code field.
+                        // Since we are using the client-side geocoder, the plus code might be in the result's plus_code property.
+                        if (result.plus_code) {
+                            plusCode = result.plus_code.compound_code || result.plus_code.global_code || '';
+                        }
                     }
+                    // If no plus code found, try to get from address components? Not reliable.
+                    // We can also generate plus code using the library? Not included.
+                    // Fallback: use the lat/lng to construct a plus code using the Open Location Code library? Not included.
+                    // We'll just use what we have.
                 } else {
                     address = `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
                 }
 
+                // If plusCode is empty, try to get from results again
                 if (!plusCode) {
+                    // Sometimes the plus code is in the address_components with type 'plus_code'
                     for (let result of results) {
                         if (result.address_components) {
                             for (let comp of result.address_components) {
@@ -3422,6 +3495,7 @@
                     }
                 }
 
+                // Store selected location
                 selectedLocation = {
                     lat: lat,
                     lng: lng,
@@ -3429,11 +3503,13 @@
                     plusCode: plusCode || ''
                 };
 
+                // Update UI
                 document.getElementById('picker-address-display').textContent = address || 'Address not found';
                 document.getElementById('picker-pluscode-display').textContent = plusCode ? `Plus Code: ${plusCode}` : 'Plus Code: —';
             });
         }
 
+        // ---------- New: Search Address Picker (Go button) ----------
         function searchAddressPicker() {
             const input = document.getElementById('picker-search');
             const query = input.value.trim();
@@ -3459,6 +3535,7 @@
                 alert("No location selected.");
                 return;
             }
+            // Prioritize actual address over plus code
             let addressToUse = selectedLocation.address || selectedLocation.plusCode;
             if (!addressToUse) {
                 alert("Could not determine address.");
@@ -3467,6 +3544,14 @@
             document.getElementById('f-address').value = addressToUse;
             closeAddressPicker();
         }
+
+        // Override the initMap to also initialize picker after map is ready (already done inside initMap)
+        // But we need to ensure initAddressPickerMap is called when map is ready.
+        // We already added call inside initMap.
+
+        // Ensure that the map styles are also applied to picker map when theme changes?
+        // Not necessary for now.
+
     </script>
 </body>
 </html>
