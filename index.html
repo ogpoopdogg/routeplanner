@@ -884,8 +884,7 @@
                 </div>
                 <button class="btn-clear" onclick="clearAllJobs()">CLEAR ALL</button>
             </div>
-            <!-- CREATE ROUTE button (main page) -->
-            <button id="create-route-main" class="create-route-btn" style="margin-top: 15px;" onclick="startCreateRoute()">CREATE ROUTE</button>
+            <!-- CREATE ROUTE button removed from main page; only on map -->
         </div>
 
         <!-- Saved Routes Pills -->
@@ -3543,6 +3542,13 @@
             }
             document.getElementById('f-address').value = addressToUse;
             closeAddressPicker();
+        }
+
+        // ---- Define updateUI function ----
+        function updateUI() {
+            updateCreateRouteButton();
+            updateOrderingOverlays();
+            // Additional UI updates can be added here if needed
         }
 
         // Override the initMap to also initialize picker after map is ready (already done inside initMap)
