@@ -977,8 +977,14 @@
             <!-- CREATE ROUTE button removed from main page; only on map -->
         </div>
 
-        <!-- Saved Routes Pills -->
-        <div id="saved-routes-container"></div>
+                    <!-- Saved Routes Pills - Collapsible -->
+            <div style="margin-top: 10px;">
+                <button id="toggle-saved-routes-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: 700; width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center;">
+                    <span>📂 All Saved Routes</span>
+                    <span id="toggle-saved-routes-arrow">▼</span>
+                </button>
+                <div id="saved-routes-container" style="display: none; margin-top: 8px; max-height: 200px; overflow-y: auto; background: var(--card); border-radius: 8px; padding: 8px; border: 1px solid var(--border);"></div>
+            </div>
 
         <!-- ETA Display -->
         <div id="eta-display" style="margin-top:15px; background:var(--card); border-radius:12px; padding:12px; border:1px solid var(--border); display:none; color:var(--text);">
@@ -1597,7 +1603,7 @@
         }
 
                                    // Attach event listeners to +/- buttons and inputs for scrolling
-        document.addEventListener('DOMContentLoaded', function() {
+               document.addEventListener('DOMContentLoaded', function() {
             // Plus buttons
             document.querySelectorAll('.qty-plus').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -1641,6 +1647,19 @@
             const otherInput = document.getElementById('other-input');
             if (otherInput) {
                 otherInput.addEventListener('focus', scrollOnFocus);
+            }
+
+            // Toggle saved routes pills visibility
+            const toggleBtn = document.getElementById('toggle-saved-routes-btn');
+            const container = document.getElementById('saved-routes-container');
+            const arrow = document.getElementById('toggle-saved-routes-arrow');
+            if (toggleBtn && container) {
+                container.style.display = 'none';
+                toggleBtn.addEventListener('click', function() {
+                    const isHidden = container.style.display === 'none';
+                    container.style.display = isHidden ? 'block' : 'none';
+                    arrow.textContent = isHidden ? '▲' : '▼';
+                });
             }
         });
         function saveDetailsFromModal() {
