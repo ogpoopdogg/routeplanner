@@ -231,10 +231,17 @@
 
         /* Saved routes pills container */
         #saved-routes-container {
-            display: flex;
+            display: none; /* toggled to flex */
             flex-wrap: wrap;
             gap: 8px;
-            margin-top: 10px;
+            align-items: center;
+            margin-top: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: var(--card);
+            border-radius: 8px;
+            padding: 8px;
+            border: 1px solid var(--border);
         }
               .saved-route-pill {
             background: gold;
@@ -250,6 +257,8 @@
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
+            display: inline-block;
+            flex: 0 0 auto;
         }
         .saved-route-pill:hover {
             background: #ffd700;
@@ -884,6 +893,73 @@
             font-weight: 700;
             text-shadow: 0 0 2px #000;
         }
+
+        /* ---------- DELETE MODAL ---------- */
+        #delete-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 9997;
+            align-items: center;
+            justify-content: center;
+        }
+        #delete-modal .delete-box {
+            background: var(--card);
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 350px;
+            width: 90%;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        #delete-modal .delete-box .delete-list {
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 16px 0;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            background: var(--input-bg);
+        }
+        #delete-modal .delete-box .delete-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        #delete-modal .delete-box button {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #delete-modal .delete-box .confirm-delete {
+            background: #b71c1c;
+            color: #fff;
+        }
+        #delete-modal .delete-box .cancel-delete {
+            background: #666;
+            color: #fff;
+        }
+        .delete-route-check-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+        }
+        .delete-route-check-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            padding: 0;
+        }
+        .delete-route-check-item label {
+            font-size: 14px;
+            color: var(--text);
+        }
     </style>
 </head>
 <body>
@@ -909,6 +985,18 @@
             <div class="date-actions">
                 <button class="confirm-date" onclick="confirmDate()">Confirm</button>
                 <button class="cancel-date" onclick="cancelDate()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Routes Modal -->
+    <div id="delete-modal">
+        <div class="delete-box">
+            <h3 style="margin-top:0;">Select Routes to Delete</h3>
+            <div class="delete-list" id="delete-routes-list">Loading...</div>
+            <div class="delete-actions">
+                <button class="confirm-delete" onclick="confirmDeleteRoutes()">Delete Selected</button>
+                <button class="cancel-delete" onclick="cancelDeleteRoutes()">Cancel</button>
             </div>
         </div>
     </div>
@@ -970,7 +1058,7 @@
             <div style="display: flex; justify-content: space-between; margin-top: 10px; gap:8px;">
                 <div style="display:flex; gap:8px;">
                     <button class="btn-save" onclick="saveCurrentRoute()">Save Route</button>
-                    <button class="btn-delete-all-saved" onclick="deleteAllSavedRoutes()">Delete All Routes</button>
+                    <button class="btn-delete-all-saved" onclick="openDeleteRoutesModal()">Delete routes</button>
                 </div>
                 <button class="btn-clear" onclick="clearAllJobs()">CLEAR ALL</button>
             </div>
@@ -1657,7 +1745,7 @@
                 container.style.display = 'none';
                 toggleBtn.addEventListener('click', function() {
                     const isHidden = container.style.display === 'none';
-                    container.style.display = isHidden ? 'block' : 'none';
+                    container.style.display = isHidden ? 'flex' : 'none';
                     arrow.textContent = isHidden ? '▲' : '▼';
                 });
             }
@@ -2799,14 +2887,57 @@
                 .catch(err => alert("Error saving route: " + err.message));
         }
 
-        // ---------- DELETE ALL SAVED ROUTES ----------
-        function deleteAllSavedRoutes() {
-            if (!confirm("Delete all saved routes? This will not affect your current route.")) return;
-            db.ref('developer/route_planner/saved_routes').set(null)
-                .catch(err => alert("Error deleting saved routes: " + err.message));
+        // ---------- DELETE ROUTES (new modal) ----------
+        function openDeleteRoutesModal() {
+            const modal = document.getElementById('delete-modal');
+            const listContainer = document.getElementById('delete-routes-list');
+            listContainer.innerHTML = 'Loading...';
+            modal.style.display = 'flex';
+
+            const savedRoutesRef = db.ref('developer/route_planner/saved_routes');
+            savedRoutesRef.once('value').then(snap => {
+                const savedData = snap.val() || {};
+                const keys = Object.keys(savedData);
+                if (keys.length === 0) {
+                    listContainer.innerHTML = '<div style="font-size:13px; color:#888;">No saved routes.</div>';
+                    return;
+                }
+                let html = '';
+                keys.forEach(key => {
+                    const route = savedData[key];
+                    const label = (route && route.label) ? route.label : 'Unnamed';
+                    html += `<div class="delete-route-check-item"><input type="checkbox" id="delete-route-${key}" data-route-key="${key}"><label for="delete-route-${key}">${label}</label></div>`;
+                });
+                listContainer.innerHTML = html;
+            }).catch(err => {
+                listContainer.innerHTML = '<div style="font-size:13px; color:#f66;">Error loading routes.</div>';
+            });
         }
 
-                    // ---------- RENDER SAVED ROUTES PILLS ----------
+        function confirmDeleteRoutes() {
+            const selectedKeys = [];
+            document.querySelectorAll('#delete-routes-list input[type="checkbox"]:checked').forEach(cb => {
+                selectedKeys.push(cb.dataset.routeKey);
+            });
+            if (selectedKeys.length === 0) {
+                alert("No routes selected.");
+                return;
+            }
+            if (confirm(`Delete ${selectedKeys.length} selected route(s)?`)) {
+                const promises = selectedKeys.map(key => db.ref(`developer/route_planner/saved_routes/${key}`).remove());
+                Promise.all(promises)
+                    .then(() => {
+                        cancelDeleteRoutes();
+                    })
+                    .catch(err => alert("Error deleting routes: " + err.message));
+            }
+        }
+
+        function cancelDeleteRoutes() {
+            document.getElementById('delete-modal').style.display = 'none';
+        }
+
+        // ---------- RENDER SAVED ROUTES PILLS ----------
         function renderSavedPills(data) {
             const container = document.getElementById('saved-routes-container');
             container.innerHTML = '';
@@ -3119,7 +3250,10 @@
                 const unassigned = pendingIds.filter(id => !assignedIds.includes(id));
                 orderIds = orderedAssigned.concat(unassigned);
             }
-            return orderIds.map(id => (jobs[id] && jobs[id].name) ? jobs[id].name : 'No name');
+            return orderIds.map((id, index) => {
+                const name = (jobs[id] && jobs[id].name) ? jobs[id].name : 'No name';
+                return (index + 1) + ') ' + name;
+            });
         }
 
         function openContactListModal() {
