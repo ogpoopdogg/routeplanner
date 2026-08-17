@@ -369,6 +369,86 @@
             color: #fff;
         }
 
+        /* Saved routes checkbox list in share/date modal */
+        #share-routes-select {
+            text-align: left;
+            max-height: 180px;
+            overflow-y: auto;
+            margin: 16px 0;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            background: var(--input-bg);
+        }
+        #share-routes-select .share-routes-title {
+            font-weight: 700;
+            font-size: 13px;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            color: var(--text);
+        }
+        .share-route-check-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+        }
+        .share-route-check-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            padding: 0;
+        }
+        .share-route-check-item label {
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        /* ---- Full-screen Contact List Modal ---- */
+        #contact-list-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            z-index: 10000;
+            flex-direction: column;
+        }
+        #contact-list-close {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 10001;
+            background: #b71c1c;
+            color: #fff;
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            font-size: 26px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #contact-list-items {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            padding: 0 12px;
+            box-sizing: border-box;
+        }
+        .contact-list-line {
+            width: 100%;
+            text-align: center;
+            white-space: nowrap;
+            font-weight: 700;
+            color: var(--text);
+        }
+
         /* ---- Address Picker Modal styles ---- */
         #address-picker-modal {
             display: none;
@@ -822,11 +902,21 @@
         <div class="date-box">
             <h3 style="margin-top:0;">Select Route Date</h3>
             <input type="date" id="route-date-input">
+            <div id="share-routes-select">
+                <div class="share-routes-title">Saved Routes to Include</div>
+                <div id="share-routes-list">Loading...</div>
+            </div>
             <div class="date-actions">
                 <button class="confirm-date" onclick="confirmDate()">Confirm</button>
                 <button class="cancel-date" onclick="cancelDate()">Cancel</button>
             </div>
         </div>
+    </div>
+
+    <!-- Full-screen Contact List Modal -->
+    <div id="contact-list-modal">
+        <button id="contact-list-close" onclick="closeContactListModal()" aria-label="Close">&times;</button>
+        <div id="contact-list-items"></div>
     </div>
 
     <!-- Header (similar to command.html) -->
@@ -1002,6 +1092,9 @@
     <button id="share-btn-bottom" class="map-btn" onclick="shareRoute()" aria-label="Share" style="position:fixed; bottom:80px; right:15px; z-index:1001; background:#2c3e50; border:1px solid #fff; padding:10px; border-radius:50%; width:56px; height:56px; font-size:24px; box-shadow:0 4px 8px rgba(0,0,0,0.3);">
         <svg viewBox="0 0 24 24" width="28" height="28" stroke="white" fill="none" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
     </button>
+
+    <!-- List Button (below Share Button) -->
+    <button id="list-btn-bottom" class="map-btn" onclick="openContactListModal()" aria-label="List" style="position:fixed; bottom:15px; right:85px; z-index:1001; background:#2c3e50; border:1px solid #fff; padding:10px; border-radius:50%; width:56px; height:56px; font-size:24px; box-shadow:0 4px 8px rgba(0,0,0,0.3);">📋</button>
 
     <!-- Scripts -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -2869,6 +2962,31 @@
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('route-date-input').value = today;
             pendingShareDate = null;
+            populateShareRouteChecklist();
+        }
+
+        // ---------- Populate saved routes checkbox list for share modal ----------
+        function populateShareRouteChecklist() {
+            const listContainer = document.getElementById('share-routes-list');
+            listContainer.innerHTML = 'Loading...';
+            const savedRoutesRef = db.ref('developer/route_planner/saved_routes');
+            savedRoutesRef.once('value').then(snap => {
+                const savedData = snap.val() || {};
+                const keys = Object.keys(savedData);
+                if (keys.length === 0) {
+                    listContainer.innerHTML = '<div style="font-size:13px; color:#888;">No saved routes.</div>';
+                    return;
+                }
+                let html = '';
+                keys.forEach(key => {
+                    const route = savedData[key];
+                    const label = (route && route.label) ? route.label : 'Unnamed';
+                    html += `<div class="share-route-check-item"><input type="checkbox" id="share-route-${key}" data-route-key="${key}" checked><label for="share-route-${key}">${label}</label></div>`;
+                });
+                listContainer.innerHTML = html;
+            }).catch(err => {
+                listContainer.innerHTML = '<div style="font-size:13px; color:#f66;">Error loading routes.</div>';
+            });
         }
 
         function confirmDate() {
@@ -2896,8 +3014,14 @@
                 const savedData = snap.val() || {};
                 let bodyParts = [];
 
-                // Process saved routes
-                const keys = Object.keys(savedData);
+                // Determine which saved routes were selected via the checkbox list
+                const selectedRouteKeys = new Set();
+                document.querySelectorAll('#share-routes-list input[type="checkbox"]:checked').forEach(cb => {
+                    selectedRouteKeys.add(cb.dataset.routeKey);
+                });
+
+                // Process saved routes (only the ones selected in the checkbox list)
+                const keys = Object.keys(savedData).filter(key => selectedRouteKeys.has(key));
                 keys.forEach(key => {
                     const route = savedData[key];
                     const label = route.label || 'Unnamed';
@@ -2963,6 +3087,100 @@
 
             }).catch(err => alert("Error loading saved routes: " + err.message));
         }
+
+        // ---------- CONTACT LIST (full-screen) ----------
+        let contactListWakeLock = null;
+
+        function getCurrentStopNames() {
+            const pendingIds = Object.keys(jobs).filter(id => jobs[id].status === 'pending_pickup');
+            let orderIds = pendingIds;
+            if (isOrderingMode || routeState.isFinalized) {
+                const assignedIds = Object.keys(routeState.assignedIndices);
+                const orderedAssigned = routeState.order.filter(id => assignedIds.includes(id));
+                const unassigned = pendingIds.filter(id => !assignedIds.includes(id));
+                orderIds = orderedAssigned.concat(unassigned);
+            }
+            return orderIds.map(id => (jobs[id] && jobs[id].name) ? jobs[id].name : 'No name');
+        }
+
+        function openContactListModal() {
+            const names = getCurrentStopNames();
+            const container = document.getElementById('contact-list-items');
+            if (names.length === 0) {
+                container.innerHTML = '<div class="contact-list-line" style="font-size:28px;">No stops in list</div>';
+            } else {
+                container.innerHTML = names.map(n => `<div class="contact-list-line">${n}</div>`).join('');
+            }
+            document.getElementById('contact-list-modal').style.display = 'flex';
+            fitContactListFont();
+            requestContactListWakeLock();
+        }
+
+        function closeContactListModal() {
+            document.getElementById('contact-list-modal').style.display = 'none';
+            releaseContactListWakeLock();
+        }
+
+        function fitContactListFont() {
+            const container = document.getElementById('contact-list-items');
+            const lines = container.querySelectorAll('.contact-list-line');
+            if (lines.length === 0) return;
+            const availableHeight = container.clientHeight;
+            const availableWidth = container.clientWidth - 24;
+            let fontSize = Math.floor(availableHeight / lines.length) * 0.75;
+            fontSize = Math.min(fontSize, 72);
+            const canvas = fitContactListFont._canvas || (fitContactListFont._canvas = document.createElement('canvas'));
+            const ctx = canvas.getContext('2d');
+            let minFontFromWidth = fontSize;
+            lines.forEach(line => {
+                const text = line.textContent;
+                let testSize = fontSize;
+                ctx.font = `700 ${testSize}px Inter, sans-serif`;
+                const width = ctx.measureText(text).width;
+                if (width > availableWidth && width > 0) {
+                    testSize = testSize * (availableWidth / width);
+                }
+                if (testSize < minFontFromWidth) minFontFromWidth = testSize;
+            });
+            fontSize = Math.max(10, Math.floor(minFontFromWidth));
+            lines.forEach(line => {
+                line.style.fontSize = fontSize + 'px';
+                line.style.lineHeight = (fontSize * 1.3) + 'px';
+            });
+        }
+
+        window.addEventListener('resize', function() {
+            const modal = document.getElementById('contact-list-modal');
+            if (modal && modal.style.display === 'flex') {
+                fitContactListFont();
+            }
+        });
+
+        async function requestContactListWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    contactListWakeLock = await navigator.wakeLock.request('screen');
+                }
+            } catch (err) {
+                contactListWakeLock = null;
+            }
+        }
+
+        function releaseContactListWakeLock() {
+            if (contactListWakeLock) {
+                contactListWakeLock.release().catch(() => {});
+                contactListWakeLock = null;
+            }
+        }
+
+        document.addEventListener('visibilitychange', async () => {
+            if (contactListWakeLock !== null && document.visibilityState === 'visible') {
+                const modal = document.getElementById('contact-list-modal');
+                if (modal && modal.style.display === 'flex') {
+                    try { contactListWakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
+                }
+            }
+        });
 
         // ---------- MAP FUNCTIONS (continued) ----------
         function openMap(zoomToAll) {
