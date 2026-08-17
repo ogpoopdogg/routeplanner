@@ -3021,7 +3021,7 @@
                     Object.keys(stopsObj).forEach(id => {
                         updates[id] = stopsObj[id];
                     });
-                    db.ref('developer/route_planner/jobs').update(updates).then(() => {
+                                       db.ref('developer/route_planner/jobs').update(updates).then(() => {
                         // Set routeState from saved data
                         routeState.order = order;
                         routeState.assignedIndices = assignedIndices;
@@ -3050,6 +3050,9 @@
                             document.getElementById('eta-display').style.display = 'none';
                             document.getElementById('eta-display').classList.remove('eta-glow');
                         }
+                        // --- ADD THESE TWO LINES (collapse the saved routes dropdown) ---
+                        document.getElementById('saved-routes-container').style.display = 'none';
+                        document.getElementById('toggle-saved-routes-arrow').textContent = '▼';
                     });
                 });
             }).catch(err => alert("Error loading saved route: " + err.message));
