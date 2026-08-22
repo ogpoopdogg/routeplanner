@@ -2822,7 +2822,30 @@
             const usernameInput = prompt("Enter driver username (e.g., alysha):", "");
             if (usernameInput === null || usernameInput.trim() === "") return;
             let username = usernameInput.trim().toLowerCase();
+            // Reject characters Firebase keys can't contain, and '/' specifically —
+            // a stray slash would turn this into a nested path instead of a single
+            // route key, which could land inside another driver's existing route
+            // instead of creating/overwriting a clean top-level entry.
+            if (/[.#$\[\]\/]/.test(username)) {
+                alert("Driver username can't contain: . # $ [ ] /");
+                return;
+            }
             let label = username.charAt(0).toUpperCase() + username.slice(1);
+
+            // If a route already exists under this key, make sure the admin knows
+            // they're about to overwrite it — protects against a typo'd username
+            // silently replacing another driver's saved route.
+            const existingSnap = await db.ref('developer/route_planner/saved_routes/' + username).once('value');
+            const existingRoute = existingSnap.val();
+            if (existingRoute) {
+                const existingLabel = existingRoute.label || username;
+                const existingStopCount = existingRoute.stops ? Object.keys(existingRoute.stops).length : 0;
+                const proceed = confirm(
+                    `A saved route already exists for "${existingLabel}" (${existingStopCount} stop${existingStopCount === 1 ? '' : 's'}).\n\n` +
+                    `Saving now will completely overwrite it. Continue?`
+                );
+                if (!proceed) return;
+            }
 
             // Build stopsObj from jobs in order
             const stopsObj = {};
