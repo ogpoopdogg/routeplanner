@@ -113,9 +113,9 @@
             animation: drop-in .5s var(--ease) both;
         }
         header::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: linear-gradient(90deg, transparent, var(--accent-ring), transparent); opacity: .8; pointer-events: none; }
-        .brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; min-width: 0; }
+        .brand { display: flex; align-items: center; gap: 12px; flex: 1 1 auto; min-width: 0; }
         .header-logo {
-            height: 34px; width: 34px; object-fit: contain; padding: 5px; margin: 0; vertical-align: middle; cursor: pointer; border-radius: 10px;
+            flex-shrink: 0; height: 34px; width: 34px; object-fit: contain; padding: 5px; margin: 0; vertical-align: middle; cursor: pointer; border-radius: 10px;
             background: radial-gradient(circle at 30% 25%, rgba(245,197,24,0.22), rgba(245,197,24,0.04) 70%); border: 1px solid var(--accent-ring);
             filter: drop-shadow(0 0 6px rgba(245,197,24,0.35)); transition: transform .4s var(--spring), filter .3s var(--ease);
         }
@@ -123,12 +123,12 @@
         .header-logo:active { transform: scale(.92); }
         .brand-text { display: flex; flex-direction: column; line-height: 1.05; min-width: 0; }
         .shiny-text {
-            font-size: 15px; font-weight: 800; letter-spacing: .06em; white-space: nowrap;
+            font-size: 15px; font-weight: 800; letter-spacing: .06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
             background: linear-gradient(100deg, var(--accent-2) 0%, var(--accent) 30%, #fff6cc 50%, var(--accent) 70%, var(--accent-deep) 100%);
             background-size: 200% auto; color: transparent; -webkit-background-clip: text; background-clip: text;
             animation: shimmer-text 6s linear infinite;
         }
-        .header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+        .header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
 
         /* Icon buttons in the header (route / ETA / map) */
         .map-btn {
@@ -341,9 +341,9 @@
         .stops-head { margin: 2px 2px 14px; color: var(--text); display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
         .stops-head::before { content: ""; width: 4px; height: 16px; border-radius: 4px; background: linear-gradient(180deg, var(--accent-2), var(--accent-deep)); box-shadow: 0 0 10px var(--accent-ring); }
         #stop-counter { border: 1px solid var(--accent-ring); background: var(--accent-soft); color: var(--accent); font-weight: 800; padding: 2px 9px; border-radius: 999px; font-size: 12px; letter-spacing: 0; font-variant-numeric: tabular-nums; }
-        #job-list { display: flex; flex-direction: column; gap: 8px; }
+        #job-list { display: flex; flex-direction: column; gap: 4px; }
         .job-item {
-            display: flex; align-items: center; gap: 12px; padding: 12px 10px 12px 12px; border-radius: 14px; cursor: pointer; position: relative;
+            display: flex; align-items: center; gap: 12px; padding: 6px 6px 6px 10px; border-radius: 12px; cursor: pointer; position: relative;
             background: var(--input-bg); border: 1px solid var(--border); -webkit-user-select: none; user-select: none;
             transition: transform .2s var(--ease), border-color .2s var(--ease), background .2s var(--ease), box-shadow .25s var(--ease);
         }
@@ -371,11 +371,11 @@
         .job-number.has-note { cursor: pointer; color: #fff; background: linear-gradient(180deg, #60a5fa, #3b82f6 60%, #2563eb); animation: note-pulse 2.4s ease-in-out infinite; }
         .job-info { flex: 1; overflow: hidden; min-width: 0; }
         .job-name { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
-        .job-address { margin-top: 2px; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .job-address { margin-top: 1px; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .star-icon { width: 24px; height: 24px; cursor: pointer; fill: none; stroke: var(--accent); stroke-width: 2; z-index: 2; }
         .star-icon.active { fill: var(--accent); }
         .mic-icon, .delete-icon {
-            flex-shrink: 0; box-sizing: content-box; width: 20px; height: 20px; padding: 9px; border-radius: 10px; cursor: pointer; z-index: 2;
+            flex-shrink: 0; box-sizing: content-box; width: 20px; height: 20px; padding: 8px; border-radius: 10px; cursor: pointer; z-index: 2;
             border: 1px solid transparent; transition: background .2s, border-color .2s, transform .2s var(--spring), filter .2s;
         }
         .mic-icon { fill: var(--card-text); stroke: var(--card-text); stroke-width: 0.5; }
@@ -693,6 +693,88 @@
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
         }
+
+        /* ==========================================================================
+           BACK ARROW, OPENS-AT PICKER, CUSTOMER EDITOR, TOAST
+           ========================================================================== */
+        .details-back-btn {
+            position: absolute; top: 20px; left: 20px; z-index: 2; width: 46px; height: 46px; padding: 0; border-radius: 14px; cursor: pointer;
+            display: grid; place-items: center; color: var(--text); background: var(--card-2); border: 1px solid var(--border-strong);
+            transition: transform .2s var(--spring), border-color .2s, background .2s;
+        }
+        .details-back-btn svg { width: 24px; height: 24px; }
+        .details-back-btn:hover { border-color: var(--accent-ring); background: var(--accent-soft); }
+        .details-back-btn:active { transform: scale(.9); }
+        #details-modal .details-modal-content .stop-title { padding-left: 52px; padding-right: 52px; min-height: 46px; display: flex; align-items: center; justify-content: center; }
+        #details-modal .modal-actions .save-details-btn { flex: 1; }
+
+        .opens-display {
+            flex: 1; min-height: 40px; padding: 6px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer;
+            font-family: inherit; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text);
+            background: var(--bg-2); border: 1px solid var(--border-strong); border-radius: 9px; transition: border-color .2s, box-shadow .2s;
+        }
+        .opens-display svg { width: 18px; height: 18px; color: var(--muted); flex-shrink: 0; }
+        .opens-display:hover, .opens-display:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+        .opens-display.is-empty { color: var(--faint); font-weight: 500; }
+
+        .sheet-overlay {
+            display: none; position: fixed; inset: 0; z-index: 10700; align-items: center; justify-content: center; padding: 16px;
+            background: rgba(3,5,10,0.62); backdrop-filter: blur(10px) saturate(140%); -webkit-backdrop-filter: blur(10px) saturate(140%);
+            animation: fade-in .22s var(--ease);
+        }
+        body.light-mode .sheet-overlay { background: rgba(15,23,42,0.32); }
+        .sheet-overlay.is-open { display: flex; }
+        .time-picker { max-width: 360px; }
+        .tp-label { font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+        .tp-head { display: flex; align-items: center; gap: 6px; }
+        .tp-field {
+            width: 76px; min-height: 64px; padding: 0; text-align: center; font-size: 36px; font-weight: 800; font-variant-numeric: tabular-nums;
+            border-radius: 14px; background: var(--input-bg); caret-color: var(--accent);
+        }
+        .tp-field.is-active { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); color: var(--accent); }
+        .tp-colon { font-size: 34px; font-weight: 800; color: var(--muted); }
+        .tp-ampm { margin-left: auto; display: flex; flex-direction: column; gap: 4px; padding: 4px; border-radius: 14px; background: var(--input-bg); border: 1px solid var(--border-strong); }
+        .tp-ampm button {
+            min-width: 58px; min-height: 28px; padding: 4px 10px; border-radius: 10px; border: 1px solid transparent; cursor: pointer;
+            font-family: inherit; font-size: 14px; font-weight: 800; letter-spacing: .06em; color: var(--muted); background: transparent; transition: background .2s, color .2s, box-shadow .2s;
+        }
+        .tp-ampm button.is-selected { color: #1a1300; background: linear-gradient(180deg, #ffe066, #f5c518 60%, #dfa600); box-shadow: 0 6px 14px -6px rgba(245,197,24,0.8), inset 0 1px 0 rgba(255,255,255,0.5); }
+        .tp-hint { margin: 10px 0 12px; font-size: 12.5px; color: var(--muted); }
+        .tp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 16px; }
+        .tp-grid button {
+            min-height: 44px; border-radius: 11px; cursor: pointer; font-family: inherit; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums;
+            color: var(--text); background: var(--input-bg); border: 1px solid var(--border); transition: background .15s, border-color .15s, transform .15s var(--spring);
+        }
+        .tp-grid button:hover { border-color: var(--accent-ring); }
+        .tp-grid button:active { transform: scale(.94); }
+        .tp-grid button.is-selected { color: #1a1300; background: var(--accent); border-color: var(--accent); }
+
+        .suggestion-item.suggest-customer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-right: 6px; }
+        .suggest-customer:hover { padding-left: 14px; }
+        .suggest-customer .suggestion-main { min-width: 0; overflow-wrap: anywhere; }
+        .suggest-edit {
+            display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; padding: 0; cursor: pointer; border-radius: 9px;
+            color: var(--text); background: var(--card-2); border: 1px solid var(--border-strong); transition: background .15s, border-color .15s;
+        }
+        .suggest-edit svg { width: 17px; height: 17px; }
+        .suggest-edit:hover { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+        .customer-box { max-width: 420px; max-height: calc(100vh - 32px); overflow-y: auto; }
+        .customer-title { color: var(--text) !important; }
+        .customer-title::before { background: var(--accent) !important; box-shadow: 0 0 10px var(--accent) !important; }
+        .customer-label { display: block; margin: 12px 0 6px; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+        .customer-hint { margin: 12px 0 18px; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+
+        #app-toast {
+            position: fixed; left: 50%; top: 76px; z-index: 21000; display: none; max-width: min(calc(100vw - 32px), 440px); width: max-content;
+            padding: 12px 16px; border-radius: 14px; font-size: 14px; font-weight: 600; line-height: 1.4; transform: translateX(-50%);
+            color: var(--text); background: var(--glass); border: 1px solid var(--border-strong); box-shadow: var(--shadow-lift);
+            backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%);
+        }
+        #app-toast.is-visible { display: block; animation: drop-in .25s var(--ease); }
+        #app-toast.is-error { color: #fff; background: rgba(220,38,38,0.92); border-color: rgba(255,255,255,0.2); }
+        @media (max-width: 768px) {
+            .details-back-btn { top: 14px; left: 14px; width: 42px; height: 42px; }
+        }
     </style>
 </head>
 <body>
@@ -777,7 +859,6 @@
         </div>
     </div>
     <div class="header-actions">
-        <button id="route-btn" class="map-btn" onclick="openExternalRoute()" aria-label="Route" title="Open route in Google Maps"><svg viewBox="0 0 24 24" width="20" height="20" stroke="white" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></button>
         <!-- ETA button (clock) -->
         <button id="eta-btn" class="map-btn" onclick="calculateETAOnDemand()" aria-label="Calculate ETA" title="Calculate ETA and distance">
             <svg viewBox="0 0 24 24" width="20" height="20" stroke="white" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -890,15 +971,16 @@
     </div>
 
     <!-- Static Contact Note Overlay -->
-    <div id="static-note-overlay">
+    <div id="static-note-overlay" onpointerdown="noteOverlayDownOnBackdrop = (event.target === this)" onclick="if (event.target === this && noteOverlayDownOnBackdrop) closeStaticNote()">
         <div class="static-note-box">
             <div class="static-note-header">
                 <span>STOP NOTES</span>
                 <button class="static-note-close" onclick="closeStaticNote()">✕</button>
             </div>
             <div class="static-note-hours">
-                <label for="static-note-opens">Opens at</label>
-                <input type="time" id="static-note-opens" onchange="saveOpensAt()">
+                <label for="static-note-opens-display">Opens at</label>
+                <input type="time" id="static-note-opens" onchange="saveOpensAt()" hidden>
+                <button type="button" id="static-note-opens-display" class="opens-display" onclick="openTimePicker()"><span id="static-note-opens-text">Not set</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>
                 <button class="static-note-hours-clear" onclick="clearOpensAt()">Clear</button>
             </div>
             <div id="static-note-list">
@@ -912,6 +994,7 @@
     <!-- Details Modal -->
     <div id="details-modal">
         <div class="details-modal-content">
+            <button type="button" class="details-back-btn" onclick="closeDetailsModal()" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
             <div class="stop-title" id="details-stop-title">Stop Name</div>
             <div id="details-controls">
                 <div class="detail-row">
@@ -964,11 +1047,55 @@
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="close-details-btn" onclick="closeDetailsModal()">Cancel</button>
                 <button class="save-details-btn" onclick="saveDetailsFromModal()">Save</button>
             </div>
         </div>
     </div>
+
+    <!-- Opens-at time picker -->
+    <div id="time-picker-overlay" class="sheet-overlay" onpointerdown="timePickerDownOnBackdrop = (event.target === this)" onclick="if (event.target === this && timePickerDownOnBackdrop) closeTimePicker()">
+        <div class="dialog-panel time-picker" role="dialog" aria-modal="true" aria-label="Opening time">
+            <div class="tp-label">Opens at</div>
+            <div class="tp-head">
+                <input type="text" id="tp-hour" class="tp-field" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="Hour" onfocus="tpFocus('hour')" oninput="tpTyped('hour')">
+                <span class="tp-colon">:</span>
+                <input type="text" id="tp-minute" class="tp-field" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="Minutes" onfocus="tpFocus('minute')" oninput="tpTyped('minute')">
+                <div class="tp-ampm" role="group" aria-label="AM or PM">
+                    <button type="button" id="tp-am" onclick="tpSetPeriod('AM')">AM</button>
+                    <button type="button" id="tp-pm" onclick="tpSetPeriod('PM')">PM</button>
+                </div>
+            </div>
+            <div class="tp-hint">Tap the time above to type it, or pick below.</div>
+            <div id="tp-grid" class="tp-grid"></div>
+            <div class="dialog-actions">
+                <button type="button" class="dialog-btn cancel" onclick="closeTimePicker()">Cancel</button>
+                <button type="button" class="dialog-btn ok" onclick="confirmTimePicker()">Set</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit a customer in address lookup (name, address, city) -->
+    <div id="customer-overlay" class="sheet-overlay" onpointerdown="customerDownOnBackdrop = (event.target === this)" onclick="if (event.target === this && customerDownOnBackdrop) closeCustomerEditor()">
+        <div class="dialog-panel customer-box" role="dialog" aria-modal="true" aria-labelledby="customer-title">
+            <div class="static-note-header">
+                <span id="customer-title" class="customer-title">Edit customer</span>
+                <button type="button" class="static-note-close" onclick="closeCustomerEditor()" aria-label="Close">✕</button>
+            </div>
+            <label class="customer-label" for="customer-name">Name</label>
+            <input type="text" id="customer-name" autocomplete="off">
+            <label class="customer-label" for="customer-address">Address</label>
+            <input type="text" id="customer-address" autocomplete="off">
+            <label class="customer-label" for="customer-city">City</label>
+            <input type="text" id="customer-city" autocomplete="off">
+            <p class="customer-hint">Stops for this customer still on the list are updated too. Notes stay with the customer.</p>
+            <div class="dialog-actions">
+                <button type="button" class="dialog-btn cancel" onclick="closeCustomerEditor()">Cancel</button>
+                <button type="button" class="dialog-btn ok" onclick="saveCustomerEdit()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-toast" role="status" aria-live="polite"></div>
 
     <!-- Install App Button -->
     <button id="install-btn">Install App</button>
@@ -1244,7 +1371,7 @@
 
         // ---------- ADDRESS AUTOCOMPLETE (from command.html) ----------
         function handleNameInput(val) {
-            showSuggestions(val, 'suggestions', name => `<div class="suggestion-item" data-name="${escapeHtml(name)}" onclick="selectClient(this.dataset.name)">${escapeHtml(name)}</div>`);
+            showSuggestions(val, 'suggestions', name => `<div class="suggestion-item suggest-customer" data-name="${escapeHtml(name)}" onclick="selectClient(this.dataset.name)"><span class="suggestion-main">${escapeHtml(name)}</span><button type="button" class="suggest-edit" aria-label="Edit ${escapeHtml(name)}" onmousedown="event.preventDefault()" onclick="event.stopPropagation(); openCustomerEditor(this.parentNode.dataset.name)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></div>`);
         }
         // Suggests real city names (unique) taken from the saved contacts
         function handleCityInput(val) {
@@ -1872,6 +1999,7 @@
             document.getElementById('static-note-textarea').value = '';
             const contactEntry = getContactEntry(job.name);
             document.getElementById('static-note-opens').value = (contactEntry && parseHHMM(contactEntry.opens_at) !== null) ? contactEntry.opens_at : '';
+            renderOpensDisplay();
             renderStaticNoteList();
             document.getElementById('static-note-overlay').style.display = 'flex';
         }
@@ -1889,6 +2017,7 @@
         }
         function clearOpensAt() {
             document.getElementById('static-note-opens').value = '';
+            renderOpensDisplay();
             saveOpensAt();
         }
         function closeStaticNote() {
@@ -4579,6 +4708,208 @@
             updateAutoOptimizeButtonVisual();
             // Additional UI updates can be added here if needed
         }
+
+        // ---------- OPENS-AT PICKER ----------
+        // Tap anywhere on the box to open. Hour and minutes can be typed (number pad) or
+        // picked from the grid, and the chosen AM/PM is highlighted. The value is still
+        // kept in the hidden time input as "HH:MM" and saved by saveOpensAt().
+        let noteOverlayDownOnBackdrop = false;
+        let timePickerDownOnBackdrop = false;
+        let tpState = { hour: null, minute: null, period: 'AM', focus: 'hour' };
+        function formatOpensAt(value) {
+            const m = /^(\d{1,2}):(\d{2})$/.exec(value || '');
+            if (!m) return '';
+            const h = parseInt(m[1], 10);
+            return ((h % 12) || 12) + ':' + m[2] + ' ' + (h < 12 ? 'AM' : 'PM');
+        }
+        function renderOpensDisplay() {
+            const text = formatOpensAt(document.getElementById('static-note-opens').value);
+            document.getElementById('static-note-opens-text').textContent = text || 'Not set';
+            document.getElementById('static-note-opens-display').classList.toggle('is-empty', !text);
+        }
+        function openTimePicker() {
+            const m = /^(\d{1,2}):(\d{2})$/.exec(document.getElementById('static-note-opens').value || '');
+            if (m) {
+                const h = parseInt(m[1], 10);
+                tpState = { hour: (h % 12) || 12, minute: parseInt(m[2], 10), period: h < 12 ? 'AM' : 'PM', focus: 'hour' };
+            } else {
+                tpState = { hour: null, minute: null, period: 'AM', focus: 'hour' };
+            }
+            document.getElementById('tp-hour').value = tpState.hour !== null ? String(tpState.hour) : '';
+            document.getElementById('tp-minute').value = tpState.minute !== null ? String(tpState.minute).padStart(2, '0') : '';
+            document.getElementById('time-picker-overlay').classList.add('is-open');
+            renderTimePicker();
+        }
+        function closeTimePicker() {
+            document.getElementById('time-picker-overlay').classList.remove('is-open');
+            const active = document.activeElement;
+            if (active && active.classList && active.classList.contains('tp-field')) active.blur();
+        }
+        function tpFocus(which) {
+            tpState.focus = which;
+            const el = document.getElementById(which === 'hour' ? 'tp-hour' : 'tp-minute');
+            try { el.select(); } catch (e) {}
+            setTimeout(() => { try { if (document.activeElement === el) el.select(); } catch (e) {} }, 0);
+            renderTimePicker();
+        }
+        function tpTyped(which) {
+            const el = document.getElementById(which === 'hour' ? 'tp-hour' : 'tp-minute');
+            el.value = el.value.replace(/\D/g, '').slice(0, 2);
+            // A digit typed after an old value that makes it out of range starts over with that digit.
+            if (el.value.length === 2 && parseInt(el.value, 10) > (which === 'hour' ? 23 : 59)) el.value = el.value.slice(1);
+            const n = el.value === '' ? null : parseInt(el.value, 10);
+            if (which === 'hour') {
+                tpState.hour = (n !== null && n >= 1 && n <= 12) ? n : null;
+                // Typed in 24-hour form (13-23): take it and switch to PM.
+                if (n !== null && n >= 13 && n <= 23) { tpState.hour = n - 12; tpState.period = 'PM'; el.value = String(n - 12); }
+                if (n === 0 && el.value.length === 2) { tpState.hour = 12; tpState.period = 'AM'; el.value = '12'; }
+                if (el.value.length === 2 || (n !== null && n > 1)) document.getElementById('tp-minute').focus();
+            } else {
+                tpState.minute = (n !== null && n <= 59) ? n : null;
+            }
+            renderTimePicker();
+        }
+        function tpSetPeriod(period) { tpState.period = period; renderTimePicker(); }
+        function tpPick(value) {
+            if (tpState.focus === 'hour') {
+                tpState.hour = value;
+                document.getElementById('tp-hour').value = String(value);
+                tpState.focus = 'minute';
+                if (tpState.minute === null) { tpState.minute = 0; document.getElementById('tp-minute').value = '00'; }
+            } else {
+                tpState.minute = value;
+                document.getElementById('tp-minute').value = String(value).padStart(2, '0');
+            }
+            renderTimePicker();
+        }
+        function renderTimePicker() {
+            document.getElementById('tp-am').classList.toggle('is-selected', tpState.period === 'AM');
+            document.getElementById('tp-pm').classList.toggle('is-selected', tpState.period === 'PM');
+            document.getElementById('tp-am').setAttribute('aria-pressed', tpState.period === 'AM');
+            document.getElementById('tp-pm').setAttribute('aria-pressed', tpState.period === 'PM');
+            document.getElementById('tp-hour').classList.toggle('is-active', tpState.focus === 'hour');
+            document.getElementById('tp-minute').classList.toggle('is-active', tpState.focus === 'minute');
+            const values = tpState.focus === 'hour' ? [1,2,3,4,5,6,7,8,9,10,11,12] : [0,5,10,15,20,25,30,35,40,45,50,55];
+            const selected = tpState.focus === 'hour' ? tpState.hour : tpState.minute;
+            document.getElementById('tp-grid').innerHTML = values.map(v =>
+                `<button type="button" class="${v === selected ? 'is-selected' : ''}" onclick="tpPick(${v})">${tpState.focus === 'hour' ? v : ':' + String(v).padStart(2, '0')}</button>`).join('');
+        }
+        function confirmTimePicker() {
+            if (tpState.hour === null) { showToast('Pick or type the hour (1-12).', true); return; }
+            const minute = tpState.minute === null ? 0 : tpState.minute;
+            let h24 = tpState.hour % 12;
+            if (tpState.period === 'PM') h24 += 12;
+            document.getElementById('static-note-opens').value = String(h24).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
+            renderOpensDisplay();
+            saveOpensAt();
+            closeTimePicker();
+        }
+
+        // ---------- EDIT A CUSTOMER (address lookup) ----------
+        // Opened from the pencil in the name suggestions, like Route Helper. Name, address
+        // and city can be changed. A renamed customer keeps their notes and opening time.
+        // Stops for the customer still on the list get the new details; a stop whose
+        // address changed is looked up again on the map.
+        let customerEdit = null; // { key, original: { address, city } }
+        let customerDownOnBackdrop = false;
+        function findContactKey(name) {
+            const want = lookupKey(name).toLowerCase();
+            if (!want) return null;
+            if (addressData[lookupKey(name)]) return lookupKey(name);
+            return Object.keys(addressData).find(k => k.toLowerCase() === want) || null;
+        }
+        function openCustomerEditor(name) {
+            const key = findContactKey(name);
+            const data = key ? addressData[key] : null;
+            if (!data) return;
+            customerEdit = { key: key, original: { address: data.address || '', city: data.city || '' } };
+            document.getElementById('customer-name').value = key;
+            document.getElementById('customer-address').value = data.address || '';
+            document.getElementById('customer-city').value = data.city || '';
+            document.getElementById('suggestions').style.display = 'none';
+            const active = document.activeElement;
+            if (active && active.tagName === 'INPUT') active.blur();
+            document.getElementById('customer-overlay').classList.add('is-open');
+        }
+        function closeCustomerEditor() {
+            document.getElementById('customer-overlay').classList.remove('is-open');
+            customerEdit = null;
+        }
+        function saveCustomerEdit() {
+            const ed = customerEdit;
+            if (!ed) return;
+            const name = document.getElementById('customer-name').value.trim();
+            const address = document.getElementById('customer-address').value.trim();
+            const city = document.getElementById('customer-city').value.trim();
+            if (!name || !address || !city) { showToast('Fill in the name, address and city.', true); return; }
+            const newKey = lookupKey(name);
+            if (!newKey) { showToast("That name can't be saved. Use letters or numbers.", true); return; }
+            const taken = findContactKey(name);
+            if (taken && taken !== ed.key) { showToast(`"${taken}" is already saved. Use a different name, or edit that customer instead.`, true); return; }
+            const sameText = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+            const placeChanged = !sameText(address, ed.original.address) || !sameText(city, ed.original.city);
+            const fields = { address: address, city: city, last_edit_by: currentUser };
+            // A saved map spot belongs to the old address, so it goes when the address changes.
+            if (placeChanged) { fields.lat = null; fields.lng = null; fields.pinned = null; }
+            let write;
+            if (newKey === ed.key) {
+                write = db.ref('address_lookup').child(newKey).update(fields);
+            } else {
+                // Renamed: the whole record (notes included) moves to the new name in one write.
+                const record = Object.assign({}, addressData[ed.key] || {}, fields);
+                Object.keys(record).forEach(k => { if (record[k] === null) delete record[k]; });
+                write = db.ref('address_lookup').update({ [newKey]: record, [ed.key]: null });
+            }
+            write.catch(err => showToast("Couldn't save the customer: " + ((err && err.message) || 'unknown error'), true));
+
+            // Stops for this customer that are still on the list.
+            const oldMatch = ed.key.toLowerCase();
+            const stopIds = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup' && lookupKey(jobs[id].name).toLowerCase() === oldMatch);
+            let fixed = 0;
+            stopIds.forEach(id => {
+                const job = jobs[id];
+                const update = {};
+                if (job.name !== name) update.name = name;
+                if (job.pickup_location !== address) update.pickup_location = address;
+                if (job.city !== city) update.city = city;
+                const moved = !sameText(job.pickup_location, address) || !sameText(job.city, city);
+                if (moved) { update.lat = null; update.lng = null; }
+                if (Object.keys(update).length === 0) return;
+                fixed++;
+                Object.keys(update).forEach(k => { if (update[k] === null) delete job[k]; else job[k] = update[k]; });
+                db.ref(`developer/route_planner/jobs/${id}`).update(update)
+                    .then(() => { if (moved && typeof google !== 'undefined' && google.maps && google.maps.Geocoder) return geocodeJob(id).then(() => updateRoute()); })
+                    .catch(err => console.warn('Stop update failed:', err));
+            });
+            if (fixed > 0) { persistJobsCache(); updateRoute(); }
+            // Keep the add-stop form in step if it shows this customer.
+            const formName = document.getElementById('f-name');
+            if (formName && lookupKey(formName.value).toLowerCase() === oldMatch) {
+                formName.value = name;
+                document.getElementById('f-address').value = address;
+                document.getElementById('f-city').value = city;
+            }
+            closeCustomerEditor();
+            showToast(fixed > 0 ? `Saved "${name}". Updated ${fixed} stop${fixed === 1 ? '' : 's'} on the list.` : `Saved "${name}".`);
+        }
+
+        let toastTimer = null;
+        function showToast(message, isError) {
+            const el = document.getElementById('app-toast');
+            if (!el) return;
+            el.textContent = message;
+            el.classList.toggle('is-error', !!isError);
+            el.classList.remove('is-visible');
+            void el.offsetWidth;
+            el.classList.add('is-visible');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.classList.remove('is-visible'), isError ? 6000 : 3500);
+        }
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            if (document.getElementById('time-picker-overlay').classList.contains('is-open')) closeTimePicker();
+            else if (customerEdit) closeCustomerEditor();
+        });
 
     </script>
 </body>
