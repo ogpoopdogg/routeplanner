@@ -1174,6 +1174,9 @@
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
+        // A value as a quoted JavaScript argument inside an HTML attribute (onclick="f(${jsArg(id)})"),
+        // so a database key with quotes or < > can't break out of the attribute or the call
+        function jsArg(v) { return escapeHtml(JSON.stringify(String(v == null ? '' : v))); }
         // address_lookup keys are stored with . # $ [ ] / stripped - read them the same way
         function lookupKey(name) { return (name || '').replace(/[.#$\[\]\/]/g, "").trim(); }
         function getContactEntry(name) { return addressData[lookupKey(name)] || addressData[name] || null; }
@@ -1936,17 +1939,17 @@
                 const contactNotes = (contactEntry && contactEntry.notes) || {};
                 const hasNote = Object.values(contactNotes).some(n => n && n.text && !n.deleted);
                 html += `
-                    <div class="job-item${newClass}" data-id="${id}">
-                        <span class="job-number${hasNote ? ' has-note' : ''}" onclick="event.stopPropagation(); openStaticNote('${id}')">-</span>
+                    <div class="job-item${newClass}" data-id="${escapeHtml(id)}">
+                        <span class="job-number${hasNote ? ' has-note' : ''}" onclick="event.stopPropagation(); openStaticNote(${jsArg(id)})">-</span>
                         <div class="job-info">
                             <div class="job-name">${escapeHtml(job.name || 'No name')}</div>
                             <div class="job-address">${escapeHtml(job.pickup_location || '')}, ${escapeHtml(job.city || '')}</div>
                         </div>
-                        <svg class="mic-icon${micRecordingJobId === id ? ' mic-recording' : ''}" viewBox="0 0 24 24" onclick="toggleMicRecording('${id}')">
+                        <svg class="mic-icon${micRecordingJobId === id ? ' mic-recording' : ''}" viewBox="0 0 24 24" onclick="toggleMicRecording(${jsArg(id)})">
                             <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
                             <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
                         </svg>
-                        <svg class="delete-icon" viewBox="0 0 24 24" onclick="deleteJob('${id}')">
+                        <svg class="delete-icon" viewBox="0 0 24 24" onclick="deleteJob(${jsArg(id)})">
                             <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
                         </svg>
                     </div>
@@ -2008,17 +2011,17 @@
                 const contactNotes = (contactEntry && contactEntry.notes) || {};
                 const hasNote = Object.values(contactNotes).some(n => n && n.text && !n.deleted);
                 html += `
-                    <div class="job-item" data-id="${id}" style="cursor:default;">
-                        <span class="job-number${hasNote ? ' has-note' : ''}" onclick="event.stopPropagation(); openStaticNote('${id}')">${numberDisplay}</span>
+                    <div class="job-item" data-id="${escapeHtml(id)}" style="cursor:default;">
+                        <span class="job-number${hasNote ? ' has-note' : ''}" onclick="event.stopPropagation(); openStaticNote(${jsArg(id)})">${numberDisplay}</span>
                         <div class="job-info">
                             <div class="job-name">${escapeHtml(job.name || 'No name')}</div>
                             <div class="job-address">${escapeHtml(job.pickup_location || '')}, ${escapeHtml(job.city || '')}</div>
                         </div>
-                        <svg class="mic-icon${micRecordingJobId === id ? ' mic-recording' : ''}" viewBox="0 0 24 24" onclick="toggleMicRecording('${id}')">
+                        <svg class="mic-icon${micRecordingJobId === id ? ' mic-recording' : ''}" viewBox="0 0 24 24" onclick="toggleMicRecording(${jsArg(id)})">
                             <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
                             <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
                         </svg>
-                        <svg class="delete-icon" viewBox="0 0 24 24" onclick="deleteJob('${id}')">
+                        <svg class="delete-icon" viewBox="0 0 24 24" onclick="deleteJob(${jsArg(id)})">
                             <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
                         </svg>
                     </div>
@@ -2101,7 +2104,7 @@
                         <div class="static-note-entry-text">${escapeStaticNoteText(n.text)}</div>
                         <div class="static-note-entry-meta">— ${escapeStaticNoteText(n.created_by || 'Unknown')}</div>
                     </div>
-                    ${n.created_by === getStaticNoteUser() ? `<button class="static-note-entry-delete" onclick="deleteStaticNote('${n.id}')" title="Delete note">✕</button>` : ''}
+                    ${n.created_by === getStaticNoteUser() ? `<button class="static-note-entry-delete" onclick="deleteStaticNote(${jsArg(n.id)})" title="Delete note">✕</button>` : ''}
                 </div>
             `).join('');
         }
