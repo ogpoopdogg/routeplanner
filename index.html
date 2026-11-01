@@ -830,11 +830,12 @@
         .driver-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 11px; background: var(--card-2); border: 1px solid var(--border); }
         .driver-row label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; font-weight: 700; }
         .driver-row label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .driver-row input[type=checkbox], .settings-toggle input[type=checkbox] { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--accent); }
+        .driver-row input[type=checkbox], .settings-toggle input[type=checkbox], .settings-toggle input[type=radio] { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--accent); }
         .driver-row input[type=time] { width: 104px; min-height: 36px; padding: 4px 6px; font-size: 14px; }
         .driver-row .driver-remove { width: 34px; height: 34px; flex-shrink: 0; padding: 0; cursor: pointer; border-radius: 9px; color: var(--muted); background: transparent; border: 1px solid var(--border-strong); }
         .driver-row .driver-remove:hover { color: #ef4444; border-color: rgba(239,68,68,0.5); }
         .driver-empty { padding: 10px; font-size: 13px; color: var(--muted); }
+        .settings-toggle input[type=radio], .settings-toggle input[type=checkbox] { min-height: 0; margin: 0; padding: 0; }
         .settings-toggle { display: flex; align-items: center; gap: 10px; padding: 8px 0; cursor: pointer; font-size: 14px; font-weight: 600; }
         .settings-number { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
         .settings-number input { width: 80px; min-height: 38px; }
@@ -1201,8 +1202,38 @@
                 <p class="settings-help" style="margin-top:8px;">The time next to a driver is their usual start time. It's filled in for you when you make their route.</p>
             </div>
             <div class="settings-section">
+                <h4>Shop</h4>
+                <p class="settings-help">Every route starts here. <span id="settings-shop-address"></span></p>
+                <div class="settings-add">
+                    <button type="button" class="dialog-btn cancel" onclick="openShopPicker()">Set on map</button>
+                    <button type="button" id="settings-shop-reset" class="dialog-btn cancel" onclick="resetShop()" hidden>Use default</button>
+                </div>
+                <label class="settings-toggle"><input type="checkbox" id="settings-return" onchange="setReturnToShop(this.checked)">Return to the shop at the end (off: the route ends at the last stop)</label>
+            </div>
+            <div class="settings-section">
                 <h4>Route timing</h4>
                 <label class="settings-number">Gas stop before the first stop <input type="number" id="settings-gas" min="0" max="120" inputmode="numeric" onchange="saveSettingsField('gasStopMinutes', this.value)"> min</label>
+            </div>
+            <div class="settings-section">
+                <h4>Address search</h4>
+                <label class="settings-number">Suggest addresses within <input type="number" id="settings-km" min="1" max="500" inputmode="numeric" onchange="saveSettingsField('searchKm', this.value)"> km of the shop</label>
+            </div>
+            <div class="settings-section">
+                <h4>List screen</h4>
+                <label class="settings-number">Biggest text size <input type="number" id="settings-list-font" min="20" max="200" inputmode="numeric" onchange="saveSettingsField('listMaxFont', this.value)"> px</label>
+            </div>
+            <div class="settings-section">
+                <h4>Theme</h4>
+                <label class="settings-toggle"><input type="radio" name="settings-theme" id="settings-theme-dark" onchange="if (this.checked) setThemeSetting('dark')">Dark</label>
+                <label class="settings-toggle"><input type="radio" name="settings-theme" id="settings-theme-light" onchange="if (this.checked) setThemeSetting('light')">Light</label>
+            </div>
+            <div class="settings-section">
+                <h4>Share email</h4>
+                <label class="customer-label" for="settings-email-to">Send to</label>
+                <input type="email" id="settings-email-to" autocomplete="off" autocapitalize="off" onchange="saveSettingsField('emailTo', this.value)">
+                <label class="customer-label" for="settings-email-subject">Subject</label>
+                <input type="text" id="settings-email-subject" autocomplete="off" onchange="saveSettingsField('emailSubject', this.value)">
+                <p class="settings-help" style="margin-top:6px;">{date} in the subject becomes the route date.</p>
             </div>
             <div class="settings-section">
                 <h4>Warnings when adding a stop</h4>
@@ -1283,10 +1314,10 @@
         let isOrderingMode = false;
         let pulsingMarkers = {};
         let createRouteMainBtn, createRouteMapBtn;
-        const DEPOT = { lat: 49.881157, lng: -99.959272 };
+        const DEFAULT_SHOP = { lat: 49.881157, lng: -99.959272, address: '1604 Moreland Ave, Brandon MB' };
         // A degree of longitude is shorter than a degree of latitude this far north
         // (cos 49.88° ≈ 0.644), so longitude differences are scaled before comparing distances.
-        const LNG_SCALE = Math.cos(DEPOT.lat * Math.PI / 180);
+        const LNG_SCALE = Math.cos(DEFAULT_SHOP.lat * Math.PI / 180);
 
         // Makes any text safe to put inside innerHTML (names, addresses, labels)
         function escapeHtml(text) {
@@ -1303,11 +1334,17 @@
 
         // Theme handling (copied from command.html)
         if (localStorage.getItem('ec_theme') === 'light') document.body.classList.add('light-mode');
+        // Light or dark. The logo tap and the Settings choice both land here and are saved in Settings.
+        function applyTheme(mode) {
+            document.body.classList.toggle('light-mode', mode === 'light');
+            try { localStorage.setItem('ec_theme', mode === 'light' ? 'light' : 'dark'); } catch (e) {}
+            if (typeof map !== 'undefined' && map) map.setOptions({ styles: mode === 'light' ? [] : mapStyles });
+            if (typeof pickerMap !== 'undefined' && pickerMap) pickerMap.setOptions({ styles: mode === 'light' ? [] : mapStyles });
+        }
         function toggleTheme() {
-            document.body.classList.toggle('light-mode');
-            localStorage.setItem('ec_theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
-            if (map) map.setOptions({ styles: document.body.classList.contains('light-mode') ? [] : mapStyles });
-            if (pickerMap) pickerMap.setOptions({ styles: document.body.classList.contains('light-mode') ? [] : mapStyles });
+            const mode = document.body.classList.contains('light-mode') ? 'dark' : 'light';
+            applyTheme(mode);
+            if (typeof writeSetting === 'function' && currentUser) writeSetting('theme', mode);
         }
 
         // Map styles (from command.html)
@@ -1614,10 +1651,11 @@
             if (!addressInput) return;
             const options = {
                 componentRestrictions: { country: 'ca' },
-                bounds: new google.maps.Circle({ center: new google.maps.LatLng(49.848, -99.950), radius: 50000 }).getBounds(),
+                bounds: placesBounds(),
                 strictBounds: false
             };
             autocompleteAddress = new google.maps.places.Autocomplete(addressInput, options);
+            placesBoxes.push(autocompleteAddress);
             autocompleteAddress.addListener('place_changed', () => {
                 const place = autocompleteAddress.getPlace();
                 if (!place.address_components) return;
@@ -2488,11 +2526,11 @@
             // Initialize address picker map after main map is ready
             initAddressPickerMap();
 
-            // Add origin marker for tap-order
-            new google.maps.Marker({
-                position: DEPOT,
+            // Add origin marker for tap-order (moved when the shop changes in Settings)
+            shopMarker = new google.maps.Marker({
+                position: shopPoint(),
                 map: map,
-                title: '1604 Moreland Ave (Origin)'
+                title: shopAddress() + ' (start)'
             });
 
             // Draw initial ordering polylines if any
@@ -2519,8 +2557,8 @@
 
             try {
                 // Build waypoints from routeState.order
-                const origin = "1604 Moreland Ave, Brandon MB";
-                const destination = "1604 Moreland Ave, Brandon MB";
+                // Starts at the shop; ends back there, or at the last stop when "Return to the shop" is off.
+                const shopLoc = { location: { latLng: { latitude: shopPoint().lat, longitude: shopPoint().lng } } };
                 const waypoints = [];
                 const seen = new Set();
                 for (let id of routeState.order) {
@@ -2536,6 +2574,9 @@
                     showAlertModal("No valid stops.");
                     return;
                 }
+                const endAtLastStop = !appSettings.returnToShop;
+                const destinationWp = endAtLastStop ? waypoints[waypoints.length - 1] : shopLoc;
+                const middle = endAtLastStop ? waypoints.slice(0, -1) : waypoints;
                 const response = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
                     method: "POST",
                     headers: {
@@ -2544,9 +2585,9 @@
                         "X-Goog-FieldMask": "routes.duration,routes.distanceMeters,routes.legs.duration,routes.legs.distanceMeters"
                     },
                     body: JSON.stringify({
-                        origin: { address: origin },
-                        destination: { address: destination },
-                        intermediates: waypoints,
+                        origin: shopLoc,
+                        destination: destinationWp,
+                        intermediates: middle,
                         travelMode: "DRIVE",
                         optimizeWaypointOrder: false
                     })
@@ -2824,7 +2865,7 @@
             // Work out every leg first, then fetch them all at once (same number of
             // API calls and the same cache - just not one after another).
             const legs = [];
-            let prev = DEPOT;
+            let prev = shopPoint();
             for (let i = 0; i < order.length; i++) {
                 const job = jobs[order[i]];
                 if (!job || !job.lat || !job.lng) continue;
@@ -2846,6 +2887,12 @@
         async function fetchReturnRoute() {
             if (!map) return;
             const gen = ++returnRouteGen;
+            // "Return to the shop" off: the route ends at the last stop, so no line back.
+            if (!appSettings.returnToShop) {
+                returnPath = null;
+                updatePolyline();
+                return;
+            }
             const order = routeState.order;
             if (order.length === 0) {
                 returnPath = null;
@@ -2859,7 +2906,7 @@
                 updatePolyline();
                 return;
             }
-            const originLatLng = DEPOT;
+            const originLatLng = shopPoint();
             const lastLatLng = { lat: lastJob.lat, lng: lastJob.lng };
             let path;
             try {
@@ -2930,6 +2977,12 @@
                     return;
                 }
 
+                // The driver's usual start time from Settings is used without asking.
+                const usualStart = driverStart(currentDriver);
+                if (usualStart) {
+                    routeState.startTime = usualStart;
+                    showToast(`Start time ${formatOpensAt(usualStart)} (${driverLabel(currentDriver)}'s usual time from Settings).`);
+                } else {
                 // Ask when the driver leaves, for arrival times on the pins (blank = skip)
                 const startInput = document.getElementById('custom-dialog-input');
                 if (startInput) startInput.type = 'time';
@@ -2940,6 +2993,7 @@
                 if (startInput) startInput.type = 'text';
                 if (startAnswer === null) return;
                 routeState.startTime = parseHHMM(startAnswer) !== null ? startAnswer : null;
+                }
 
                 // Enter ordering mode
                 isOrderingMode = true;
@@ -2957,7 +3011,7 @@
 
         function zoomToAllWaypoints() {
             const bounds = new google.maps.LatLngBounds();
-            bounds.extend(DEPOT);
+            bounds.extend(shopPoint());
             let hasJob = false;
             const pendingIds = Object.keys(jobs).filter(id => jobs[id].status === 'pending_pickup');
             pendingIds.forEach(id => {
@@ -2971,7 +3025,7 @@
                 if (hasJob) {
                     map.fitBounds(bounds);
                 } else {
-                    map.setCenter(DEPOT);
+                    map.setCenter(shopPoint());
                     map.setZoom(12);
                 }
             }
@@ -3092,7 +3146,7 @@
             const start = parseHHMM(routeState.startTime);
             if (start === null) return result;
             let t = start + gasStopMinutes();
-            let prev = DEPOT;
+            let prev = shopPoint();
             for (const id of routeState.order) {
                 const job = jobs[id];
                 if (!job || !job.lat || !job.lng) continue;
@@ -3109,7 +3163,7 @@
         // Fetches Google drive times for any leg of the current order that doesn't have one yet (cached)
         async function ensureLegDurations() {
             const legs = [];
-            let prev = DEPOT;
+            let prev = shopPoint();
             for (const id of routeState.order) {
                 const job = jobs[id];
                 if (!job || !job.lat || !job.lng) continue;
@@ -3219,7 +3273,7 @@
             if (indicator) indicator.style.display = 'block';
             try {
                 // Where he's leaving from, and when
-                let prevPoint = DEPOT;
+                let prevPoint = shopPoint();
                 let departMinutes = parseHHMM(routeState.startTime) + gasStopMinutes();
                 await ensureLegDurations();
                 const lastId = routeState.order[routeState.order.length - 1];
@@ -3307,7 +3361,7 @@
             return Math.sqrt(dLat * dLat + dLng * dLng);
         }
         async function insertStopIntoFinalizedRoute(newId) {
-            const origin = DEPOT;
+            const origin = shopPoint();
             const order = routeState.order;
             const newJob = jobs[newId];
             if (!newJob || !newJob.lat || !newJob.lng || order.includes(newId)) return;
@@ -3326,8 +3380,11 @@
             let bestDelta = Infinity;
             for (let i = 0; i <= live.length; i++) {
                 const prevPoint = i === 0 ? origin : pointFor(live[i - 1]);
-                const nextPoint = i === live.length ? origin : pointFor(live[i]);
-                const delta = euclidDist(prevPoint, newPoint) + euclidDist(newPoint, nextPoint) - euclidDist(prevPoint, nextPoint);
+                // Last place: only the leg to it counts when the route ends at the last stop.
+                const nextPoint = i === live.length ? (appSettings.returnToShop ? origin : null) : pointFor(live[i]);
+                const delta = nextPoint
+                    ? euclidDist(prevPoint, newPoint) + euclidDist(newPoint, nextPoint) - euclidDist(prevPoint, nextPoint)
+                    : euclidDist(prevPoint, newPoint);
                 if (delta < bestDelta) { bestDelta = delta; liveIndex = i; }
             }
 
@@ -3380,6 +3437,108 @@
             }
         }
 
+        // Order of points 1..n for the shortest one-way drive that starts at point 0 and ends
+        // at any of them (same as Route Helper). cost[i][j] is the drive from point i to point j.
+        const EXACT_ORDER_MAX_STOPS = 15;
+        function shortestOpenPath(cost) {
+            const n = cost.length - 1;
+            if (n <= EXACT_ORDER_MAX_STOPS) {
+                // best[mask * n + last]: shortest drive from point 0 through the points in mask
+                // (bit k = point k + 1), ending at point last + 1.
+                const full = (1 << n) - 1;
+                const best = new Float64Array((full + 1) * n).fill(Infinity);
+                const from = new Int8Array((full + 1) * n).fill(-1);
+                for (let k = 0; k < n; k++) best[(1 << k) * n + k] = cost[0][k + 1];
+                for (let mask = 1; mask <= full; mask++) {
+                    for (let last = 0; last < n; last++) {
+                        const here = best[mask * n + last];
+                        if (here === Infinity) continue;
+                        for (let k = 0; k < n; k++) {
+                            if (mask & (1 << k)) continue;
+                            const at = (mask | (1 << k)) * n + k;
+                            const c = here + cost[last + 1][k + 1];
+                            if (c < best[at]) { best[at] = c; from[at] = last; }
+                        }
+                    }
+                }
+                let end = 0;
+                for (let k = 1; k < n; k++) if (best[full * n + k] < best[full * n + end]) end = k;
+                const path = [];
+                for (let mask = full, k = end; k >= 0; ) {
+                    path.unshift(k + 1);
+                    const prev = from[mask * n + k];
+                    mask &= ~(1 << k);
+                    k = prev;
+                }
+                return path;
+            }
+            const pathCost = path => {
+                let c = 0, prev = 0;
+                path.forEach(k => { c += cost[prev][k]; prev = k; });
+                return c;
+            };
+            // Keep shortening an order - reverse a stretch, or move a run of 1-3 stops
+            // elsewhere - until nothing makes it shorter.
+            const improve = path => {
+                let pathLen = pathCost(path), better = true;
+                while (better) {
+                    better = false;
+                    for (let i = 0; i < n - 1; i++) {
+                        for (let j = i + 1; j < n; j++) {
+                            const t = path.slice(0, i).concat(path.slice(i, j + 1).reverse(), path.slice(j + 1));
+                            const c = pathCost(t);
+                            if (c < pathLen - 1e-6) { path = t; pathLen = c; better = true; }
+                        }
+                    }
+                    for (let len = 1; len <= 3; len++) {
+                        for (let i = 0; i + len <= n; i++) {
+                            const run = path.slice(i, i + len), rest = path.slice(0, i).concat(path.slice(i + len));
+                            for (let at = 0; at <= rest.length; at++) {
+                                if (at === i) continue;
+                                const t = rest.slice(0, at).concat(run, rest.slice(at));
+                                const c = pathCost(t);
+                                if (c < pathLen - 1e-6) { path = t; pathLen = c; better = true; break; }
+                            }
+                        }
+                    }
+                }
+                return { path: path, len: pathLen };
+            };
+            // Starting orders: nearest stop next, plus shuffles from a fixed seed so the same
+            // stops always give the same answer.
+            const starts = [];
+            const left = new Set(Array.from({ length: n }, (_, k) => k + 1));
+            const nearest = [];
+            for (let at = 0; left.size > 0; ) {
+                let next = null;
+                left.forEach(k => { if (next === null || cost[at][k] < cost[at][next]) next = k; });
+                nearest.push(next);
+                left.delete(next);
+                at = next;
+            }
+            starts.push(nearest);
+            let seed = 20261026;
+            const rand = () => {
+                seed = (seed + 0x6D2B79F5) | 0;
+                let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+                t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+            for (let s = 0; s < 29; s++) {
+                const order = nearest.slice();
+                for (let i = order.length - 1; i > 0; i--) {
+                    const j = Math.floor(rand() * (i + 1));
+                    const tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+                }
+                starts.push(order);
+            }
+            let bestFound = null;
+            starts.forEach(order => {
+                const r = improve(order);
+                if (!bestFound || r.len < bestFound.len - 1e-6) bestFound = r;
+            });
+            return bestFound.path;
+        }
         async function autoOptimizeRoute() {
             const optimizeBtn = document.getElementById('auto-optimize-btn');
             const indicator = document.getElementById('calculating-route-indicator');
@@ -3414,10 +3573,25 @@
                 const assignedOrdered = routeState.order.filter(id => routeState.assignedIndices[id]);
                 const routingOrigin = assignedOrdered.length > 0
                     ? { lat: jobs[assignedOrdered[assignedOrdered.length - 1]].lat, lng: jobs[assignedOrdered[assignedOrdered.length - 1]].lng }
-                    : DEPOT;
+                    : shopPoint();
                 let orderedUnassigned = unassignedIds;
-                if (unassignedIds.length > 1) {
-                    const intermediates = unassignedIds.map(id => ({ location: { latLng: { latitude: jobs[id].lat, longitude: jobs[id].lng } } }));
+                // "Return to the shop" off: planned as a one-way trip. Google's optimizer always
+                // needs an end point, so the last stop is picked first from the shortest one-way
+                // order by straight-line distance (no Google request), and the rest are ordered
+                // by road towards it.
+                let optimizeIds = unassignedIds;
+                let lastStopId = null;
+                if (!appSettings.returnToShop && unassignedIds.length > 1) {
+                    const points = [routingOrigin].concat(unassignedIds.map(pointFor));
+                    const straight = points.map(a => points.map(b => euclidDist(a, b)));
+                    const openOrder = shortestOpenPath(straight).map(k => unassignedIds[k - 1]);
+                    lastStopId = openOrder[openOrder.length - 1];
+                    optimizeIds = unassignedIds.filter(id => id !== lastStopId);
+                    orderedUnassigned = optimizeIds.concat(lastStopId);
+                }
+                if (optimizeIds.length > 1) {
+                    const intermediates = optimizeIds.map(id => ({ location: { latLng: { latitude: jobs[id].lat, longitude: jobs[id].lng } } }));
+                    const destinationPoint = lastStopId ? pointFor(lastStopId) : shopPoint();
                     const response = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
                         method: "POST",
                         headers: {
@@ -3427,7 +3601,7 @@
                         },
                         body: JSON.stringify({
                             origin: { location: { latLng: { latitude: routingOrigin.lat, longitude: routingOrigin.lng } } },
-                            destination: { location: { latLng: { latitude: DEPOT.lat, longitude: DEPOT.lng } } },
+                            destination: { location: { latLng: { latitude: destinationPoint.lat, longitude: destinationPoint.lng } } },
                             intermediates: intermediates,
                             travelMode: "DRIVE",
                             optimizeWaypointOrder: true
@@ -3440,7 +3614,8 @@
                     }
                     if (data.routes && data.routes[0] && data.routes[0].optimizedIntermediateWaypointIndex) {
                         const waypointOrder = data.routes[0].optimizedIntermediateWaypointIndex;
-                        orderedUnassigned = waypointOrder.map(idx => unassignedIds[idx]);
+                        orderedUnassigned = waypointOrder.map(idx => optimizeIds[idx]);
+                        if (lastStopId) orderedUnassigned.push(lastStopId);
                     } else {
                         throw new Error("No optimized order returned");
                     }
@@ -3504,7 +3679,7 @@
             const job = jobs[jobId];
             if (!job || !job.lat || !job.lng) return;
 
-            const originLatLng = DEPOT;
+            const originLatLng = shopPoint();
             let prevLatLng;
             if (order.length === 1) {
                 prevLatLng = originLatLng;
@@ -4358,8 +4533,10 @@
                 }
 
                 const emailBody = bodyParts.join('\n\n');
-                const subject = `Route Manifest for ${dateStr}`;
-                const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+                // Recipient and subject come from Settings; {date} in the subject becomes the route date.
+                const subject = String(appSettings.emailSubject || DEFAULT_EMAIL_SUBJECT).split('{date}').join(dateStr);
+                const to = String(appSettings.emailTo || '').trim();
+                const mailtoLink = `mailto:${encodeURIComponent(to).replace(/%40/g, '@').replace(/%2C/gi, ',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
                 window.location.href = mailtoLink;
 
             }).catch(err => showAlertModal("Error loading saved routes: " + err.message));
@@ -4434,7 +4611,7 @@
             const availableHeight = container.clientHeight;
             const availableWidth = container.clientWidth - 24;
             let fontSize = Math.floor(availableHeight / lines.length) * 0.75;
-            fontSize = Math.min(fontSize, 72);
+            fontSize = Math.min(fontSize, appSettings.listMaxFont);
             const canvas = fitContactListFont._canvas || (fitContactListFont._canvas = document.createElement('canvas'));
             const ctx = canvas.getContext('2d');
             let minFontFromWidth = fontSize;
@@ -4500,7 +4677,7 @@
                     if (isOrderingMode || routeState.isFinalized) {
                         if (routeState.order.length > 0) {
                             const bounds = new google.maps.LatLngBounds();
-                            bounds.extend(DEPOT);
+                            bounds.extend(shopPoint());
                             routeState.order.forEach(id => {
                                 const job = jobs[id];
                                 if (job && job.lat && job.lng) {
@@ -4509,7 +4686,7 @@
                             });
                             if (!bounds.isEmpty()) map.fitBounds(bounds);
                         } else {
-                            map.setCenter(DEPOT);
+                            map.setCenter(shopPoint());
                             map.setZoom(12);
                         }
                     } else {
@@ -4533,7 +4710,7 @@
         function zoomToAll() {
             if (isOrderingMode || routeState.isFinalized) {
                 const bounds = new google.maps.LatLngBounds();
-                bounds.extend(DEPOT);
+                bounds.extend(shopPoint());
                 routeState.order.forEach(id => {
                     const job = jobs[id];
                     if (job && job.lat && job.lng) {
@@ -4541,7 +4718,7 @@
                     }
                 });
                 if (!bounds.isEmpty()) map.fitBounds(bounds);
-                else { map.setCenter(DEPOT); map.setZoom(12); }
+                else { map.setCenter(shopPoint()); map.setZoom(12); }
             } else if (activePolyline) {
                 const bounds = new google.maps.LatLngBounds();
                 activePolyline.getPath().forEach(p => bounds.extend(p));
@@ -4570,7 +4747,7 @@
                 showAlertModal("No stops to route.");
                 return;
             }
-            const shop = "1604 Moreland Ave, Brandon MB";
+            const shop = shopAddress();
             // Unique stop addresses, in route order
             const seenLocs = new Set();
             const stops = [];
@@ -4590,8 +4767,11 @@
             // Google documents up to 9 waypoints per Maps link. Short routes open straight
             // away; longer ones let the driver pick a section (or send everything as before).
             const PER_LINK = 9;
+            // "Return to the shop" off: the trip ends at the last stop.
+            const endAtLast = !appSettings.returnToShop;
             if (stops.length <= PER_LINK) {
-                launchMapsDirections(shop, shop, stops);
+                if (endAtLast) launchMapsDirections(shop, stops[stops.length - 1], stops.slice(0, -1));
+                else launchMapsDirections(shop, shop, stops);
                 return;
             }
             const chunks = [];
@@ -4606,14 +4786,16 @@
             ).then(choice => {
                 if (choice === null) return;
                 if (choice === 0) {
-                    launchMapsDirections(shop, shop, stops.slice(0, 25));
+                    const first = stops.slice(0, 25);
+                    if (endAtLast) launchMapsDirections(shop, first[first.length - 1], first.slice(0, -1));
+                    else launchMapsDirections(shop, shop, first);
                     return;
                 }
                 const idx = choice - 1;
                 const chunk = chunks[idx];
                 // Each section starts where the previous one ended; the last one returns to the shop
                 const origin = idx === 0 ? shop : chunks[idx - 1].items[chunks[idx - 1].items.length - 1];
-                if (idx === chunks.length - 1) {
+                if (idx === chunks.length - 1 && !endAtLast) {
                     launchMapsDirections(origin, shop, chunk.items);
                 } else {
                     launchMapsDirections(origin, chunk.items[chunk.items.length - 1], chunk.items.slice(0, -1));
@@ -4840,6 +5022,11 @@
 
         function closeAddressPicker() {
             document.getElementById('address-picker-modal').style.display = 'none';
+            if (pickerMode === 'shop') {
+                pickerMode = '';
+                document.getElementById('picker-confirm-btn').textContent = 'Use this address';
+                openSettings();
+            }
         }
 
         function updatePickerInfo(lat, lng) {
@@ -4941,6 +5128,15 @@
         function confirmAddress() {
             if (!selectedLocation) {
                 showAlertModal("No location selected.");
+                return;
+            }
+            if (pickerMode === 'shop') {
+                if (typeof selectedLocation.lat !== 'number' || typeof selectedLocation.lng !== 'number') { showAlertModal("No location selected."); return; }
+                const address = selectedLocation.address || selectedLocation.street || `${selectedLocation.lat.toFixed(6)}, ${selectedLocation.lng.toFixed(6)}`;
+                writeSetting('shop', { lat: selectedLocation.lat, lng: selectedLocation.lng, address: address });
+                onShopSettingsChanged();
+                showToast('Shop location saved.');
+                closeAddressPicker();
                 return;
             }
             // Prefer just the street ("123 Main St") when Google gives one, then the full address, then the plus code
@@ -5066,16 +5262,31 @@
         // Shared settings in developer/route_planner/settings, with a copy on this device so
         // they work before the connection is up. drivers: { <sign-in name>: { name, enabled, start } }
         const SETTINGS_PATH = 'developer/route_planner/settings';
+        const DEFAULT_EMAIL_TO = 'Eandc.courier@gmail.com';
+        const DEFAULT_EMAIL_SUBJECT = 'Route Manifest for {date}';
+        let shopMarker = null;
+        let pickerMode = '';     // 'shop' while the map picker is choosing the shop
+        const placesBoxes = [];  // Google address boxes, so a new search distance reaches all of them
         const SETTINGS_CACHE_KEY = 'ec_route_planner_settings';
         let settingsDownOnBackdrop = false;
         function normalizeSettings(raw) {
             raw = (raw && typeof raw === 'object') ? raw : {};
             const gas = Number(raw.gasStopMinutes);
+            const km = Number(raw.searchKm), font = Number(raw.listMaxFont);
+            const shop = raw.shop && typeof raw.shop.lat === 'number' && typeof raw.shop.lng === 'number'
+                ? { lat: raw.shop.lat, lng: raw.shop.lng, address: String(raw.shop.address || '') } : null;
             return {
                 gasStopMinutes: isFinite(gas) && gas >= 0 && gas <= 120 ? Math.round(gas) : GAS_STOP_MINUTES,
                 warnDuplicate: raw.warnDuplicate !== false,
                 warnOtherRoute: raw.warnOtherRoute !== false,
-                drivers: (raw.drivers && typeof raw.drivers === 'object') ? raw.drivers : {}
+                drivers: (raw.drivers && typeof raw.drivers === 'object') ? raw.drivers : {},
+                shop: shop,                                   // null = the default shop
+                returnToShop: raw.returnToShop !== false,     // off = the route ends at the last stop
+                searchKm: isFinite(km) && km >= 1 && km <= 500 ? Math.round(km) : 50,
+                listMaxFont: isFinite(font) && font >= 20 && font <= 200 ? Math.round(font) : 72,
+                theme: raw.theme === 'light' || raw.theme === 'dark' ? raw.theme : '',
+                emailTo: typeof raw.emailTo === 'string' ? raw.emailTo : DEFAULT_EMAIL_TO,
+                emailSubject: typeof raw.emailSubject === 'string' && raw.emailSubject.trim() ? raw.emailSubject : DEFAULT_EMAIL_SUBJECT
             };
         }
         let appSettings = (() => {
@@ -5086,7 +5297,13 @@
             try { localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(appSettings)); } catch (e) {}
         }
         function onSettingsFromServer(raw) {
+            const before = appSettings;
             appSettings = normalizeSettings(raw);
+            if (appSettings.theme && appSettings.theme !== (document.body.classList.contains('light-mode') ? 'light' : 'dark')) applyTheme(appSettings.theme);
+            const shopMoved = JSON.stringify(before.shop) !== JSON.stringify(appSettings.shop);
+            if (shopMoved) onShopSettingsChanged();
+            else if (before.returnToShop !== appSettings.returnToShop) onReturnToShopChanged();
+            if (before.searchKm !== appSettings.searchKm) refreshPlacesBounds();
             persistSettingsCache();
             if (document.getElementById('settings-overlay').classList.contains('is-open')) renderSettings();
             updateDriverChip();
@@ -5106,6 +5323,68 @@
                 .catch(err => showToast("Couldn't save the setting: " + ((err && err.message) || 'unknown error'), true));
         }
         function gasStopMinutes() { return appSettings.gasStopMinutes; }
+        // Where every route starts (and ends, while "Return to the shop" is on).
+        function shopPoint() {
+            const s = appSettings.shop;
+            return s ? { lat: s.lat, lng: s.lng } : { lat: DEFAULT_SHOP.lat, lng: DEFAULT_SHOP.lng };
+        }
+        function shopAddress() {
+            const s = appSettings.shop;
+            if (!s) return DEFAULT_SHOP.address;
+            return s.address || `${s.lat},${s.lng}`;
+        }
+        // Address suggestions favour this many km around the shop.
+        function placesBounds() {
+            const c = shopPoint();
+            return new google.maps.Circle({ center: new google.maps.LatLng(c.lat, c.lng), radius: appSettings.searchKm * 1000 }).getBounds();
+        }
+        function refreshPlacesBounds() {
+            if (!(window.google && google.maps && google.maps.Circle)) return;
+            const b = placesBounds();
+            placesBoxes.forEach(box => { try { box.setBounds(b); } catch (e) {} });
+        }
+        // Redraws the route from the shop, and works the ETA out again if it was showing.
+        function redrawForRouteSettings() {
+            if (map && (routeState.isFinalized || isOrderingMode) && routeState.order.length > 0) {
+                updateForwardRoute().then(() => fetchReturnRoute()).then(() => updatePolyline())
+                    .catch(err => console.warn('Route redraw failed:', err));
+            }
+            if (etaTotalMinutes > 0 && routeState.order.length > 0) calculateETAOnDemand();
+            if (typeof refreshAssignedMarkerTimes === 'function') refreshAssignedMarkerTimes();
+        }
+        function onShopSettingsChanged() {
+            if (shopMarker) { shopMarker.setPosition(shopPoint()); shopMarker.setTitle(shopAddress() + ' (start)'); }
+            refreshPlacesBounds();
+            redrawForRouteSettings();
+            if (document.getElementById('settings-overlay').classList.contains('is-open')) renderSettings();
+        }
+        function onReturnToShopChanged() {
+            redrawForRouteSettings();
+        }
+        function setReturnToShop(on) {
+            writeSetting('returnToShop', !!on);
+            onReturnToShopChanged();
+        }
+        function openShopPicker() {
+            closeSettings();
+            pickerMode = 'shop';
+            document.getElementById('picker-confirm-btn').textContent = 'Set as shop';
+            openAddressPicker();
+            setTimeout(() => {
+                if (!pickerMarker || !pickerMap) return;
+                pickerMarker.setPosition(shopPoint());
+                pickerMap.setCenter(shopPoint());
+                updatePickerInfo(shopPoint().lat, shopPoint().lng);
+            }, 150);
+        }
+        function resetShop() {
+            writeSetting('shop', null);
+            onShopSettingsChanged();
+        }
+        function setThemeSetting(mode) {
+            applyTheme(mode);
+            writeSetting('theme', mode);
+        }
 
         // Driver names: the key is the sign-in name in lower case, the same key Save always used.
         function driverKeyFor(name) { return String(name || '').trim().toLowerCase(); }
@@ -5136,13 +5415,26 @@
         function renderSettings() {
             const rows = document.getElementById('settings-driver-rows');
             const list = settingsDrivers();
-            rows.innerHTML = list.length ? list.map(d => `
+            // A box being typed in keeps what's typed when an update arrives from the database.
+            const focused = document.activeElement;
+            const setVal = (id, v) => { const el = document.getElementById(id); if (el && el !== focused) el.value = v; };
+            if (!(focused && rows.contains(focused))) rows.innerHTML = list.length ? list.map(d => `
                 <div class="driver-row">
                     <label><input type="checkbox" ${d.enabled ? 'checked' : ''} onchange="writeSetting('drivers/' + ${jsArg(d.key)} + '/enabled', this.checked)"><span>${escapeHtml(d.label)}</span></label>
                     <input type="time" value="${escapeHtml(d.start)}" aria-label="${escapeHtml(d.label)} usual start time" onchange="writeSetting('drivers/' + ${jsArg(d.key)} + '/start', this.value || null)">
                     <button type="button" class="driver-remove" aria-label="Remove ${escapeHtml(d.label)}" onclick="removeSettingsDriver(${jsArg(d.key)})">✕</button>
                 </div>`).join('') : '<div class="driver-empty">No drivers yet. Type a name above and tap Add.</div>';
-            document.getElementById('settings-gas').value = appSettings.gasStopMinutes;
+            setVal('settings-gas', appSettings.gasStopMinutes);
+            document.getElementById('settings-shop-address').textContent = shopAddress() + (appSettings.shop ? '' : ' (default)');
+            document.getElementById('settings-shop-reset').hidden = !appSettings.shop;
+            document.getElementById('settings-return').checked = appSettings.returnToShop;
+            setVal('settings-km', appSettings.searchKm);
+            setVal('settings-list-font', appSettings.listMaxFont);
+            const theme = document.body.classList.contains('light-mode') ? 'light' : 'dark';
+            document.getElementById('settings-theme-dark').checked = theme === 'dark';
+            document.getElementById('settings-theme-light').checked = theme === 'light';
+            setVal('settings-email-to', appSettings.emailTo);
+            setVal('settings-email-subject', appSettings.emailSubject);
             document.getElementById('settings-warn-duplicate').checked = appSettings.warnDuplicate;
             document.getElementById('settings-warn-other').checked = appSettings.warnOtherRoute;
         }
@@ -5169,13 +5461,29 @@
             if (currentDriver === key) setCurrentDriver('');
             renderSettings();
         }
+        // Puts a box back to the saved value after something invalid was typed in it.
+        function settingsUndoField(field) {
+            const ids = { gasStopMinutes: 'settings-gas', searchKm: 'settings-km', listMaxFont: 'settings-list-font', emailTo: 'settings-email-to', emailSubject: 'settings-email-subject' };
+            const el = document.getElementById(ids[field]);
+            if (el) el.value = appSettings[field];
+        }
         function saveSettingsField(field, value) {
-            if (field === 'gasStopMinutes') {
+            const ranges = { gasStopMinutes: [0, 120, 'Gas stop minutes'], searchKm: [1, 500, 'Search distance'], listMaxFont: [20, 200, 'List text size'] };
+            if (ranges[field]) {
+                const [lo, hi, label] = ranges[field];
                 const n = Math.round(Number(value));
-                if (!isFinite(n) || n < 0 || n > 120) { showToast('Gas stop minutes must be between 0 and 120.', true); renderSettings(); return; }
+                if (value === '' || !isFinite(n) || n < lo || n > hi) { showToast(`${label} must be between ${lo} and ${hi}.`, true); settingsUndoField(field); return; }
                 value = n;
             }
+            if (field === 'emailTo') {
+                value = String(value || '').trim();
+                if (value && !value.split(',').every(a => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a.trim()))) { showToast("That doesn't look like an email address.", true); settingsUndoField(field); return; }
+            }
+            if (field === 'emailSubject') {
+                value = String(value || '').trim() || DEFAULT_EMAIL_SUBJECT;
+            }
             writeSetting(field, value);
+            if (field === 'searchKm') refreshPlacesBounds();
         }
 
         // ---------- DRIVER FIRST ----------
@@ -5319,9 +5627,10 @@
             const box = new google.maps.places.Autocomplete(addressInput, {
                 fields: ['address_components'],
                 componentRestrictions: { country: 'ca' },
-                bounds: new google.maps.Circle({ center: new google.maps.LatLng(49.848, -99.950), radius: 50000 }).getBounds(),
+                bounds: placesBounds(),
                 strictBounds: false
             });
+            placesBoxes.push(box);
             box.addListener('place_changed', () => {
                 const place = box.getPlace();
                 if (!place || !place.address_components) return;
