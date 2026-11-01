@@ -683,7 +683,10 @@
         }
         @media (max-width: 380px) {
             .shiny-text { font-size: 13px; }
-            .map-btn { width: 38px; height: 38px; min-width: 38px; min-height: 38px; }
+            .map-btn { width: 36px; height: 36px; min-width: 36px; min-height: 36px; }
+            header { padding-left: 12px; padding-right: 12px; gap: 8px; }
+            .brand { gap: 8px; }
+            .header-actions { gap: 6px; }
             .btn-save, .btn-delete-all-saved, .btn-clear { padding: 10px 12px; }
             .btn-save svg, .btn-delete-all-saved svg, .btn-clear svg { display: none; }
         }
@@ -763,6 +766,39 @@
         .customer-title::before { background: var(--accent) !important; box-shadow: 0 0 10px var(--accent) !important; }
         .customer-label { display: block; margin: 12px 0 6px; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
         .customer-hint { margin: 12px 0 18px; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+        .customer-field { position: relative; }
+        .customer-here {
+            display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; min-height: 42px; padding: 8px 14px; cursor: pointer;
+            font-family: inherit; font-size: 13.5px; font-weight: 700; color: var(--text); background: var(--card-2);
+            border: 1px solid var(--border-strong); border-radius: 11px; transition: background .15s, border-color .15s, opacity .15s;
+        }
+        .customer-here svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+        .customer-here:hover { border-color: var(--accent); background: var(--accent-soft); }
+        .customer-here.is-busy { opacity: .6; pointer-events: none; }
+        .customer-here.is-busy svg { animation: customer-here-spin 1s linear infinite; }
+        @keyframes customer-here-spin { to { transform: rotate(360deg); } }
+        .customer-spot { margin: 10px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--text); }
+        .customer-delete {
+            display: block; width: 100%; margin-top: 14px; min-height: 42px; padding: 8px 14px; cursor: pointer; font-family: inherit;
+            font-size: 13px; font-weight: 800; letter-spacing: .04em; color: #ef4444; background: transparent;
+            border: 1px solid rgba(239,68,68,0.45); border-radius: 11px; transition: background .15s;
+        }
+        .customer-delete:hover { background: rgba(239,68,68,0.1); }
+        .customer-delete[hidden] { display: none; }
+        /* Google's address list has to sit above the customer editor */
+        .pac-container { z-index: 10800 !important; }
+        .details-edit-btn {
+            position: absolute; top: 20px; right: 20px; z-index: 2; width: 46px; height: 46px; padding: 0; border-radius: 14px; cursor: pointer;
+            display: grid; place-items: center; color: var(--text); background: var(--card-2); border: 1px solid var(--border-strong);
+            transition: transform .2s var(--spring), border-color .2s, background .2s;
+        }
+        .details-edit-btn svg { width: 20px; height: 20px; }
+        .details-edit-btn:hover { border-color: var(--accent-ring); background: var(--accent-soft); color: var(--accent); }
+        .details-edit-btn:active { transform: scale(.9); }
+        #app-toast .toast-action {
+            margin-left: 10px; padding: 4px 10px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 800;
+            color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 8px;
+        }
 
         #app-toast {
             position: fixed; left: 50%; top: 76px; z-index: 21000; display: none; max-width: min(calc(100vw - 32px), 440px); width: max-content;
@@ -772,8 +808,47 @@
         }
         #app-toast.is-visible { display: block; animation: drop-in .25s var(--ease); }
         #app-toast.is-error { color: #fff; background: rgba(220,38,38,0.92); border-color: rgba(255,255,255,0.2); }
+        /* ---------- SETTINGS, DRIVER CHIP, PILL EXTRAS ---------- */
+        .driver-chip {
+            display: inline-flex; align-items: center; gap: 6px; max-width: 60%; min-height: 34px; padding: 6px 12px; cursor: pointer;
+            font-family: inherit; font-size: 13px; font-weight: 800; color: var(--text); background: var(--card-2);
+            border: 1px solid var(--border-strong); border-radius: 999px; transition: border-color .15s, background .15s;
+        }
+        .driver-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .driver-chip svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--accent); }
+        .driver-chip.is-set { color: var(--accent-ink); background: linear-gradient(180deg, #ffe066, #f5c518 60%, #e2ac00); border-color: rgba(160,110,0,0.6); }
+        .driver-chip.is-set svg { color: var(--accent-ink); }
+        .driver-chip:hover { border-color: var(--accent); }
+        .settings-box { max-width: 460px; width: 100%; max-height: calc(100vh - 32px); overflow-y: auto; }
+        .settings-section { margin-top: 18px; }
+        .settings-section h4 { margin: 0 0 4px; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+        .settings-help { margin: 0 0 10px; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+        .settings-add { display: flex; gap: 8px; }
+        .settings-add input { flex: 1; min-width: 0; }
+        .settings-add button { flex-shrink: 0; }
+        .driver-rows { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+        .driver-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 11px; background: var(--card-2); border: 1px solid var(--border); }
+        .driver-row label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; font-weight: 700; }
+        .driver-row label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .driver-row input[type=checkbox], .settings-toggle input[type=checkbox], .settings-toggle input[type=radio] { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--accent); }
+        .driver-row input[type=time] { width: 104px; min-height: 36px; padding: 4px 6px; font-size: 14px; }
+        .driver-row .driver-remove { width: 34px; height: 34px; flex-shrink: 0; padding: 0; cursor: pointer; border-radius: 9px; color: var(--muted); background: transparent; border: 1px solid var(--border-strong); }
+        .driver-row .driver-remove:hover { color: #ef4444; border-color: rgba(239,68,68,0.5); }
+        .driver-empty { padding: 10px; font-size: 13px; color: var(--muted); }
+        .settings-toggle input[type=radio], .settings-toggle input[type=checkbox] { min-height: 0; margin: 0; padding: 0; }
+        .settings-toggle { display: flex; align-items: center; gap: 10px; padding: 8px 0; cursor: pointer; font-size: 14px; font-weight: 600; }
+        .settings-number { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
+        .settings-number input { width: 80px; min-height: 38px; }
+        .pill-meta { font-weight: 600; opacity: .72; font-size: 12px; font-variant-numeric: tabular-nums; }
+        .pill-list-btn {
+            display: grid; place-items: center; width: 26px; height: 26px; margin: -4px -8px -4px 2px; padding: 0; cursor: pointer; border-radius: 50%;
+            color: var(--accent-ink); background: rgba(26,19,0,0.14); border: none;
+        }
+        .pill-list-btn svg { width: 14px; height: 14px; }
+        .pill-list-btn:hover { background: rgba(26,19,0,0.26); }
         @media (max-width: 768px) {
             .details-back-btn { top: 14px; left: 14px; width: 42px; height: 42px; }
+            .details-edit-btn { top: 14px; right: 14px; width: 42px; height: 42px; }
         }
     </style>
 </head>
@@ -871,6 +946,9 @@
             </svg>
         </button>
         <button id="map-btn" class="map-btn" onclick="openMap()" aria-label="Map" title="Open map"></button>
+        <button id="settings-btn" class="map-btn" onclick="openSettings()" aria-label="Settings" title="Settings">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        </button>
     </div>
 </header>
 
@@ -879,6 +957,9 @@
         <div class="panel">
             <div class="panel-head">
                 <span class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>New Stop</span>
+                <button type="button" id="driver-chip" class="driver-chip" onclick="pickDriver()" aria-label="Choose the driver for this route">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg><span id="driver-chip-text">Pick driver</span>
+                </button>
             </div>
             <div id="connectivity-banner" style="display:none;"></div>
             <div class="flex-row">
@@ -995,6 +1076,7 @@
     <div id="details-modal">
         <div class="details-modal-content">
             <button type="button" class="details-back-btn" onclick="closeDetailsModal()" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+            <button type="button" id="details-edit-btn" class="details-edit-btn" onclick="openCustomerEditorFromDetails()" aria-label="Edit customer" title="Edit customer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
             <div class="stop-title" id="details-stop-title">Stop Name</div>
             <div id="details-controls">
                 <div class="detail-row">
@@ -1084,13 +1166,82 @@
             <label class="customer-label" for="customer-name">Name</label>
             <input type="text" id="customer-name" autocomplete="off">
             <label class="customer-label" for="customer-address">Address</label>
-            <input type="text" id="customer-address" autocomplete="off">
+            <div class="customer-field">
+                <input type="text" id="customer-address" autocomplete="off" oninput="renderCustomerSpot()">
+            </div>
             <label class="customer-label" for="customer-city">City</label>
-            <input type="text" id="customer-city" autocomplete="off">
+            <input type="text" id="customer-city" autocomplete="off" oninput="renderCustomerSpot()">
+            <button type="button" id="customer-here" class="customer-here" onclick="customerEditorUseHere()">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Use where I am now
+            </button>
+            <p id="customer-spot" class="customer-spot"></p>
             <p class="customer-hint">Stops for this customer still on the list are updated too. Notes stay with the customer.</p>
             <div class="dialog-actions">
                 <button type="button" class="dialog-btn cancel" onclick="closeCustomerEditor()">Cancel</button>
                 <button type="button" class="dialog-btn ok" onclick="saveCustomerEdit()">Save</button>
+            </div>
+            <button type="button" id="customer-delete" class="customer-delete" onclick="deleteCustomerFromEditor()" hidden>Delete customer</button>
+        </div>
+    </div>
+
+    <!-- Settings -->
+    <div id="settings-overlay" class="sheet-overlay" onpointerdown="settingsDownOnBackdrop = (event.target === this)" onclick="if (event.target === this && settingsDownOnBackdrop) closeSettings()">
+        <div class="dialog-panel settings-box" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+            <div class="static-note-header">
+                <span id="settings-title" class="customer-title">Settings</span>
+                <button type="button" class="static-note-close" onclick="closeSettings()" aria-label="Close">✕</button>
+            </div>
+            <div class="settings-section">
+                <h4>Drivers</h4>
+                <p class="settings-help">Type each driver's sign-in name (the part of their email before @), so Route Helper finds their route. Ticked drivers show when you pick a driver.</p>
+                <div class="settings-add">
+                    <input type="text" id="settings-driver-input" placeholder="Driver name" autocomplete="off" autocapitalize="words" onkeydown="if (event.key === 'Enter') addSettingsDriver()">
+                    <button type="button" class="dialog-btn ok" onclick="addSettingsDriver()">Add</button>
+                </div>
+                <div id="settings-driver-rows" class="driver-rows"></div>
+                <p class="settings-help" style="margin-top:8px;">The time next to a driver is their usual start time. It's filled in for you when you make their route.</p>
+            </div>
+            <div class="settings-section">
+                <h4>Shop</h4>
+                <p class="settings-help">Every route starts here. <span id="settings-shop-address"></span></p>
+                <div class="settings-add">
+                    <button type="button" class="dialog-btn cancel" onclick="openShopPicker()">Set on map</button>
+                    <button type="button" id="settings-shop-reset" class="dialog-btn cancel" onclick="resetShop()" hidden>Use default</button>
+                </div>
+                <label class="settings-toggle"><input type="checkbox" id="settings-return" onchange="setReturnToShop(this.checked)">Return to the shop at the end (off: the route ends at the last stop)</label>
+            </div>
+            <div class="settings-section">
+                <h4>Route timing</h4>
+                <label class="settings-number">Gas stop before the first stop <input type="number" id="settings-gas" min="0" max="120" inputmode="numeric" onchange="saveSettingsField('gasStopMinutes', this.value)"> min</label>
+            </div>
+            <div class="settings-section">
+                <h4>Address search</h4>
+                <label class="settings-number">Suggest addresses within <input type="number" id="settings-km" min="1" max="500" inputmode="numeric" onchange="saveSettingsField('searchKm', this.value)"> km of the shop</label>
+            </div>
+            <div class="settings-section">
+                <h4>List screen</h4>
+                <label class="settings-number">Biggest text size <input type="number" id="settings-list-font" min="20" max="200" inputmode="numeric" onchange="saveSettingsField('listMaxFont', this.value)"> px</label>
+            </div>
+            <div class="settings-section">
+                <h4>Theme</h4>
+                <label class="settings-toggle"><input type="radio" name="settings-theme" id="settings-theme-dark" onchange="if (this.checked) setThemeSetting('dark')">Dark</label>
+                <label class="settings-toggle"><input type="radio" name="settings-theme" id="settings-theme-light" onchange="if (this.checked) setThemeSetting('light')">Light</label>
+            </div>
+            <div class="settings-section">
+                <h4>Share email</h4>
+                <label class="customer-label" for="settings-email-to">Send to</label>
+                <input type="email" id="settings-email-to" autocomplete="off" autocapitalize="off" onchange="saveSettingsField('emailTo', this.value)">
+                <label class="customer-label" for="settings-email-subject">Subject</label>
+                <input type="text" id="settings-email-subject" autocomplete="off" onchange="saveSettingsField('emailSubject', this.value)">
+                <p class="settings-help" style="margin-top:6px;">{date} in the subject becomes the route date.</p>
+            </div>
+            <div class="settings-section">
+                <h4>Warnings when adding a stop</h4>
+                <label class="settings-toggle"><input type="checkbox" id="settings-warn-duplicate" onchange="saveSettingsField('warnDuplicate', this.checked)">The customer is already on this list</label>
+                <label class="settings-toggle"><input type="checkbox" id="settings-warn-other" onchange="saveSettingsField('warnOtherRoute', this.checked)">The customer is on another driver's saved route</label>
+            </div>
+            <div class="dialog-actions">
+                <button type="button" class="dialog-btn ok" onclick="closeSettings()">Done</button>
             </div>
         </div>
     </div>
@@ -1163,10 +1314,10 @@
         let isOrderingMode = false;
         let pulsingMarkers = {};
         let createRouteMainBtn, createRouteMapBtn;
-        const DEPOT = { lat: 49.881157, lng: -99.959272 };
+        const DEFAULT_SHOP = { lat: 49.881157, lng: -99.959272, address: '1604 Moreland Ave, Brandon MB' };
         // A degree of longitude is shorter than a degree of latitude this far north
         // (cos 49.88° ≈ 0.644), so longitude differences are scaled before comparing distances.
-        const LNG_SCALE = Math.cos(DEPOT.lat * Math.PI / 180);
+        const LNG_SCALE = Math.cos(DEFAULT_SHOP.lat * Math.PI / 180);
 
         // Makes any text safe to put inside innerHTML (names, addresses, labels)
         function escapeHtml(text) {
@@ -1183,11 +1334,17 @@
 
         // Theme handling (copied from command.html)
         if (localStorage.getItem('ec_theme') === 'light') document.body.classList.add('light-mode');
+        // Light or dark. The logo tap and the Settings choice both land here and are saved in Settings.
+        function applyTheme(mode) {
+            document.body.classList.toggle('light-mode', mode === 'light');
+            try { localStorage.setItem('ec_theme', mode === 'light' ? 'light' : 'dark'); } catch (e) {}
+            if (typeof map !== 'undefined' && map) map.setOptions({ styles: mode === 'light' ? [] : mapStyles });
+            if (typeof pickerMap !== 'undefined' && pickerMap) pickerMap.setOptions({ styles: mode === 'light' ? [] : mapStyles });
+        }
         function toggleTheme() {
-            document.body.classList.toggle('light-mode');
-            localStorage.setItem('ec_theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
-            if (map) map.setOptions({ styles: document.body.classList.contains('light-mode') ? [] : mapStyles });
-            if (pickerMap) pickerMap.setOptions({ styles: document.body.classList.contains('light-mode') ? [] : mapStyles });
+            const mode = document.body.classList.contains('light-mode') ? 'dark' : 'light';
+            applyTheme(mode);
+            if (typeof writeSetting === 'function' && currentUser) writeSetting('theme', mode);
         }
 
         // Map styles (from command.html)
@@ -1372,7 +1529,11 @@
             db.ref('developer/route_planner/saved_routes').on('value', snap => {
                 savedRoutesCache = snap.val() || {};
                 renderSavedPills(snap.val() || {});
+                updateDriverChip();
             });
+            // Shared settings (drivers, gas stop, warnings)
+            db.ref(SETTINGS_PATH).on('value', snap => onSettingsFromServer(snap.val()));
+            updateDriverChip();
 
             // Live connection state, and the trigger to retry anything pending the
             // instant a connection comes back, instead of waiting for the driver
@@ -1459,6 +1620,18 @@
             document.getElementById('f-address').value = data.address || '';
             document.getElementById('f-city').value = data.city || '';
             document.getElementById('suggestions').style.display = 'none';
+            // A customer saved with an exact spot: the stop goes to that spot instead of a fresh
+            // address lookup (until the address or city text is changed).
+            const spot = contactSpot(data);
+            pickedSpot = spot ? { text: String(data.address || '').trim(), city: String(data.city || '').trim(), lat: spot.lat, lng: spot.lng } : null;
+        }
+        // An exact spot chosen for the address in the form (a saved customer's spot, or the map
+        // pin). A stop added with that same address and city text goes straight there.
+        let pickedSpot = null;
+        function pickedSpotFor(addressText, cityText) {
+            if (!pickedSpot) return null;
+            if (!sameText(pickedSpot.text, addressText) || !sameText(pickedSpot.city, cityText)) return null;
+            return pickedSpot;
         }
         function selectCity(city) {
             document.getElementById('f-city').value = city;
@@ -1468,6 +1641,7 @@
             document.getElementById('f-name').value = '';
             document.getElementById('f-address').value = '';
             document.getElementById('f-city').value = '';
+            pickedSpot = null;
         }
 
         // Google Places Autocomplete (copied from command.html)
@@ -1477,10 +1651,11 @@
             if (!addressInput) return;
             const options = {
                 componentRestrictions: { country: 'ca' },
-                bounds: new google.maps.Circle({ center: new google.maps.LatLng(49.848, -99.950), radius: 50000 }).getBounds(),
+                bounds: placesBounds(),
                 strictBounds: false
             };
             autocompleteAddress = new google.maps.places.Autocomplete(addressInput, options);
+            placesBoxes.push(autocompleteAddress);
             autocompleteAddress.addListener('place_changed', () => {
                 const place = autocompleteAddress.getPlace();
                 if (!place.address_components) return;
@@ -1593,13 +1768,29 @@
         }
 
         // ---------- JOB MANAGEMENT ----------
-        function addJob() {
+        let addJobBusy = false;
+        async function addJob() {
+            if (addJobBusy) return;
             const name = document.getElementById('f-name').value.trim();
             const address = document.getElementById('f-address').value.trim();
             const city = document.getElementById('f-city').value.trim();
             if (!name || !address || !city) {
                 showAlertModal("Please fill in all fields.");
                 return;
+            }
+            // Warnings (each can be turned off in Settings). Asked before anything is added.
+            addJobBusy = true;
+            try {
+                const want = name.toLowerCase();
+                if (appSettings.warnDuplicate && Object.keys(jobs).some(id => jobs[id] && jobs[id].status === 'pending_pickup' && String(jobs[id].name || '').trim().toLowerCase() === want)) {
+                    if (!(await showConfirmModal(`"${name}" is already on this list. Add it again?`))) return;
+                }
+                if (appSettings.warnOtherRoute) {
+                    const others = driversWithCustomerToday(name, currentDriver || getContactListDriver());
+                    if (others.length > 0 && !(await showConfirmModal(`"${name}" is already on ${others.map(driverLabel).join(' and ')}'s route saved today. Add it here too?`))) return;
+                }
+            } finally {
+                addJobBusy = false;
             }
             const newJob = {
                 name: name,
@@ -1616,6 +1807,33 @@
                 weight_lbs: 0,
                 other_details: ''
             };
+            // An exact spot (saved customer spot or map pin): the stop goes straight there,
+            // and drivers' navigation uses the spot instead of the address text.
+            const spot = pickedSpotFor(address, city);
+            if (spot) { newJob.lat = spot.lat; newJob.lng = spot.lng; newJob.pinned = true; }
+            if (routeState.isFinalized && spot) {
+                const newJobRef = db.ref('developer/route_planner/jobs').push();
+                const newId = newJobRef.key;
+                lastAddedJobId = newId;
+                if (lastAddedJobClearTimer) clearTimeout(lastAddedJobClearTimer);
+                lastAddedJobClearTimer = setTimeout(() => { lastAddedJobId = null; lastAddedJobClearTimer = null; }, 3200);
+                jobs[newId] = newJob;
+                pendingJobIds[newId] = true;
+                persistJobsCache();
+                updateConnectivityBanner();
+                resetFormFields();
+                insertStopIntoFinalizedRoute(newId).catch(err => console.warn("Route insertion failed:", err));
+                newJobRef.set(newJob).then(() => {
+                    delete pendingJobIds[newId];
+                    persistJobsCache();
+                    updateConnectivityBanner();
+                    saveContactAddress(name, address, city, spot);
+                }).catch(err => {
+                    updateConnectivityBanner();
+                    showAlertModal("Couldn't reach the server for this stop (connection issue). It's saved on this device and will keep syncing automatically.");
+                });
+                return;
+            }
             if (routeState.isFinalized) {
                 const addBtn = document.querySelector('button[onclick="addJob()"]');
                 const addBtnOriginalText = addBtn ? addBtn.textContent : 'ADD TO ROUTE';
@@ -1652,12 +1870,7 @@
                         delete pendingJobIds[newId];
                         persistJobsCache();
                         updateConnectivityBanner();
-                        const sanitizedKey = name.replace(/[.#$\[\]\/]/g, "").trim();
-                        db.ref("address_lookup").child(sanitizedKey).update({
-                            address: address,
-                            city: city,
-                            last_edit_by: currentUser
-                        });
+                        saveContactAddress(name, address, city, null);
                     }).catch(err => {
                         updateConnectivityBanner();
                         showAlertModal("Couldn't reach the server for this stop (connection issue). It's saved on this device and will keep syncing automatically.");
@@ -1692,14 +1905,8 @@
                 delete pendingJobIds[newJobRef.key];
                 persistJobsCache();
                 updateConnectivityBanner();
-                // After job is added, update address_lookup
-                const sanitizedKey = name.replace(/[.#$\[\]\/]/g, "").trim();
-                const updateObj = {
-                    address: address,
-                    city: city,
-                    last_edit_by: currentUser
-                };
-                db.ref("address_lookup").child(sanitizedKey).update(updateObj);
+                // After job is added, update address_lookup (asks before replacing a different saved address)
+                saveContactAddress(name, address, city, spot);
             }).catch(err => {
                 // Don't roll back the optimistic add or touch the form - the stop
                 // is already durably in the local cache and stays visible; it'll
@@ -2319,11 +2526,11 @@
             // Initialize address picker map after main map is ready
             initAddressPickerMap();
 
-            // Add origin marker for tap-order
-            new google.maps.Marker({
-                position: DEPOT,
+            // Add origin marker for tap-order (moved when the shop changes in Settings)
+            shopMarker = new google.maps.Marker({
+                position: shopPoint(),
                 map: map,
-                title: '1604 Moreland Ave (Origin)'
+                title: shopAddress() + ' (start)'
             });
 
             // Draw initial ordering polylines if any
@@ -2350,8 +2557,8 @@
 
             try {
                 // Build waypoints from routeState.order
-                const origin = "1604 Moreland Ave, Brandon MB";
-                const destination = "1604 Moreland Ave, Brandon MB";
+                // Starts at the shop; ends back there, or at the last stop when "Return to the shop" is off.
+                const shopLoc = { location: { latLng: { latitude: shopPoint().lat, longitude: shopPoint().lng } } };
                 const waypoints = [];
                 const seen = new Set();
                 for (let id of routeState.order) {
@@ -2367,6 +2574,9 @@
                     showAlertModal("No valid stops.");
                     return;
                 }
+                const endAtLastStop = !appSettings.returnToShop;
+                const destinationWp = endAtLastStop ? waypoints[waypoints.length - 1] : shopLoc;
+                const middle = endAtLastStop ? waypoints.slice(0, -1) : waypoints;
                 const response = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
                     method: "POST",
                     headers: {
@@ -2375,9 +2585,9 @@
                         "X-Goog-FieldMask": "routes.duration,routes.distanceMeters,routes.legs.duration,routes.legs.distanceMeters"
                     },
                     body: JSON.stringify({
-                        origin: { address: origin },
-                        destination: { address: destination },
-                        intermediates: waypoints,
+                        origin: shopLoc,
+                        destination: destinationWp,
+                        intermediates: middle,
                         travelMode: "DRIVE",
                         optimizeWaypointOrder: false
                     })
@@ -2655,7 +2865,7 @@
             // Work out every leg first, then fetch them all at once (same number of
             // API calls and the same cache - just not one after another).
             const legs = [];
-            let prev = DEPOT;
+            let prev = shopPoint();
             for (let i = 0; i < order.length; i++) {
                 const job = jobs[order[i]];
                 if (!job || !job.lat || !job.lng) continue;
@@ -2677,6 +2887,12 @@
         async function fetchReturnRoute() {
             if (!map) return;
             const gen = ++returnRouteGen;
+            // "Return to the shop" off: the route ends at the last stop, so no line back.
+            if (!appSettings.returnToShop) {
+                returnPath = null;
+                updatePolyline();
+                return;
+            }
             const order = routeState.order;
             if (order.length === 0) {
                 returnPath = null;
@@ -2690,7 +2906,7 @@
                 updatePolyline();
                 return;
             }
-            const originLatLng = DEPOT;
+            const originLatLng = shopPoint();
             const lastLatLng = { lat: lastJob.lat, lng: lastJob.lng };
             let path;
             try {
@@ -2761,16 +2977,23 @@
                     return;
                 }
 
+                // The driver's usual start time from Settings is used without asking.
+                const usualStart = driverStart(currentDriver);
+                if (usualStart) {
+                    routeState.startTime = usualStart;
+                    showToast(`Start time ${formatOpensAt(usualStart)} (${driverLabel(currentDriver)}'s usual time from Settings).`);
+                } else {
                 // Ask when the driver leaves, for arrival times on the pins (blank = skip)
                 const startInput = document.getElementById('custom-dialog-input');
                 if (startInput) startInput.type = 'time';
                 const startAnswer = await showPromptModal(
-                    `Driver start time?\n\nShows arrival times on the map and warns about stops that aren't open yet. ${GAS_STOP_MINUTES} min for the gas station is added before the first stop.\n\nLeave blank to skip.`,
-                    routeState.startTime || ''
+                    `Driver start time?\n\nShows arrival times on the map and warns about stops that aren't open yet. ${gasStopMinutes()} min for the gas station is added before the first stop.\n\nLeave blank to skip.`,
+                    routeState.startTime || driverStart(currentDriver) || ''
                 );
                 if (startInput) startInput.type = 'text';
                 if (startAnswer === null) return;
                 routeState.startTime = parseHHMM(startAnswer) !== null ? startAnswer : null;
+                }
 
                 // Enter ordering mode
                 isOrderingMode = true;
@@ -2788,7 +3011,7 @@
 
         function zoomToAllWaypoints() {
             const bounds = new google.maps.LatLngBounds();
-            bounds.extend(DEPOT);
+            bounds.extend(shopPoint());
             let hasJob = false;
             const pendingIds = Object.keys(jobs).filter(id => jobs[id].status === 'pending_pickup');
             pendingIds.forEach(id => {
@@ -2802,7 +3025,7 @@
                 if (hasJob) {
                     map.fitBounds(bounds);
                 } else {
-                    map.setCenter(DEPOT);
+                    map.setCenter(shopPoint());
                     map.setZoom(12);
                 }
             }
@@ -2887,7 +3110,7 @@
         }
 
         // ---------- ARRIVAL TIMES & OPENING HOURS ----------
-        const GAS_STOP_MINUTES = 10;      // gas station before the first stop
+        const GAS_STOP_MINUTES = 10;      // default gas station minutes before the first stop (changeable in Settings)
         const STOP_SERVICE_MINUTES = 3;   // time to drop off at each stop
         const HOURS_GRACE_MINUTES = 5;    // only warn if more than this early
         const segmentDurationCache = {};  // same keys as segmentCache -> drive seconds from Google
@@ -2922,8 +3145,8 @@
             const result = {};
             const start = parseHHMM(routeState.startTime);
             if (start === null) return result;
-            let t = start + GAS_STOP_MINUTES;
-            let prev = DEPOT;
+            let t = start + gasStopMinutes();
+            let prev = shopPoint();
             for (const id of routeState.order) {
                 const job = jobs[id];
                 if (!job || !job.lat || !job.lng) continue;
@@ -2940,7 +3163,7 @@
         // Fetches Google drive times for any leg of the current order that doesn't have one yet (cached)
         async function ensureLegDurations() {
             const legs = [];
-            let prev = DEPOT;
+            let prev = shopPoint();
             for (const id of routeState.order) {
                 const job = jobs[id];
                 if (!job || !job.lat || !job.lng) continue;
@@ -3015,7 +3238,7 @@
             const start = parseHHMM(routeState.startTime);
             if (start !== null) {
                 const lastId = routeState.order[routeState.order.length - 1];
-                if (!lastId) departMinutes = start + GAS_STOP_MINUTES;
+                if (!lastId) departMinutes = start + gasStopMinutes();
                 else if (typeof arrivals[lastId] === 'number') departMinutes = arrivals[lastId] + STOP_SERVICE_MINUTES;
             }
             Object.keys(pulsingMarkers).forEach(id => {
@@ -3050,8 +3273,8 @@
             if (indicator) indicator.style.display = 'block';
             try {
                 // Where he's leaving from, and when
-                let prevPoint = DEPOT;
-                let departMinutes = parseHHMM(routeState.startTime) + GAS_STOP_MINUTES;
+                let prevPoint = shopPoint();
+                let departMinutes = parseHHMM(routeState.startTime) + gasStopMinutes();
                 await ensureLegDurations();
                 const lastId = routeState.order[routeState.order.length - 1];
                 if (lastId) {
@@ -3138,7 +3361,7 @@
             return Math.sqrt(dLat * dLat + dLng * dLng);
         }
         async function insertStopIntoFinalizedRoute(newId) {
-            const origin = DEPOT;
+            const origin = shopPoint();
             const order = routeState.order;
             const newJob = jobs[newId];
             if (!newJob || !newJob.lat || !newJob.lng || order.includes(newId)) return;
@@ -3157,8 +3380,11 @@
             let bestDelta = Infinity;
             for (let i = 0; i <= live.length; i++) {
                 const prevPoint = i === 0 ? origin : pointFor(live[i - 1]);
-                const nextPoint = i === live.length ? origin : pointFor(live[i]);
-                const delta = euclidDist(prevPoint, newPoint) + euclidDist(newPoint, nextPoint) - euclidDist(prevPoint, nextPoint);
+                // Last place: only the leg to it counts when the route ends at the last stop.
+                const nextPoint = i === live.length ? (appSettings.returnToShop ? origin : null) : pointFor(live[i]);
+                const delta = nextPoint
+                    ? euclidDist(prevPoint, newPoint) + euclidDist(newPoint, nextPoint) - euclidDist(prevPoint, nextPoint)
+                    : euclidDist(prevPoint, newPoint);
                 if (delta < bestDelta) { bestDelta = delta; liveIndex = i; }
             }
 
@@ -3211,6 +3437,108 @@
             }
         }
 
+        // Order of points 1..n for the shortest one-way drive that starts at point 0 and ends
+        // at any of them (same as Route Helper). cost[i][j] is the drive from point i to point j.
+        const EXACT_ORDER_MAX_STOPS = 15;
+        function shortestOpenPath(cost) {
+            const n = cost.length - 1;
+            if (n <= EXACT_ORDER_MAX_STOPS) {
+                // best[mask * n + last]: shortest drive from point 0 through the points in mask
+                // (bit k = point k + 1), ending at point last + 1.
+                const full = (1 << n) - 1;
+                const best = new Float64Array((full + 1) * n).fill(Infinity);
+                const from = new Int8Array((full + 1) * n).fill(-1);
+                for (let k = 0; k < n; k++) best[(1 << k) * n + k] = cost[0][k + 1];
+                for (let mask = 1; mask <= full; mask++) {
+                    for (let last = 0; last < n; last++) {
+                        const here = best[mask * n + last];
+                        if (here === Infinity) continue;
+                        for (let k = 0; k < n; k++) {
+                            if (mask & (1 << k)) continue;
+                            const at = (mask | (1 << k)) * n + k;
+                            const c = here + cost[last + 1][k + 1];
+                            if (c < best[at]) { best[at] = c; from[at] = last; }
+                        }
+                    }
+                }
+                let end = 0;
+                for (let k = 1; k < n; k++) if (best[full * n + k] < best[full * n + end]) end = k;
+                const path = [];
+                for (let mask = full, k = end; k >= 0; ) {
+                    path.unshift(k + 1);
+                    const prev = from[mask * n + k];
+                    mask &= ~(1 << k);
+                    k = prev;
+                }
+                return path;
+            }
+            const pathCost = path => {
+                let c = 0, prev = 0;
+                path.forEach(k => { c += cost[prev][k]; prev = k; });
+                return c;
+            };
+            // Keep shortening an order - reverse a stretch, or move a run of 1-3 stops
+            // elsewhere - until nothing makes it shorter.
+            const improve = path => {
+                let pathLen = pathCost(path), better = true;
+                while (better) {
+                    better = false;
+                    for (let i = 0; i < n - 1; i++) {
+                        for (let j = i + 1; j < n; j++) {
+                            const t = path.slice(0, i).concat(path.slice(i, j + 1).reverse(), path.slice(j + 1));
+                            const c = pathCost(t);
+                            if (c < pathLen - 1e-6) { path = t; pathLen = c; better = true; }
+                        }
+                    }
+                    for (let len = 1; len <= 3; len++) {
+                        for (let i = 0; i + len <= n; i++) {
+                            const run = path.slice(i, i + len), rest = path.slice(0, i).concat(path.slice(i + len));
+                            for (let at = 0; at <= rest.length; at++) {
+                                if (at === i) continue;
+                                const t = rest.slice(0, at).concat(run, rest.slice(at));
+                                const c = pathCost(t);
+                                if (c < pathLen - 1e-6) { path = t; pathLen = c; better = true; break; }
+                            }
+                        }
+                    }
+                }
+                return { path: path, len: pathLen };
+            };
+            // Starting orders: nearest stop next, plus shuffles from a fixed seed so the same
+            // stops always give the same answer.
+            const starts = [];
+            const left = new Set(Array.from({ length: n }, (_, k) => k + 1));
+            const nearest = [];
+            for (let at = 0; left.size > 0; ) {
+                let next = null;
+                left.forEach(k => { if (next === null || cost[at][k] < cost[at][next]) next = k; });
+                nearest.push(next);
+                left.delete(next);
+                at = next;
+            }
+            starts.push(nearest);
+            let seed = 20261026;
+            const rand = () => {
+                seed = (seed + 0x6D2B79F5) | 0;
+                let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+                t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+            for (let s = 0; s < 29; s++) {
+                const order = nearest.slice();
+                for (let i = order.length - 1; i > 0; i--) {
+                    const j = Math.floor(rand() * (i + 1));
+                    const tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+                }
+                starts.push(order);
+            }
+            let bestFound = null;
+            starts.forEach(order => {
+                const r = improve(order);
+                if (!bestFound || r.len < bestFound.len - 1e-6) bestFound = r;
+            });
+            return bestFound.path;
+        }
         async function autoOptimizeRoute() {
             const optimizeBtn = document.getElementById('auto-optimize-btn');
             const indicator = document.getElementById('calculating-route-indicator');
@@ -3245,10 +3573,25 @@
                 const assignedOrdered = routeState.order.filter(id => routeState.assignedIndices[id]);
                 const routingOrigin = assignedOrdered.length > 0
                     ? { lat: jobs[assignedOrdered[assignedOrdered.length - 1]].lat, lng: jobs[assignedOrdered[assignedOrdered.length - 1]].lng }
-                    : DEPOT;
+                    : shopPoint();
                 let orderedUnassigned = unassignedIds;
-                if (unassignedIds.length > 1) {
-                    const intermediates = unassignedIds.map(id => ({ location: { latLng: { latitude: jobs[id].lat, longitude: jobs[id].lng } } }));
+                // "Return to the shop" off: planned as a one-way trip. Google's optimizer always
+                // needs an end point, so the last stop is picked first from the shortest one-way
+                // order by straight-line distance (no Google request), and the rest are ordered
+                // by road towards it.
+                let optimizeIds = unassignedIds;
+                let lastStopId = null;
+                if (!appSettings.returnToShop && unassignedIds.length > 1) {
+                    const points = [routingOrigin].concat(unassignedIds.map(pointFor));
+                    const straight = points.map(a => points.map(b => euclidDist(a, b)));
+                    const openOrder = shortestOpenPath(straight).map(k => unassignedIds[k - 1]);
+                    lastStopId = openOrder[openOrder.length - 1];
+                    optimizeIds = unassignedIds.filter(id => id !== lastStopId);
+                    orderedUnassigned = optimizeIds.concat(lastStopId);
+                }
+                if (optimizeIds.length > 1) {
+                    const intermediates = optimizeIds.map(id => ({ location: { latLng: { latitude: jobs[id].lat, longitude: jobs[id].lng } } }));
+                    const destinationPoint = lastStopId ? pointFor(lastStopId) : shopPoint();
                     const response = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
                         method: "POST",
                         headers: {
@@ -3258,7 +3601,7 @@
                         },
                         body: JSON.stringify({
                             origin: { location: { latLng: { latitude: routingOrigin.lat, longitude: routingOrigin.lng } } },
-                            destination: { location: { latLng: { latitude: DEPOT.lat, longitude: DEPOT.lng } } },
+                            destination: { location: { latLng: { latitude: destinationPoint.lat, longitude: destinationPoint.lng } } },
                             intermediates: intermediates,
                             travelMode: "DRIVE",
                             optimizeWaypointOrder: true
@@ -3271,7 +3614,8 @@
                     }
                     if (data.routes && data.routes[0] && data.routes[0].optimizedIntermediateWaypointIndex) {
                         const waypointOrder = data.routes[0].optimizedIntermediateWaypointIndex;
-                        orderedUnassigned = waypointOrder.map(idx => unassignedIds[idx]);
+                        orderedUnassigned = waypointOrder.map(idx => optimizeIds[idx]);
+                        if (lastStopId) orderedUnassigned.push(lastStopId);
                     } else {
                         throw new Error("No optimized order returned");
                     }
@@ -3335,7 +3679,7 @@
             const job = jobs[jobId];
             if (!job || !job.lat || !job.lng) return;
 
-            const originLatLng = DEPOT;
+            const originLatLng = shopPoint();
             let prevLatLng;
             if (order.length === 1) {
                 prevLatLng = originLatLng;
@@ -3655,7 +3999,8 @@
                 driverList.innerHTML = getKnownDriverNames().map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
                 dialogInput.setAttribute('list', 'driver-name-list');
             }
-            const usernameInput = await showPromptModal("Enter driver username (e.g., alysha):", "");
+            // The driver picked for this route is used straight away; otherwise ask.
+            const usernameInput = currentDriver ? currentDriver : await showPromptModal("Enter driver username (e.g., alysha):", "");
             if (dialogInput) dialogInput.removeAttribute('list');
             if (usernameInput === null || usernameInput.trim() === "") return;
             let username = usernameInput.trim().toLowerCase();
@@ -3667,7 +4012,7 @@
                 showAlertModal("Driver username can't contain: . # $ [ ] /");
                 return;
             }
-            let label = username.charAt(0).toUpperCase() + username.slice(1);
+            let label = appSettings.drivers[username] ? driverLabel(username) : username.charAt(0).toUpperCase() + username.slice(1);
             rememberDriverName(username);
 
             // If a route already exists under this key, make sure the admin knows
@@ -3705,7 +4050,8 @@
                         timestamp: job.timestamp,
                         created_by: job.created_by,
                         lat: job.lat || null,
-                        lng: job.lng || null
+                        lng: job.lng || null,
+                        pinned: job.pinned ? true : null
                     };
                 }
             });
@@ -3766,6 +4112,8 @@
                     pendingRouteSave = null;
                     persistRouteSaveCache();
                     updateConnectivityBanner();
+                    showToast(`Saved ${label}'s route.`);
+                    setCurrentDriver('');
                     // After saving, clear all jobs from the route stops (local unsynced ones too)
                     pendingJobIds = {};
                     jobs = {};
@@ -3873,7 +4221,23 @@
                 // const label = route.label || 'Unnamed'; // removed label from pill
                 const pill = document.createElement('div');
                 pill.className = 'saved-route-pill';
-                pill.textContent = key; // only show the username key
+                const nameEl = document.createElement('span');
+                nameEl.textContent = key; // the username key
+                pill.appendChild(nameEl);
+                const stopCount = route && route.stops ? Object.keys(route.stops).length : 0;
+                const meta = document.createElement('span');
+                meta.className = 'pill-meta';
+                meta.textContent = `${stopCount} · ${formatSavedTime(route && route.timestamp)}`;
+                pill.appendChild(meta);
+                // List straight from the pill: shows that route's list without loading it.
+                const listBtn = document.createElement('button');
+                listBtn.type = 'button';
+                listBtn.className = 'pill-list-btn';
+                listBtn.setAttribute('aria-label', `Show ${key}'s list`);
+                listBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="18" rx="2.5"/><path d="M9 11h6M9 15h6"/></svg>';
+                ['mousedown', 'touchstart'].forEach(t => listBtn.addEventListener(t, e => e.stopPropagation(), { passive: true }));
+                listBtn.addEventListener('click', e => { e.stopPropagation(); openContactListForRoute(key); });
+                pill.appendChild(listBtn);
                 pill.dataset.key = key;
                 // A long-press (delete) also produces a click when the finger/mouse lifts;
                 // that click is ignored so it can't replace the delete dialog with "Load route?".
@@ -3887,7 +4251,9 @@
                 pill.addEventListener('click', async function(e) {
                     if (Date.now() < suppressClickUntil) return;
                     if (this.classList.contains('loading')) return;
-                    if (await showConfirmModal(`Load route for "${key}"? This will replace your current stops.`)) {
+                    // Nothing on the list: load straight away. Otherwise say what gets replaced.
+                    const onList = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').length;
+                    if (onList === 0 || await showConfirmModal(`Load route for "${key}"? The ${onList} stop${onList === 1 ? '' : 's'} on your list now will be replaced.`)) {
                         loadSavedRoute(key);
                     }
                 });
@@ -3983,6 +4349,8 @@
                     document.getElementById('eta-display').style.display = 'none';
                     document.getElementById('eta-display').classList.remove('eta-glow');
                 }
+                // Saving again goes back to this driver.
+                setCurrentDriver(key);
                 // Collapse the saved routes dropdown
                 document.getElementById('saved-routes-container').style.display = 'none';
                 document.getElementById('toggle-saved-routes-arrow').textContent = '▼';
@@ -4165,8 +4533,10 @@
                 }
 
                 const emailBody = bodyParts.join('\n\n');
-                const subject = `Route Manifest for ${dateStr}`;
-                const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+                // Recipient and subject come from Settings; {date} in the subject becomes the route date.
+                const subject = String(appSettings.emailSubject || DEFAULT_EMAIL_SUBJECT).split('{date}').join(dateStr);
+                const to = String(appSettings.emailTo || '').trim();
+                const mailtoLink = `mailto:${encodeURIComponent(to).replace(/%40/g, '@').replace(/%2C/gi, ',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
                 window.location.href = mailtoLink;
 
             }).catch(err => showAlertModal("Error loading saved routes: " + err.message));
@@ -4215,6 +4585,9 @@
             const names = getCurrentStopNames();
             const listDriver = getContactListDriver();
             if (listDriver) db.ref('developer/route_planner/contact_lists/' + listDriver).set({ names: names, count: names.length, updatedAt: firebase.database.ServerValue.TIMESTAMP, driver: listDriver }).catch(err => console.warn('Contact list save failed:', err));
+            showContactList(names);
+        }
+        function showContactList(names) {
             const container = document.getElementById('contact-list-items');
             if (names.length === 0) {
                 container.innerHTML = '<div class="contact-list-line" style="font-size:28px;">No stops in list</div>';
@@ -4238,7 +4611,7 @@
             const availableHeight = container.clientHeight;
             const availableWidth = container.clientWidth - 24;
             let fontSize = Math.floor(availableHeight / lines.length) * 0.75;
-            fontSize = Math.min(fontSize, 72);
+            fontSize = Math.min(fontSize, appSettings.listMaxFont);
             const canvas = fitContactListFont._canvas || (fitContactListFont._canvas = document.createElement('canvas'));
             const ctx = canvas.getContext('2d');
             let minFontFromWidth = fontSize;
@@ -4304,7 +4677,7 @@
                     if (isOrderingMode || routeState.isFinalized) {
                         if (routeState.order.length > 0) {
                             const bounds = new google.maps.LatLngBounds();
-                            bounds.extend(DEPOT);
+                            bounds.extend(shopPoint());
                             routeState.order.forEach(id => {
                                 const job = jobs[id];
                                 if (job && job.lat && job.lng) {
@@ -4313,7 +4686,7 @@
                             });
                             if (!bounds.isEmpty()) map.fitBounds(bounds);
                         } else {
-                            map.setCenter(DEPOT);
+                            map.setCenter(shopPoint());
                             map.setZoom(12);
                         }
                     } else {
@@ -4337,7 +4710,7 @@
         function zoomToAll() {
             if (isOrderingMode || routeState.isFinalized) {
                 const bounds = new google.maps.LatLngBounds();
-                bounds.extend(DEPOT);
+                bounds.extend(shopPoint());
                 routeState.order.forEach(id => {
                     const job = jobs[id];
                     if (job && job.lat && job.lng) {
@@ -4345,7 +4718,7 @@
                     }
                 });
                 if (!bounds.isEmpty()) map.fitBounds(bounds);
-                else { map.setCenter(DEPOT); map.setZoom(12); }
+                else { map.setCenter(shopPoint()); map.setZoom(12); }
             } else if (activePolyline) {
                 const bounds = new google.maps.LatLngBounds();
                 activePolyline.getPath().forEach(p => bounds.extend(p));
@@ -4374,7 +4747,7 @@
                 showAlertModal("No stops to route.");
                 return;
             }
-            const shop = "1604 Moreland Ave, Brandon MB";
+            const shop = shopAddress();
             // Unique stop addresses, in route order
             const seenLocs = new Set();
             const stops = [];
@@ -4394,8 +4767,11 @@
             // Google documents up to 9 waypoints per Maps link. Short routes open straight
             // away; longer ones let the driver pick a section (or send everything as before).
             const PER_LINK = 9;
+            // "Return to the shop" off: the trip ends at the last stop.
+            const endAtLast = !appSettings.returnToShop;
             if (stops.length <= PER_LINK) {
-                launchMapsDirections(shop, shop, stops);
+                if (endAtLast) launchMapsDirections(shop, stops[stops.length - 1], stops.slice(0, -1));
+                else launchMapsDirections(shop, shop, stops);
                 return;
             }
             const chunks = [];
@@ -4410,14 +4786,16 @@
             ).then(choice => {
                 if (choice === null) return;
                 if (choice === 0) {
-                    launchMapsDirections(shop, shop, stops.slice(0, 25));
+                    const first = stops.slice(0, 25);
+                    if (endAtLast) launchMapsDirections(shop, first[first.length - 1], first.slice(0, -1));
+                    else launchMapsDirections(shop, shop, first);
                     return;
                 }
                 const idx = choice - 1;
                 const chunk = chunks[idx];
                 // Each section starts where the previous one ended; the last one returns to the shop
                 const origin = idx === 0 ? shop : chunks[idx - 1].items[chunks[idx - 1].items.length - 1];
-                if (idx === chunks.length - 1) {
+                if (idx === chunks.length - 1 && !endAtLast) {
                     launchMapsDirections(origin, shop, chunk.items);
                 } else {
                     launchMapsDirections(origin, chunk.items[chunk.items.length - 1], chunk.items.slice(0, -1));
@@ -4473,6 +4851,7 @@
         const DRIVER_NAMES_KEY = 'ec_route_planner_driver_names';
         function getKnownDriverNames() {
             const names = new Set(Object.keys(savedRoutesCache || {}));
+            tickedDrivers().forEach(d => names.add(d.key));
             try {
                 (JSON.parse(localStorage.getItem(DRIVER_NAMES_KEY) || '[]') || []).forEach(n => { if (n) names.add(n); });
             } catch (e) {}
@@ -4643,6 +5022,11 @@
 
         function closeAddressPicker() {
             document.getElementById('address-picker-modal').style.display = 'none';
+            if (pickerMode === 'shop') {
+                pickerMode = '';
+                document.getElementById('picker-confirm-btn').textContent = 'Use this address';
+                openSettings();
+            }
         }
 
         function updatePickerInfo(lat, lng) {
@@ -4746,6 +5130,15 @@
                 showAlertModal("No location selected.");
                 return;
             }
+            if (pickerMode === 'shop') {
+                if (typeof selectedLocation.lat !== 'number' || typeof selectedLocation.lng !== 'number') { showAlertModal("No location selected."); return; }
+                const address = selectedLocation.address || selectedLocation.street || `${selectedLocation.lat.toFixed(6)}, ${selectedLocation.lng.toFixed(6)}`;
+                writeSetting('shop', { lat: selectedLocation.lat, lng: selectedLocation.lng, address: address });
+                onShopSettingsChanged();
+                showToast('Shop location saved.');
+                closeAddressPicker();
+                return;
+            }
             // Prefer just the street ("123 Main St") when Google gives one, then the full address, then the plus code
             let addressToUse = selectedLocation.street || selectedLocation.address || selectedLocation.plusCode;
             if (!addressToUse) {
@@ -4754,6 +5147,10 @@
             }
             document.getElementById('f-address').value = addressToUse;
             if (selectedLocation.city) document.getElementById('f-city').value = selectedLocation.city;
+            // The dropped pin is the exact spot for this stop, and is saved with the customer.
+            if (typeof selectedLocation.lat === 'number' && typeof selectedLocation.lng === 'number') {
+                pickedSpot = { text: addressToUse, city: document.getElementById('f-city').value.trim(), lat: selectedLocation.lat, lng: selectedLocation.lng };
+            }
             closeAddressPicker();
         }
 
@@ -4861,36 +5258,552 @@
             closeTimePicker();
         }
 
+        // ---------- SETTINGS ----------
+        // Shared settings in developer/route_planner/settings, with a copy on this device so
+        // they work before the connection is up. drivers: { <sign-in name>: { name, enabled, start } }
+        const SETTINGS_PATH = 'developer/route_planner/settings';
+        const DEFAULT_EMAIL_TO = 'Eandc.courier@gmail.com';
+        const DEFAULT_EMAIL_SUBJECT = 'Route Manifest for {date}';
+        let shopMarker = null;
+        let pickerMode = '';     // 'shop' while the map picker is choosing the shop
+        const placesBoxes = [];  // Google address boxes, so a new search distance reaches all of them
+        const SETTINGS_CACHE_KEY = 'ec_route_planner_settings';
+        let settingsDownOnBackdrop = false;
+        function normalizeSettings(raw) {
+            raw = (raw && typeof raw === 'object') ? raw : {};
+            const gas = Number(raw.gasStopMinutes);
+            const km = Number(raw.searchKm), font = Number(raw.listMaxFont);
+            const shop = raw.shop && typeof raw.shop.lat === 'number' && typeof raw.shop.lng === 'number'
+                ? { lat: raw.shop.lat, lng: raw.shop.lng, address: String(raw.shop.address || '') } : null;
+            return {
+                gasStopMinutes: isFinite(gas) && gas >= 0 && gas <= 120 ? Math.round(gas) : GAS_STOP_MINUTES,
+                warnDuplicate: raw.warnDuplicate !== false,
+                warnOtherRoute: raw.warnOtherRoute !== false,
+                drivers: (raw.drivers && typeof raw.drivers === 'object') ? raw.drivers : {},
+                shop: shop,                                   // null = the default shop
+                returnToShop: raw.returnToShop !== false,     // off = the route ends at the last stop
+                searchKm: isFinite(km) && km >= 1 && km <= 500 ? Math.round(km) : 50,
+                listMaxFont: isFinite(font) && font >= 20 && font <= 200 ? Math.round(font) : 72,
+                theme: raw.theme === 'light' || raw.theme === 'dark' ? raw.theme : '',
+                emailTo: typeof raw.emailTo === 'string' ? raw.emailTo : DEFAULT_EMAIL_TO,
+                emailSubject: typeof raw.emailSubject === 'string' && raw.emailSubject.trim() ? raw.emailSubject : DEFAULT_EMAIL_SUBJECT
+            };
+        }
+        let appSettings = (() => {
+            try { return normalizeSettings(JSON.parse(localStorage.getItem(SETTINGS_CACHE_KEY) || 'null')); }
+            catch (e) { return normalizeSettings(null); }
+        })();
+        function persistSettingsCache() {
+            try { localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(appSettings)); } catch (e) {}
+        }
+        function onSettingsFromServer(raw) {
+            const before = appSettings;
+            appSettings = normalizeSettings(raw);
+            if (appSettings.theme && appSettings.theme !== (document.body.classList.contains('light-mode') ? 'light' : 'dark')) applyTheme(appSettings.theme);
+            const shopMoved = JSON.stringify(before.shop) !== JSON.stringify(appSettings.shop);
+            if (shopMoved) onShopSettingsChanged();
+            else if (before.returnToShop !== appSettings.returnToShop) onReturnToShopChanged();
+            if (before.searchKm !== appSettings.searchKm) refreshPlacesBounds();
+            persistSettingsCache();
+            if (document.getElementById('settings-overlay').classList.contains('is-open')) renderSettings();
+            updateDriverChip();
+        }
+        // Changes one setting on this device straight away, then sends it.
+        function writeSetting(path, value) {
+            const parts = path.split('/');
+            let node = appSettings;
+            for (let i = 0; i < parts.length - 1; i++) {
+                if (!node[parts[i]] || typeof node[parts[i]] !== 'object') node[parts[i]] = {};
+                node = node[parts[i]];
+            }
+            const last = parts[parts.length - 1];
+            if (value === null) delete node[last]; else node[last] = value;
+            persistSettingsCache();
+            db.ref(SETTINGS_PATH + '/' + path).set(value)
+                .catch(err => showToast("Couldn't save the setting: " + ((err && err.message) || 'unknown error'), true));
+        }
+        function gasStopMinutes() { return appSettings.gasStopMinutes; }
+        // Where every route starts (and ends, while "Return to the shop" is on).
+        function shopPoint() {
+            const s = appSettings.shop;
+            return s ? { lat: s.lat, lng: s.lng } : { lat: DEFAULT_SHOP.lat, lng: DEFAULT_SHOP.lng };
+        }
+        function shopAddress() {
+            const s = appSettings.shop;
+            if (!s) return DEFAULT_SHOP.address;
+            return s.address || `${s.lat},${s.lng}`;
+        }
+        // Address suggestions favour this many km around the shop.
+        function placesBounds() {
+            const c = shopPoint();
+            return new google.maps.Circle({ center: new google.maps.LatLng(c.lat, c.lng), radius: appSettings.searchKm * 1000 }).getBounds();
+        }
+        function refreshPlacesBounds() {
+            if (!(window.google && google.maps && google.maps.Circle)) return;
+            const b = placesBounds();
+            placesBoxes.forEach(box => { try { box.setBounds(b); } catch (e) {} });
+        }
+        // Redraws the route from the shop, and works the ETA out again if it was showing.
+        function redrawForRouteSettings() {
+            if (map && (routeState.isFinalized || isOrderingMode) && routeState.order.length > 0) {
+                updateForwardRoute().then(() => fetchReturnRoute()).then(() => updatePolyline())
+                    .catch(err => console.warn('Route redraw failed:', err));
+            }
+            if (etaTotalMinutes > 0 && routeState.order.length > 0) calculateETAOnDemand();
+            if (typeof refreshAssignedMarkerTimes === 'function') refreshAssignedMarkerTimes();
+        }
+        function onShopSettingsChanged() {
+            if (shopMarker) { shopMarker.setPosition(shopPoint()); shopMarker.setTitle(shopAddress() + ' (start)'); }
+            refreshPlacesBounds();
+            redrawForRouteSettings();
+            if (document.getElementById('settings-overlay').classList.contains('is-open')) renderSettings();
+        }
+        function onReturnToShopChanged() {
+            redrawForRouteSettings();
+        }
+        function setReturnToShop(on) {
+            writeSetting('returnToShop', !!on);
+            onReturnToShopChanged();
+        }
+        function openShopPicker() {
+            closeSettings();
+            pickerMode = 'shop';
+            document.getElementById('picker-confirm-btn').textContent = 'Set as shop';
+            openAddressPicker();
+            setTimeout(() => {
+                if (!pickerMarker || !pickerMap) return;
+                pickerMarker.setPosition(shopPoint());
+                pickerMap.setCenter(shopPoint());
+                updatePickerInfo(shopPoint().lat, shopPoint().lng);
+            }, 150);
+        }
+        function resetShop() {
+            writeSetting('shop', null);
+            onShopSettingsChanged();
+        }
+        function setThemeSetting(mode) {
+            applyTheme(mode);
+            writeSetting('theme', mode);
+        }
+
+        // Driver names: the key is the sign-in name in lower case, the same key Save always used.
+        function driverKeyFor(name) { return String(name || '').trim().toLowerCase(); }
+        function driverLabel(key) {
+            const d = appSettings.drivers[key];
+            const name = (d && d.name) ? String(d.name) : String(key || '');
+            return name.charAt(0).toUpperCase() + name.slice(1);
+        }
+        function driverStart(key) {
+            const d = key ? appSettings.drivers[key] : null;
+            return (d && typeof d.start === 'string' && parseHHMM(d.start) !== null) ? d.start : '';
+        }
+        function settingsDrivers() {
+            return Object.keys(appSettings.drivers)
+                .filter(k => appSettings.drivers[k] && typeof appSettings.drivers[k] === 'object')
+                .map(k => ({ key: k, label: driverLabel(k), enabled: appSettings.drivers[k].enabled !== false, start: driverStart(k) }))
+                .sort((a, b) => a.label.localeCompare(b.label));
+        }
+        function tickedDrivers() { return settingsDrivers().filter(d => d.enabled); }
+
+        function openSettings() {
+            renderSettings();
+            document.getElementById('settings-overlay').classList.add('is-open');
+        }
+        function closeSettings() {
+            document.getElementById('settings-overlay').classList.remove('is-open');
+        }
+        function renderSettings() {
+            const rows = document.getElementById('settings-driver-rows');
+            const list = settingsDrivers();
+            // A box being typed in keeps what's typed when an update arrives from the database.
+            const focused = document.activeElement;
+            const setVal = (id, v) => { const el = document.getElementById(id); if (el && el !== focused) el.value = v; };
+            if (!(focused && rows.contains(focused))) rows.innerHTML = list.length ? list.map(d => `
+                <div class="driver-row">
+                    <label><input type="checkbox" ${d.enabled ? 'checked' : ''} onchange="writeSetting('drivers/' + ${jsArg(d.key)} + '/enabled', this.checked)"><span>${escapeHtml(d.label)}</span></label>
+                    <input type="time" value="${escapeHtml(d.start)}" aria-label="${escapeHtml(d.label)} usual start time" onchange="writeSetting('drivers/' + ${jsArg(d.key)} + '/start', this.value || null)">
+                    <button type="button" class="driver-remove" aria-label="Remove ${escapeHtml(d.label)}" onclick="removeSettingsDriver(${jsArg(d.key)})">✕</button>
+                </div>`).join('') : '<div class="driver-empty">No drivers yet. Type a name above and tap Add.</div>';
+            setVal('settings-gas', appSettings.gasStopMinutes);
+            document.getElementById('settings-shop-address').textContent = shopAddress() + (appSettings.shop ? '' : ' (default)');
+            document.getElementById('settings-shop-reset').hidden = !appSettings.shop;
+            document.getElementById('settings-return').checked = appSettings.returnToShop;
+            setVal('settings-km', appSettings.searchKm);
+            setVal('settings-list-font', appSettings.listMaxFont);
+            const theme = document.body.classList.contains('light-mode') ? 'light' : 'dark';
+            document.getElementById('settings-theme-dark').checked = theme === 'dark';
+            document.getElementById('settings-theme-light').checked = theme === 'light';
+            setVal('settings-email-to', appSettings.emailTo);
+            setVal('settings-email-subject', appSettings.emailSubject);
+            document.getElementById('settings-warn-duplicate').checked = appSettings.warnDuplicate;
+            document.getElementById('settings-warn-other').checked = appSettings.warnOtherRoute;
+        }
+        function addSettingsDriver() {
+            const input = document.getElementById('settings-driver-input');
+            const name = input.value.trim();
+            if (!name) return;
+            if (/[.#$\[\]\/]/.test(name)) { showToast("A driver name can't contain: . # $ [ ] /", true); return; }
+            const key = driverKeyFor(name);
+            const existing = appSettings.drivers[key];
+            if (existing) {
+                if (existing.enabled === false) writeSetting('drivers/' + key + '/enabled', true);
+                showToast(`${driverLabel(key)} is already on the list.`);
+            } else {
+                writeSetting('drivers/' + key, { name: name.charAt(0).toUpperCase() + name.slice(1), enabled: true });
+            }
+            input.value = '';
+            input.focus();
+            renderSettings();
+        }
+        async function removeSettingsDriver(key) {
+            if (!(await showConfirmModal(`Remove ${driverLabel(key)} from your drivers? Their saved route stays.`))) return;
+            writeSetting('drivers/' + key, null);
+            if (currentDriver === key) setCurrentDriver('');
+            renderSettings();
+        }
+        // Puts a box back to the saved value after something invalid was typed in it.
+        function settingsUndoField(field) {
+            const ids = { gasStopMinutes: 'settings-gas', searchKm: 'settings-km', listMaxFont: 'settings-list-font', emailTo: 'settings-email-to', emailSubject: 'settings-email-subject' };
+            const el = document.getElementById(ids[field]);
+            if (el) el.value = appSettings[field];
+        }
+        function saveSettingsField(field, value) {
+            const ranges = { gasStopMinutes: [0, 120, 'Gas stop minutes'], searchKm: [1, 500, 'Search distance'], listMaxFont: [20, 200, 'List text size'] };
+            if (ranges[field]) {
+                const [lo, hi, label] = ranges[field];
+                const n = Math.round(Number(value));
+                if (value === '' || !isFinite(n) || n < lo || n > hi) { showToast(`${label} must be between ${lo} and ${hi}.`, true); settingsUndoField(field); return; }
+                value = n;
+            }
+            if (field === 'emailTo') {
+                value = String(value || '').trim();
+                if (value && !value.split(',').every(a => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a.trim()))) { showToast("That doesn't look like an email address.", true); settingsUndoField(field); return; }
+            }
+            if (field === 'emailSubject') {
+                value = String(value || '').trim() || DEFAULT_EMAIL_SUBJECT;
+            }
+            writeSetting(field, value);
+            if (field === 'searchKm') refreshPlacesBounds();
+        }
+
+        // ---------- DRIVER FIRST ----------
+        // The driver this route is for, picked before or while adding stops. Save uses it
+        // without asking for a name. Kept on this device so a refresh doesn't lose it.
+        const CURRENT_DRIVER_KEY = 'ec_route_planner_current_driver';
+        let currentDriver = (() => { try { return localStorage.getItem(CURRENT_DRIVER_KEY) || ''; } catch (e) { return ''; } })();
+        function setCurrentDriver(key) {
+            currentDriver = key || '';
+            try { if (currentDriver) localStorage.setItem(CURRENT_DRIVER_KEY, currentDriver); else localStorage.removeItem(CURRENT_DRIVER_KEY); } catch (e) {}
+            updateDriverChip();
+        }
+        function updateDriverChip() {
+            const chip = document.getElementById('driver-chip');
+            if (!chip) return;
+            document.getElementById('driver-chip-text').textContent = currentDriver ? driverLabel(currentDriver) : 'Pick driver';
+            chip.classList.toggle('is-set', !!currentDriver);
+        }
+        function isSameDay(ms) {
+            if (!ms) return false;
+            const a = new Date(Number(ms)), b = new Date();
+            return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+        }
+        function formatSavedTime(ms) {
+            if (!ms) return '';
+            const d = new Date(Number(ms));
+            if (isNaN(d.getTime())) return '';
+            if (isSameDay(ms)) return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        }
+        function savedStopCount(key) {
+            const route = savedRoutesCache && savedRoutesCache[key];
+            return route && route.stops ? Object.keys(route.stops).length : 0;
+        }
+        async function pickDriver() {
+            const list = tickedDrivers();
+            if (list.length === 0) {
+                if (await showConfirmModal('No drivers yet. Add your drivers in Settings?')) openSettings();
+                return;
+            }
+            const options = list.map(d => {
+                const route = savedRoutesCache && savedRoutesCache[d.key];
+                return d.label + (route && route.stops ? `  ·  saved ${formatSavedTime(route.timestamp)} (${savedStopCount(d.key)})` : '');
+            });
+            if (currentDriver) options.push('No driver (ask when saving)');
+            const i = await showChoiceModal('Who is this route for?', options);
+            if (i === null || i === undefined) return;
+            if (i >= list.length) { setCurrentDriver(''); return; }
+            const key = list[i].key;
+            setCurrentDriver(key);
+            const route = savedRoutesCache && savedRoutesCache[key];
+            if (route && route.stops && getContactListDriver() !== key) {
+                showToast(`${driverLabel(key)} already has a saved route (${savedStopCount(key)} stops, saved ${formatSavedTime(route.timestamp)}). Saving will replace it.`, false, { duration: 7000 });
+            }
+        }
+        // Customers on other drivers' routes saved today, for the warning when adding a stop.
+        function driversWithCustomerToday(name, exceptKey) {
+            const want = String(name || '').trim().toLowerCase();
+            return Object.keys(savedRoutesCache || {}).filter(key => {
+                const route = savedRoutesCache[key];
+                if (key === exceptKey || !route || !route.stops || !isSameDay(route.timestamp)) return false;
+                return Object.values(route.stops).some(st => st && String(st.name || '').trim().toLowerCase() === want);
+            });
+        }
+        // The List for a saved route, without loading it over the stops you're working on.
+        function openContactListForRoute(key) {
+            const route = savedRoutesCache && savedRoutesCache[key];
+            if (!route || !route.stops) { showToast('That route is empty.', true); return; }
+            const ids = (Array.isArray(route.order) ? route.order : []).filter(id => route.stops[id]);
+            Object.keys(route.stops).forEach(id => { if (!ids.includes(id)) ids.push(id); });
+            const names = ids.map((id, i) => (i + 1) + ') ' + (route.stops[id].name || 'No name'));
+            showContactList(names);
+        }
+
         // ---------- EDIT A CUSTOMER (address lookup) ----------
-        // Opened from the pencil in the name suggestions, like Route Helper. Name, address
-        // and city can be changed. A renamed customer keeps their notes and opening time.
-        // Stops for the customer still on the list get the new details; a stop whose
-        // address changed is looked up again on the map.
-        let customerEdit = null; // { key, original: { address, city } }
+        // The same customer editor as Route Helper. Opened from the pencil in the name
+        // suggestions, or the pencil on a stop's details. Name, address and city can be
+        // changed without retyping the rest; the address box suggests Google addresses, and
+        // "Use where I am now" saves the exact GPS spot. A renamed customer keeps their notes
+        // and opening time. Stops for the customer still on the list get the new details; a
+        // stop whose place changed is placed on the map again. A customer can be deleted, and
+        // every change is written to the shared customer change log.
+        let customerEdit = null; // { key, oldName, savedSpot, hereSpot, original: { address, city } }
         let customerDownOnBackdrop = false;
+        let customerPlacesReady = false;
+        const sameText = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
         function findContactKey(name) {
             const want = lookupKey(name).toLowerCase();
             if (!want) return null;
             if (addressData[lookupKey(name)]) return lookupKey(name);
             return Object.keys(addressData).find(k => k.toLowerCase() === want) || null;
         }
-        function openCustomerEditor(name) {
+        // The exact map spot saved with a customer, or null.
+        function contactSpot(data) {
+            return data && typeof data.lat === 'number' && typeof data.lng === 'number' ? { lat: data.lat, lng: data.lng } : null;
+        }
+        // name: the customer's name. fromStopId (optional): the stop it was opened from, so a
+        // customer who isn't saved yet can be saved from that stop.
+        function openCustomerEditor(name, fromStopId) {
             const key = findContactKey(name);
             const data = key ? addressData[key] : null;
-            if (!data) return;
-            customerEdit = { key: key, original: { address: data.address || '', city: data.city || '' } };
-            document.getElementById('customer-name').value = key;
-            document.getElementById('customer-address').value = data.address || '';
-            document.getElementById('customer-city').value = data.city || '';
+            const stop = fromStopId ? jobs[fromStopId] : null;
+            if (!data && !stop) return;
+            const address = data ? (data.address || '') : (stop.pickup_location || '');
+            const city = data ? (data.city || '') : (stop.city || '');
+            customerEdit = {
+                key: data ? key : null,
+                oldName: data ? key : String(name || '').trim(),
+                savedSpot: contactSpot(data),
+                hereSpot: null,
+                original: { address: address, city: city }
+            };
+            document.getElementById('customer-title').textContent = data ? 'Edit customer' : 'Save customer';
+            document.getElementById('customer-name').value = customerEdit.oldName;
+            document.getElementById('customer-address').value = address;
+            document.getElementById('customer-city').value = city;
+            // Only a customer already in address lookup can be deleted.
+            document.getElementById('customer-delete').hidden = !customerEdit.key;
             document.getElementById('suggestions').style.display = 'none';
             const active = document.activeElement;
             if (active && active.tagName === 'INPUT') active.blur();
+            attachCustomerPlaces();
+            renderCustomerSpot();
             document.getElementById('customer-overlay').classList.add('is-open');
+        }
+        function openCustomerEditorFromDetails() {
+            const job = currentDetailsJobId ? jobs[currentDetailsJobId] : null;
+            if (job) openCustomerEditor(job.name, currentDetailsJobId);
         }
         function closeCustomerEditor() {
             document.getElementById('customer-overlay').classList.remove('is-open');
             customerEdit = null;
         }
+        // Google address suggestions in the editor's address box, like the add-stop form.
+        // Picking one fills in the city too.
+        function attachCustomerPlaces() {
+            if (customerPlacesReady || !(window.google && google.maps && google.maps.places)) return;
+            customerPlacesReady = true;
+            const addressInput = document.getElementById('customer-address');
+            const cityInput = document.getElementById('customer-city');
+            const box = new google.maps.places.Autocomplete(addressInput, {
+                fields: ['address_components'],
+                componentRestrictions: { country: 'ca' },
+                bounds: placesBounds(),
+                strictBounds: false
+            });
+            placesBoxes.push(box);
+            box.addListener('place_changed', () => {
+                const place = box.getPlace();
+                if (!place || !place.address_components) return;
+                const part = type => {
+                    const c = place.address_components.find(x => x.types && x.types.includes(type));
+                    return c ? (c.long_name || '') : '';
+                };
+                const street = [part('street_number'), part('route')].filter(Boolean).join(' ');
+                const town = part('locality') || part('administrative_area_level_3') || part('sublocality');
+                // Read the box after Google has written the chosen address into it.
+                setTimeout(() => {
+                    if (street) addressInput.value = street;
+                    if (town) cityInput.value = town;
+                    // A picked address replaces a spot taken with "Use where I am now".
+                    if (customerEdit) customerEdit.hereSpot = null;
+                    renderCustomerSpot();
+                }, 0);
+            });
+        }
+        // The exact spot that Save would keep: one just taken here, else the saved one while
+        // the address and city are unchanged.
+        function customerEditSpot() {
+            const ed = customerEdit;
+            if (!ed) return null;
+            if (ed.hereSpot) return ed.hereSpot;
+            const unchanged = sameText(document.getElementById('customer-address').value, ed.original.address) &&
+                sameText(document.getElementById('customer-city').value, ed.original.city);
+            return unchanged ? ed.savedSpot : null;
+        }
+        function renderCustomerSpot() {
+            const ed = customerEdit;
+            const el = document.getElementById('customer-spot');
+            if (!ed || !el) return;
+            let text;
+            if (ed.hereSpot) text = 'Exact spot: where you are now. Stops for this customer go straight there.';
+            else if (customerEditSpot()) text = 'Exact map spot saved. Stops for this customer go straight there.';
+            else if (ed.savedSpot) text = 'The address changed, so the old map spot will be removed and the new address looked up.';
+            else text = 'No exact spot saved. The address is looked up on the map.';
+            el.textContent = text;
+        }
+
+        // ---------- WHERE I AM NOW ----------
+        // A fresh GPS fix plus the address Google has for it. Never falls back to an old or
+        // default spot, because the customer would be saved in the wrong place.
+        const HERE_POOR_ACCURACY_M = 100;
+        function lookupHere() {
+            return new Promise((resolve, reject) => {
+                if (!(window.google && google.maps && google.maps.Geocoder)) { reject("The map tools haven't loaded yet. Check your signal and try again."); return; }
+                if (!navigator.geolocation) { reject("This device can't share its location with the app."); return; }
+                navigator.geolocation.getCurrentPosition(pos => {
+                    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+                    new google.maps.Geocoder().geocode({ location: { lat, lng } }, (results, status) => {
+                        if (status !== 'OK' && status !== 'ZERO_RESULTS') { reject('No signal to look up the address here. Try again, or use the map pin.'); return; }
+                        const first = (status === 'OK' && results && results[0]) || null;
+                        const comps = (first && first.address_components) || [];
+                        const part = type => {
+                            const c = comps.find(x => x.types && x.types.includes(type));
+                            return c ? (c.long_name || '') : '';
+                        };
+                        const route = part('route');
+                        const street = [part('street_number'), route === 'Unnamed Road' ? '' : route].filter(Boolean).join(' ');
+                        let plusCode = '';
+                        (results || []).some(r => { if (r.plus_code) { plusCode = r.plus_code.compound_code || r.plus_code.global_code || ''; } return !!plusCode; });
+                        resolve({
+                            lat, lng, accuracy: pos.coords.accuracy,
+                            text: (street || plusCode || (first && first.formatted_address) || `${lat.toFixed(6)}, ${lng.toFixed(6)}`).trim(),
+                            city: part('locality') || part('administrative_area_level_3') || part('sublocality') || ''
+                        });
+                    });
+                }, err => {
+                    reject(err && err.code === 1
+                        ? 'Location is turned off for this app. Turn it on in the device settings, or use the map pin.'
+                        : "Couldn't get your location. Try again outside, or use the map pin.");
+                }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 });
+            });
+        }
+        let customerHereBusy = false;
+        function customerEditorUseHere() {
+            if (customerHereBusy || !customerEdit) return;
+            customerHereBusy = true;
+            const btn = document.getElementById('customer-here');
+            if (btn) btn.classList.add('is-busy');
+            const ed = customerEdit;
+            lookupHere().then(spot => {
+                if (customerEdit !== ed) return; // closed or reopened meanwhile
+                document.getElementById('customer-address').value = spot.text;
+                if (spot.city) document.getElementById('customer-city').value = spot.city;
+                ed.hereSpot = { lat: spot.lat, lng: spot.lng };
+                renderCustomerSpot();
+                if (spot.accuracy > HERE_POOR_ACCURACY_M) showToast(`GPS is only accurate to about ${Math.round(spot.accuracy)} m here, so check the pin on the map.`);
+            }).catch(message => {
+                showToast(String(message), true);
+            }).finally(() => {
+                customerHereBusy = false;
+                if (btn) btn.classList.remove('is-busy');
+            });
+        }
+
+        // ---------- CUSTOMER CHANGE LOG ----------
+        // The same log Route Helper writes: one entry per change, named by date, time and who
+        // made it, with what changed before and after.
+        const CUSTOMER_LOG_PATH = 'developer/route_planner/customer_changes';
+        function customerSnapshot(name, data) {
+            const spot = contactSpot(data);
+            return {
+                name: name || '',
+                address: (data && data.address) || '',
+                city: (data && data.city) || '',
+                exact_spot: spot ? `${spot.lat.toFixed(6)}, ${spot.lng.toFixed(6)}` : 'none'
+            };
+        }
+        let logKeyBase = '', logKeyCount = 0;
+        function logCustomerChange(change, before, after, extra) {
+            const d = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const when = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+            const by = currentUser || 'unknown';
+            // Two changes by the same person in the same second get (2), (3)...
+            const base = `${when} ${String(by).replace(/[.#$\[\]\/]/g, ',')}`;
+            logKeyCount = base === logKeyBase ? logKeyCount + 1 : 1;
+            logKeyBase = base;
+            const entry = Object.assign({
+                when: when,
+                by: by,
+                app: 'Route Planner',
+                change: change,
+                customer: (after && after.name) || (before && before.name) || '',
+                before: before || 'none (new customer)',
+                after: after
+            }, extra || {});
+            db.ref(CUSTOMER_LOG_PATH).child(logKeyCount > 1 ? `${base} (${logKeyCount})` : base).set(entry)
+                .catch(err => console.warn('Customer change not logged:', err && err.message));
+        }
+
+        // Saves a new stop's address to the address book. A new name is added. A name that
+        // already has a different saved address is only changed if you say so, so one stop at
+        // a second location doesn't change everyone's autofill. spot (optional) is an exact map
+        // spot chosen for this address; it is saved with the customer.
+        function saveContactAddress(name, address, city, spot) {
+            const key = findContactKey(name) || lookupKey(name);
+            if (!key) return;
+            const existing = addressData[key];
+            // A new address without a spot drops the old address's spot (null deletes it).
+            const fields = { address: address, city: city, last_edit_by: currentUser, lat: spot ? spot.lat : null, lng: spot ? spot.lng : null };
+            const write = f => db.ref('address_lookup').child(key).update(f)
+                .catch(err => console.warn('Address book not updated:', err && err.message));
+            const before = existing ? customerSnapshot(key, existing) : null;
+            const afterWith = f => customerSnapshot(key, Object.assign({}, existing, f, { lat: f.lat === null ? undefined : f.lat, lng: f.lng === null ? undefined : f.lng }));
+            if (!existing || !existing.address) {
+                write(fields);
+                logCustomerChange(existing ? 'Address added (from a new stop)' : 'New customer added', before, afterWith(fields));
+                return;
+            }
+            if (sameText(existing.address, address) && sameText(existing.city, city)) {
+                // Same address with a newly chosen exact spot: keep the newest spot.
+                const old = contactSpot(existing);
+                if (spot && (!old || old.lat !== spot.lat || old.lng !== spot.lng)) {
+                    const f = { lat: spot.lat, lng: spot.lng, last_edit_by: currentUser };
+                    write(f);
+                    logCustomerChange('Exact spot updated (from a new stop)', before, afterWith(f));
+                }
+                return;
+            }
+            showToast(`"${key}" has a different saved address. Keep it, or save this one for everyone?`, false, {
+                actionLabel: 'Save new',
+                duration: 9000,
+                onAction: () => {
+                    write(fields);
+                    logCustomerChange('Address changed (from a new stop)', before, afterWith(fields));
+                }
+            });
+        }
+
         function saveCustomerEdit() {
             const ed = customerEdit;
             if (!ed) return;
@@ -4900,26 +5813,34 @@
             if (!name || !address || !city) { showToast('Fill in the name, address and city.', true); return; }
             const newKey = lookupKey(name);
             if (!newKey) { showToast("That name can't be saved. Use letters or numbers.", true); return; }
+            // Another customer already has this name (capital letters don't count): don't merge.
             const taken = findContactKey(name);
             if (taken && taken !== ed.key) { showToast(`"${taken}" is already saved. Use a different name, or edit that customer instead.`, true); return; }
-            const sameText = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
-            const placeChanged = !sameText(address, ed.original.address) || !sameText(city, ed.original.city);
-            const fields = { address: address, city: city, last_edit_by: currentUser };
-            // A saved map spot belongs to the old address, so it goes when the address changes.
-            if (placeChanged) { fields.lat = null; fields.lng = null; fields.pinned = null; }
+            const spot = customerEditSpot();
+            const fields = { address: address, city: city, last_edit_by: currentUser, lat: spot ? spot.lat : null, lng: spot ? spot.lng : null };
             let write;
-            if (newKey === ed.key) {
+            if (!ed.key || newKey === ed.key) {
                 write = db.ref('address_lookup').child(newKey).update(fields);
             } else {
-                // Renamed: the whole record (notes included) moves to the new name in one write.
+                // Renamed: the whole record (notes and opening time included) moves to the new name in one write.
                 const record = Object.assign({}, addressData[ed.key] || {}, fields);
                 Object.keys(record).forEach(k => { if (record[k] === null) delete record[k]; });
                 write = db.ref('address_lookup').update({ [newKey]: record, [ed.key]: null });
             }
             write.catch(err => showToast("Couldn't save the customer: " + ((err && err.message) || 'unknown error'), true));
 
+            // What changed, for the change log.
+            const oldData = ed.key ? addressData[ed.key] : { address: ed.original.address, city: ed.original.city };
+            const before = customerSnapshot(ed.oldName, oldData);
+            const after = customerSnapshot(newKey, { address: address, city: city, lat: spot ? spot.lat : undefined, lng: spot ? spot.lng : undefined });
+            const changes = [];
+            if (!ed.key) changes.push('Saved to address lookup (from a stop)');
+            else if (after.name !== before.name) changes.push('Renamed');
+            if (after.address !== before.address || after.city !== before.city) changes.push('Address changed');
+            if (after.exact_spot !== before.exact_spot) changes.push(spot ? 'Exact spot set' : 'Exact spot removed');
+
             // Stops for this customer that are still on the list.
-            const oldMatch = ed.key.toLowerCase();
+            const oldMatch = lookupKey(ed.oldName).toLowerCase();
             const stopIds = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup' && lookupKey(jobs[id].name).toLowerCase() === oldMatch);
             let fixed = 0;
             stopIds.forEach(id => {
@@ -4928,42 +5849,86 @@
                 if (job.name !== name) update.name = name;
                 if (job.pickup_location !== address) update.pickup_location = address;
                 if (job.city !== city) update.city = city;
-                const moved = !sameText(job.pickup_location, address) || !sameText(job.city, city);
-                if (moved) { update.lat = null; update.lng = null; }
+                const moved = !sameText(job.pickup_location, address) || !sameText(job.city, city) ||
+                    (spot && (job.lat !== spot.lat || job.lng !== spot.lng)) || (!spot && job.pinned);
+                if (moved) {
+                    // With an exact spot the stop goes straight there; otherwise the address is looked up again.
+                    update.lat = spot ? spot.lat : null;
+                    update.lng = spot ? spot.lng : null;
+                    update.pinned = spot ? true : null;
+                }
                 if (Object.keys(update).length === 0) return;
                 fixed++;
                 Object.keys(update).forEach(k => { if (update[k] === null) delete job[k]; else job[k] = update[k]; });
+                const needsLookup = moved && !spot;
                 db.ref(`developer/route_planner/jobs/${id}`).update(update)
-                    .then(() => { if (moved && typeof google !== 'undefined' && google.maps && google.maps.Geocoder) return geocodeJob(id).then(() => updateRoute()); })
+                    .then(() => { if (needsLookup && typeof google !== 'undefined' && google.maps && google.maps.Geocoder) return geocodeJob(id).then(() => updateRoute()); })
                     .catch(err => console.warn('Stop update failed:', err));
             });
             if (fixed > 0) { persistJobsCache(); updateRoute(); }
-            // Keep the add-stop form in step if it shows this customer.
+            // Keep the add-stop form and an open stop's details in step with this customer.
             const formName = document.getElementById('f-name');
             if (formName && lookupKey(formName.value).toLowerCase() === oldMatch) {
                 formName.value = name;
                 document.getElementById('f-address').value = address;
                 document.getElementById('f-city').value = city;
+                pickedSpot = spot ? { text: address, city: city, lat: spot.lat, lng: spot.lng } : null;
             }
+            if (currentDetailsJobId && jobs[currentDetailsJobId]) document.getElementById('details-stop-title').textContent = jobs[currentDetailsJobId].name || 'Stop';
             closeCustomerEditor();
+            if (changes.length > 0) logCustomerChange(changes.join(', '), before, after, { stops_fixed_on_route: fixed });
             showToast(fixed > 0 ? `Saved "${name}". Updated ${fixed} stop${fixed === 1 ? '' : 's'} on the list.` : `Saved "${name}".`);
+        }
+        // Deletes the customer from address lookup, notes included, after asking. Their stops
+        // already on the list or in a saved route stay as they are. The change log keeps the
+        // whole record, so it could be put back by hand.
+        async function deleteCustomerFromEditor() {
+            const ed = customerEdit;
+            if (!ed || !ed.key) return;
+            const key = ed.key;
+            const record = addressData[key];
+            if (!record) { showToast(`"${key}" is no longer saved.`, true); closeCustomerEditor(); return; }
+            const noteCount = Object.values(record.notes || {}).filter(n => n && n.text && !n.deleted).length;
+            const ok = await showConfirmModal(`Delete "${key}" from address lookup${noteCount ? `, with ${noteCount} note${noteCount === 1 ? '' : 's'}` : ''}? Stops already on a route stay.`);
+            if (!ok || customerEdit !== ed) return;
+            const before = customerSnapshot(key, record);
+            closeCustomerEditor();
+            showToast(`Deleted "${key}".`);
+            db.ref('address_lookup').child(key).remove().then(() => {
+                logCustomerChange('Customer deleted', before, 'none (customer deleted)', { deleted_record: record });
+            }).catch(err => showToast("Couldn't delete the customer: " + ((err && err.message) || 'unknown error'), true));
         }
 
         let toastTimer = null;
-        function showToast(message, isError) {
+        // opts (optional): { actionLabel, onAction, duration } adds a button to the message.
+        function showToast(message, isError, opts) {
+            opts = opts || {};
             const el = document.getElementById('app-toast');
             if (!el) return;
             el.textContent = message;
+            if (opts.actionLabel && typeof opts.onAction === 'function') {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'toast-action';
+                btn.textContent = opts.actionLabel;
+                btn.addEventListener('click', () => {
+                    el.classList.remove('is-visible');
+                    clearTimeout(toastTimer);
+                    opts.onAction();
+                });
+                el.appendChild(btn);
+            }
             el.classList.toggle('is-error', !!isError);
             el.classList.remove('is-visible');
             void el.offsetWidth;
             el.classList.add('is-visible');
             clearTimeout(toastTimer);
-            toastTimer = setTimeout(() => el.classList.remove('is-visible'), isError ? 6000 : 3500);
+            toastTimer = setTimeout(() => el.classList.remove('is-visible'), opts.duration || (isError ? 6000 : 3500));
         }
         document.addEventListener('keydown', (e) => {
             if (e.key !== 'Escape') return;
             if (document.getElementById('time-picker-overlay').classList.contains('is-open')) closeTimePicker();
+            else if (document.getElementById('settings-overlay').classList.contains('is-open') && document.getElementById('custom-dialog-modal').style.display !== 'flex') closeSettings();
             else if (customerEdit) closeCustomerEditor();
         });
 
