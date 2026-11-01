@@ -763,6 +763,39 @@
         .customer-title::before { background: var(--accent) !important; box-shadow: 0 0 10px var(--accent) !important; }
         .customer-label { display: block; margin: 12px 0 6px; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
         .customer-hint { margin: 12px 0 18px; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+        .customer-field { position: relative; }
+        .customer-here {
+            display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; min-height: 42px; padding: 8px 14px; cursor: pointer;
+            font-family: inherit; font-size: 13.5px; font-weight: 700; color: var(--text); background: var(--card-2);
+            border: 1px solid var(--border-strong); border-radius: 11px; transition: background .15s, border-color .15s, opacity .15s;
+        }
+        .customer-here svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+        .customer-here:hover { border-color: var(--accent); background: var(--accent-soft); }
+        .customer-here.is-busy { opacity: .6; pointer-events: none; }
+        .customer-here.is-busy svg { animation: customer-here-spin 1s linear infinite; }
+        @keyframes customer-here-spin { to { transform: rotate(360deg); } }
+        .customer-spot { margin: 10px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--text); }
+        .customer-delete {
+            display: block; width: 100%; margin-top: 14px; min-height: 42px; padding: 8px 14px; cursor: pointer; font-family: inherit;
+            font-size: 13px; font-weight: 800; letter-spacing: .04em; color: #ef4444; background: transparent;
+            border: 1px solid rgba(239,68,68,0.45); border-radius: 11px; transition: background .15s;
+        }
+        .customer-delete:hover { background: rgba(239,68,68,0.1); }
+        .customer-delete[hidden] { display: none; }
+        /* Google's address list has to sit above the customer editor */
+        .pac-container { z-index: 10800 !important; }
+        .details-edit-btn {
+            position: absolute; top: 20px; right: 20px; z-index: 2; width: 46px; height: 46px; padding: 0; border-radius: 14px; cursor: pointer;
+            display: grid; place-items: center; color: var(--text); background: var(--card-2); border: 1px solid var(--border-strong);
+            transition: transform .2s var(--spring), border-color .2s, background .2s;
+        }
+        .details-edit-btn svg { width: 20px; height: 20px; }
+        .details-edit-btn:hover { border-color: var(--accent-ring); background: var(--accent-soft); color: var(--accent); }
+        .details-edit-btn:active { transform: scale(.9); }
+        #app-toast .toast-action {
+            margin-left: 10px; padding: 4px 10px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 800;
+            color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 8px;
+        }
 
         #app-toast {
             position: fixed; left: 50%; top: 76px; z-index: 21000; display: none; max-width: min(calc(100vw - 32px), 440px); width: max-content;
@@ -774,6 +807,7 @@
         #app-toast.is-error { color: #fff; background: rgba(220,38,38,0.92); border-color: rgba(255,255,255,0.2); }
         @media (max-width: 768px) {
             .details-back-btn { top: 14px; left: 14px; width: 42px; height: 42px; }
+            .details-edit-btn { top: 14px; right: 14px; width: 42px; height: 42px; }
         }
     </style>
 </head>
@@ -995,6 +1029,7 @@
     <div id="details-modal">
         <div class="details-modal-content">
             <button type="button" class="details-back-btn" onclick="closeDetailsModal()" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+            <button type="button" id="details-edit-btn" class="details-edit-btn" onclick="openCustomerEditorFromDetails()" aria-label="Edit customer" title="Edit customer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
             <div class="stop-title" id="details-stop-title">Stop Name</div>
             <div id="details-controls">
                 <div class="detail-row">
@@ -1084,14 +1119,21 @@
             <label class="customer-label" for="customer-name">Name</label>
             <input type="text" id="customer-name" autocomplete="off">
             <label class="customer-label" for="customer-address">Address</label>
-            <input type="text" id="customer-address" autocomplete="off">
+            <div class="customer-field">
+                <input type="text" id="customer-address" autocomplete="off" oninput="renderCustomerSpot()">
+            </div>
             <label class="customer-label" for="customer-city">City</label>
-            <input type="text" id="customer-city" autocomplete="off">
+            <input type="text" id="customer-city" autocomplete="off" oninput="renderCustomerSpot()">
+            <button type="button" id="customer-here" class="customer-here" onclick="customerEditorUseHere()">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Use where I am now
+            </button>
+            <p id="customer-spot" class="customer-spot"></p>
             <p class="customer-hint">Stops for this customer still on the list are updated too. Notes stay with the customer.</p>
             <div class="dialog-actions">
                 <button type="button" class="dialog-btn cancel" onclick="closeCustomerEditor()">Cancel</button>
                 <button type="button" class="dialog-btn ok" onclick="saveCustomerEdit()">Save</button>
             </div>
+            <button type="button" id="customer-delete" class="customer-delete" onclick="deleteCustomerFromEditor()" hidden>Delete customer</button>
         </div>
     </div>
 
@@ -1459,6 +1501,18 @@
             document.getElementById('f-address').value = data.address || '';
             document.getElementById('f-city').value = data.city || '';
             document.getElementById('suggestions').style.display = 'none';
+            // A customer saved with an exact spot: the stop goes to that spot instead of a fresh
+            // address lookup (until the address or city text is changed).
+            const spot = contactSpot(data);
+            pickedSpot = spot ? { text: String(data.address || '').trim(), city: String(data.city || '').trim(), lat: spot.lat, lng: spot.lng } : null;
+        }
+        // An exact spot chosen for the address in the form (a saved customer's spot, or the map
+        // pin). A stop added with that same address and city text goes straight there.
+        let pickedSpot = null;
+        function pickedSpotFor(addressText, cityText) {
+            if (!pickedSpot) return null;
+            if (!sameText(pickedSpot.text, addressText) || !sameText(pickedSpot.city, cityText)) return null;
+            return pickedSpot;
         }
         function selectCity(city) {
             document.getElementById('f-city').value = city;
@@ -1468,6 +1522,7 @@
             document.getElementById('f-name').value = '';
             document.getElementById('f-address').value = '';
             document.getElementById('f-city').value = '';
+            pickedSpot = null;
         }
 
         // Google Places Autocomplete (copied from command.html)
@@ -1616,6 +1671,33 @@
                 weight_lbs: 0,
                 other_details: ''
             };
+            // An exact spot (saved customer spot or map pin): the stop goes straight there,
+            // and drivers' navigation uses the spot instead of the address text.
+            const spot = pickedSpotFor(address, city);
+            if (spot) { newJob.lat = spot.lat; newJob.lng = spot.lng; newJob.pinned = true; }
+            if (routeState.isFinalized && spot) {
+                const newJobRef = db.ref('developer/route_planner/jobs').push();
+                const newId = newJobRef.key;
+                lastAddedJobId = newId;
+                if (lastAddedJobClearTimer) clearTimeout(lastAddedJobClearTimer);
+                lastAddedJobClearTimer = setTimeout(() => { lastAddedJobId = null; lastAddedJobClearTimer = null; }, 3200);
+                jobs[newId] = newJob;
+                pendingJobIds[newId] = true;
+                persistJobsCache();
+                updateConnectivityBanner();
+                resetFormFields();
+                insertStopIntoFinalizedRoute(newId).catch(err => console.warn("Route insertion failed:", err));
+                newJobRef.set(newJob).then(() => {
+                    delete pendingJobIds[newId];
+                    persistJobsCache();
+                    updateConnectivityBanner();
+                    saveContactAddress(name, address, city, spot);
+                }).catch(err => {
+                    updateConnectivityBanner();
+                    showAlertModal("Couldn't reach the server for this stop (connection issue). It's saved on this device and will keep syncing automatically.");
+                });
+                return;
+            }
             if (routeState.isFinalized) {
                 const addBtn = document.querySelector('button[onclick="addJob()"]');
                 const addBtnOriginalText = addBtn ? addBtn.textContent : 'ADD TO ROUTE';
@@ -1652,12 +1734,7 @@
                         delete pendingJobIds[newId];
                         persistJobsCache();
                         updateConnectivityBanner();
-                        const sanitizedKey = name.replace(/[.#$\[\]\/]/g, "").trim();
-                        db.ref("address_lookup").child(sanitizedKey).update({
-                            address: address,
-                            city: city,
-                            last_edit_by: currentUser
-                        });
+                        saveContactAddress(name, address, city, null);
                     }).catch(err => {
                         updateConnectivityBanner();
                         showAlertModal("Couldn't reach the server for this stop (connection issue). It's saved on this device and will keep syncing automatically.");
@@ -1692,14 +1769,8 @@
                 delete pendingJobIds[newJobRef.key];
                 persistJobsCache();
                 updateConnectivityBanner();
-                // After job is added, update address_lookup
-                const sanitizedKey = name.replace(/[.#$\[\]\/]/g, "").trim();
-                const updateObj = {
-                    address: address,
-                    city: city,
-                    last_edit_by: currentUser
-                };
-                db.ref("address_lookup").child(sanitizedKey).update(updateObj);
+                // After job is added, update address_lookup (asks before replacing a different saved address)
+                saveContactAddress(name, address, city, spot);
             }).catch(err => {
                 // Don't roll back the optimistic add or touch the form - the stop
                 // is already durably in the local cache and stays visible; it'll
@@ -3705,7 +3776,8 @@
                         timestamp: job.timestamp,
                         created_by: job.created_by,
                         lat: job.lat || null,
-                        lng: job.lng || null
+                        lng: job.lng || null,
+                        pinned: job.pinned ? true : null
                     };
                 }
             });
@@ -4754,6 +4826,10 @@
             }
             document.getElementById('f-address').value = addressToUse;
             if (selectedLocation.city) document.getElementById('f-city').value = selectedLocation.city;
+            // The dropped pin is the exact spot for this stop, and is saved with the customer.
+            if (typeof selectedLocation.lat === 'number' && typeof selectedLocation.lng === 'number') {
+                pickedSpot = { text: addressToUse, city: document.getElementById('f-city').value.trim(), lat: selectedLocation.lat, lng: selectedLocation.lng };
+            }
             closeAddressPicker();
         }
 
@@ -4862,35 +4938,250 @@
         }
 
         // ---------- EDIT A CUSTOMER (address lookup) ----------
-        // Opened from the pencil in the name suggestions, like Route Helper. Name, address
-        // and city can be changed. A renamed customer keeps their notes and opening time.
-        // Stops for the customer still on the list get the new details; a stop whose
-        // address changed is looked up again on the map.
-        let customerEdit = null; // { key, original: { address, city } }
+        // The same customer editor as Route Helper. Opened from the pencil in the name
+        // suggestions, or the pencil on a stop's details. Name, address and city can be
+        // changed without retyping the rest; the address box suggests Google addresses, and
+        // "Use where I am now" saves the exact GPS spot. A renamed customer keeps their notes
+        // and opening time. Stops for the customer still on the list get the new details; a
+        // stop whose place changed is placed on the map again. A customer can be deleted, and
+        // every change is written to the shared customer change log.
+        let customerEdit = null; // { key, oldName, savedSpot, hereSpot, original: { address, city } }
         let customerDownOnBackdrop = false;
+        let customerPlacesReady = false;
+        const sameText = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
         function findContactKey(name) {
             const want = lookupKey(name).toLowerCase();
             if (!want) return null;
             if (addressData[lookupKey(name)]) return lookupKey(name);
             return Object.keys(addressData).find(k => k.toLowerCase() === want) || null;
         }
-        function openCustomerEditor(name) {
+        // The exact map spot saved with a customer, or null.
+        function contactSpot(data) {
+            return data && typeof data.lat === 'number' && typeof data.lng === 'number' ? { lat: data.lat, lng: data.lng } : null;
+        }
+        // name: the customer's name. fromStopId (optional): the stop it was opened from, so a
+        // customer who isn't saved yet can be saved from that stop.
+        function openCustomerEditor(name, fromStopId) {
             const key = findContactKey(name);
             const data = key ? addressData[key] : null;
-            if (!data) return;
-            customerEdit = { key: key, original: { address: data.address || '', city: data.city || '' } };
-            document.getElementById('customer-name').value = key;
-            document.getElementById('customer-address').value = data.address || '';
-            document.getElementById('customer-city').value = data.city || '';
+            const stop = fromStopId ? jobs[fromStopId] : null;
+            if (!data && !stop) return;
+            const address = data ? (data.address || '') : (stop.pickup_location || '');
+            const city = data ? (data.city || '') : (stop.city || '');
+            customerEdit = {
+                key: data ? key : null,
+                oldName: data ? key : String(name || '').trim(),
+                savedSpot: contactSpot(data),
+                hereSpot: null,
+                original: { address: address, city: city }
+            };
+            document.getElementById('customer-title').textContent = data ? 'Edit customer' : 'Save customer';
+            document.getElementById('customer-name').value = customerEdit.oldName;
+            document.getElementById('customer-address').value = address;
+            document.getElementById('customer-city').value = city;
+            // Only a customer already in address lookup can be deleted.
+            document.getElementById('customer-delete').hidden = !customerEdit.key;
             document.getElementById('suggestions').style.display = 'none';
             const active = document.activeElement;
             if (active && active.tagName === 'INPUT') active.blur();
+            attachCustomerPlaces();
+            renderCustomerSpot();
             document.getElementById('customer-overlay').classList.add('is-open');
+        }
+        function openCustomerEditorFromDetails() {
+            const job = currentDetailsJobId ? jobs[currentDetailsJobId] : null;
+            if (job) openCustomerEditor(job.name, currentDetailsJobId);
         }
         function closeCustomerEditor() {
             document.getElementById('customer-overlay').classList.remove('is-open');
             customerEdit = null;
         }
+        // Google address suggestions in the editor's address box, like the add-stop form.
+        // Picking one fills in the city too.
+        function attachCustomerPlaces() {
+            if (customerPlacesReady || !(window.google && google.maps && google.maps.places)) return;
+            customerPlacesReady = true;
+            const addressInput = document.getElementById('customer-address');
+            const cityInput = document.getElementById('customer-city');
+            const box = new google.maps.places.Autocomplete(addressInput, {
+                fields: ['address_components'],
+                componentRestrictions: { country: 'ca' },
+                bounds: new google.maps.Circle({ center: new google.maps.LatLng(49.848, -99.950), radius: 50000 }).getBounds(),
+                strictBounds: false
+            });
+            box.addListener('place_changed', () => {
+                const place = box.getPlace();
+                if (!place || !place.address_components) return;
+                const part = type => {
+                    const c = place.address_components.find(x => x.types && x.types.includes(type));
+                    return c ? (c.long_name || '') : '';
+                };
+                const street = [part('street_number'), part('route')].filter(Boolean).join(' ');
+                const town = part('locality') || part('administrative_area_level_3') || part('sublocality');
+                // Read the box after Google has written the chosen address into it.
+                setTimeout(() => {
+                    if (street) addressInput.value = street;
+                    if (town) cityInput.value = town;
+                    // A picked address replaces a spot taken with "Use where I am now".
+                    if (customerEdit) customerEdit.hereSpot = null;
+                    renderCustomerSpot();
+                }, 0);
+            });
+        }
+        // The exact spot that Save would keep: one just taken here, else the saved one while
+        // the address and city are unchanged.
+        function customerEditSpot() {
+            const ed = customerEdit;
+            if (!ed) return null;
+            if (ed.hereSpot) return ed.hereSpot;
+            const unchanged = sameText(document.getElementById('customer-address').value, ed.original.address) &&
+                sameText(document.getElementById('customer-city').value, ed.original.city);
+            return unchanged ? ed.savedSpot : null;
+        }
+        function renderCustomerSpot() {
+            const ed = customerEdit;
+            const el = document.getElementById('customer-spot');
+            if (!ed || !el) return;
+            let text;
+            if (ed.hereSpot) text = 'Exact spot: where you are now. Stops for this customer go straight there.';
+            else if (customerEditSpot()) text = 'Exact map spot saved. Stops for this customer go straight there.';
+            else if (ed.savedSpot) text = 'The address changed, so the old map spot will be removed and the new address looked up.';
+            else text = 'No exact spot saved. The address is looked up on the map.';
+            el.textContent = text;
+        }
+
+        // ---------- WHERE I AM NOW ----------
+        // A fresh GPS fix plus the address Google has for it. Never falls back to an old or
+        // default spot, because the customer would be saved in the wrong place.
+        const HERE_POOR_ACCURACY_M = 100;
+        function lookupHere() {
+            return new Promise((resolve, reject) => {
+                if (!(window.google && google.maps && google.maps.Geocoder)) { reject("The map tools haven't loaded yet. Check your signal and try again."); return; }
+                if (!navigator.geolocation) { reject("This device can't share its location with the app."); return; }
+                navigator.geolocation.getCurrentPosition(pos => {
+                    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+                    new google.maps.Geocoder().geocode({ location: { lat, lng } }, (results, status) => {
+                        if (status !== 'OK' && status !== 'ZERO_RESULTS') { reject('No signal to look up the address here. Try again, or use the map pin.'); return; }
+                        const first = (status === 'OK' && results && results[0]) || null;
+                        const comps = (first && first.address_components) || [];
+                        const part = type => {
+                            const c = comps.find(x => x.types && x.types.includes(type));
+                            return c ? (c.long_name || '') : '';
+                        };
+                        const route = part('route');
+                        const street = [part('street_number'), route === 'Unnamed Road' ? '' : route].filter(Boolean).join(' ');
+                        let plusCode = '';
+                        (results || []).some(r => { if (r.plus_code) { plusCode = r.plus_code.compound_code || r.plus_code.global_code || ''; } return !!plusCode; });
+                        resolve({
+                            lat, lng, accuracy: pos.coords.accuracy,
+                            text: (street || plusCode || (first && first.formatted_address) || `${lat.toFixed(6)}, ${lng.toFixed(6)}`).trim(),
+                            city: part('locality') || part('administrative_area_level_3') || part('sublocality') || ''
+                        });
+                    });
+                }, err => {
+                    reject(err && err.code === 1
+                        ? 'Location is turned off for this app. Turn it on in the device settings, or use the map pin.'
+                        : "Couldn't get your location. Try again outside, or use the map pin.");
+                }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 });
+            });
+        }
+        let customerHereBusy = false;
+        function customerEditorUseHere() {
+            if (customerHereBusy || !customerEdit) return;
+            customerHereBusy = true;
+            const btn = document.getElementById('customer-here');
+            if (btn) btn.classList.add('is-busy');
+            const ed = customerEdit;
+            lookupHere().then(spot => {
+                if (customerEdit !== ed) return; // closed or reopened meanwhile
+                document.getElementById('customer-address').value = spot.text;
+                if (spot.city) document.getElementById('customer-city').value = spot.city;
+                ed.hereSpot = { lat: spot.lat, lng: spot.lng };
+                renderCustomerSpot();
+                if (spot.accuracy > HERE_POOR_ACCURACY_M) showToast(`GPS is only accurate to about ${Math.round(spot.accuracy)} m here, so check the pin on the map.`);
+            }).catch(message => {
+                showToast(String(message), true);
+            }).finally(() => {
+                customerHereBusy = false;
+                if (btn) btn.classList.remove('is-busy');
+            });
+        }
+
+        // ---------- CUSTOMER CHANGE LOG ----------
+        // The same log Route Helper writes: one entry per change, named by date, time and who
+        // made it, with what changed before and after.
+        const CUSTOMER_LOG_PATH = 'developer/route_planner/customer_changes';
+        function customerSnapshot(name, data) {
+            const spot = contactSpot(data);
+            return {
+                name: name || '',
+                address: (data && data.address) || '',
+                city: (data && data.city) || '',
+                exact_spot: spot ? `${spot.lat.toFixed(6)}, ${spot.lng.toFixed(6)}` : 'none'
+            };
+        }
+        let logKeyBase = '', logKeyCount = 0;
+        function logCustomerChange(change, before, after, extra) {
+            const d = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const when = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+            const by = currentUser || 'unknown';
+            // Two changes by the same person in the same second get (2), (3)...
+            const base = `${when} ${String(by).replace(/[.#$\[\]\/]/g, ',')}`;
+            logKeyCount = base === logKeyBase ? logKeyCount + 1 : 1;
+            logKeyBase = base;
+            const entry = Object.assign({
+                when: when,
+                by: by,
+                app: 'Route Planner',
+                change: change,
+                customer: (after && after.name) || (before && before.name) || '',
+                before: before || 'none (new customer)',
+                after: after
+            }, extra || {});
+            db.ref(CUSTOMER_LOG_PATH).child(logKeyCount > 1 ? `${base} (${logKeyCount})` : base).set(entry)
+                .catch(err => console.warn('Customer change not logged:', err && err.message));
+        }
+
+        // Saves a new stop's address to the address book. A new name is added. A name that
+        // already has a different saved address is only changed if you say so, so one stop at
+        // a second location doesn't change everyone's autofill. spot (optional) is an exact map
+        // spot chosen for this address; it is saved with the customer.
+        function saveContactAddress(name, address, city, spot) {
+            const key = findContactKey(name) || lookupKey(name);
+            if (!key) return;
+            const existing = addressData[key];
+            // A new address without a spot drops the old address's spot (null deletes it).
+            const fields = { address: address, city: city, last_edit_by: currentUser, lat: spot ? spot.lat : null, lng: spot ? spot.lng : null };
+            const write = f => db.ref('address_lookup').child(key).update(f)
+                .catch(err => console.warn('Address book not updated:', err && err.message));
+            const before = existing ? customerSnapshot(key, existing) : null;
+            const afterWith = f => customerSnapshot(key, Object.assign({}, existing, f, { lat: f.lat === null ? undefined : f.lat, lng: f.lng === null ? undefined : f.lng }));
+            if (!existing || !existing.address) {
+                write(fields);
+                logCustomerChange(existing ? 'Address added (from a new stop)' : 'New customer added', before, afterWith(fields));
+                return;
+            }
+            if (sameText(existing.address, address) && sameText(existing.city, city)) {
+                // Same address with a newly chosen exact spot: keep the newest spot.
+                const old = contactSpot(existing);
+                if (spot && (!old || old.lat !== spot.lat || old.lng !== spot.lng)) {
+                    const f = { lat: spot.lat, lng: spot.lng, last_edit_by: currentUser };
+                    write(f);
+                    logCustomerChange('Exact spot updated (from a new stop)', before, afterWith(f));
+                }
+                return;
+            }
+            showToast(`"${key}" has a different saved address. Keep it, or save this one for everyone?`, false, {
+                actionLabel: 'Save new',
+                duration: 9000,
+                onAction: () => {
+                    write(fields);
+                    logCustomerChange('Address changed (from a new stop)', before, afterWith(fields));
+                }
+            });
+        }
+
         function saveCustomerEdit() {
             const ed = customerEdit;
             if (!ed) return;
@@ -4900,26 +5191,34 @@
             if (!name || !address || !city) { showToast('Fill in the name, address and city.', true); return; }
             const newKey = lookupKey(name);
             if (!newKey) { showToast("That name can't be saved. Use letters or numbers.", true); return; }
+            // Another customer already has this name (capital letters don't count): don't merge.
             const taken = findContactKey(name);
             if (taken && taken !== ed.key) { showToast(`"${taken}" is already saved. Use a different name, or edit that customer instead.`, true); return; }
-            const sameText = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
-            const placeChanged = !sameText(address, ed.original.address) || !sameText(city, ed.original.city);
-            const fields = { address: address, city: city, last_edit_by: currentUser };
-            // A saved map spot belongs to the old address, so it goes when the address changes.
-            if (placeChanged) { fields.lat = null; fields.lng = null; fields.pinned = null; }
+            const spot = customerEditSpot();
+            const fields = { address: address, city: city, last_edit_by: currentUser, lat: spot ? spot.lat : null, lng: spot ? spot.lng : null };
             let write;
-            if (newKey === ed.key) {
+            if (!ed.key || newKey === ed.key) {
                 write = db.ref('address_lookup').child(newKey).update(fields);
             } else {
-                // Renamed: the whole record (notes included) moves to the new name in one write.
+                // Renamed: the whole record (notes and opening time included) moves to the new name in one write.
                 const record = Object.assign({}, addressData[ed.key] || {}, fields);
                 Object.keys(record).forEach(k => { if (record[k] === null) delete record[k]; });
                 write = db.ref('address_lookup').update({ [newKey]: record, [ed.key]: null });
             }
             write.catch(err => showToast("Couldn't save the customer: " + ((err && err.message) || 'unknown error'), true));
 
+            // What changed, for the change log.
+            const oldData = ed.key ? addressData[ed.key] : { address: ed.original.address, city: ed.original.city };
+            const before = customerSnapshot(ed.oldName, oldData);
+            const after = customerSnapshot(newKey, { address: address, city: city, lat: spot ? spot.lat : undefined, lng: spot ? spot.lng : undefined });
+            const changes = [];
+            if (!ed.key) changes.push('Saved to address lookup (from a stop)');
+            else if (after.name !== before.name) changes.push('Renamed');
+            if (after.address !== before.address || after.city !== before.city) changes.push('Address changed');
+            if (after.exact_spot !== before.exact_spot) changes.push(spot ? 'Exact spot set' : 'Exact spot removed');
+
             // Stops for this customer that are still on the list.
-            const oldMatch = ed.key.toLowerCase();
+            const oldMatch = lookupKey(ed.oldName).toLowerCase();
             const stopIds = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup' && lookupKey(jobs[id].name).toLowerCase() === oldMatch);
             let fixed = 0;
             stopIds.forEach(id => {
@@ -4928,38 +5227,81 @@
                 if (job.name !== name) update.name = name;
                 if (job.pickup_location !== address) update.pickup_location = address;
                 if (job.city !== city) update.city = city;
-                const moved = !sameText(job.pickup_location, address) || !sameText(job.city, city);
-                if (moved) { update.lat = null; update.lng = null; }
+                const moved = !sameText(job.pickup_location, address) || !sameText(job.city, city) ||
+                    (spot && (job.lat !== spot.lat || job.lng !== spot.lng)) || (!spot && job.pinned);
+                if (moved) {
+                    // With an exact spot the stop goes straight there; otherwise the address is looked up again.
+                    update.lat = spot ? spot.lat : null;
+                    update.lng = spot ? spot.lng : null;
+                    update.pinned = spot ? true : null;
+                }
                 if (Object.keys(update).length === 0) return;
                 fixed++;
                 Object.keys(update).forEach(k => { if (update[k] === null) delete job[k]; else job[k] = update[k]; });
+                const needsLookup = moved && !spot;
                 db.ref(`developer/route_planner/jobs/${id}`).update(update)
-                    .then(() => { if (moved && typeof google !== 'undefined' && google.maps && google.maps.Geocoder) return geocodeJob(id).then(() => updateRoute()); })
+                    .then(() => { if (needsLookup && typeof google !== 'undefined' && google.maps && google.maps.Geocoder) return geocodeJob(id).then(() => updateRoute()); })
                     .catch(err => console.warn('Stop update failed:', err));
             });
             if (fixed > 0) { persistJobsCache(); updateRoute(); }
-            // Keep the add-stop form in step if it shows this customer.
+            // Keep the add-stop form and an open stop's details in step with this customer.
             const formName = document.getElementById('f-name');
             if (formName && lookupKey(formName.value).toLowerCase() === oldMatch) {
                 formName.value = name;
                 document.getElementById('f-address').value = address;
                 document.getElementById('f-city').value = city;
+                pickedSpot = spot ? { text: address, city: city, lat: spot.lat, lng: spot.lng } : null;
             }
+            if (currentDetailsJobId && jobs[currentDetailsJobId]) document.getElementById('details-stop-title').textContent = jobs[currentDetailsJobId].name || 'Stop';
             closeCustomerEditor();
+            if (changes.length > 0) logCustomerChange(changes.join(', '), before, after, { stops_fixed_on_route: fixed });
             showToast(fixed > 0 ? `Saved "${name}". Updated ${fixed} stop${fixed === 1 ? '' : 's'} on the list.` : `Saved "${name}".`);
+        }
+        // Deletes the customer from address lookup, notes included, after asking. Their stops
+        // already on the list or in a saved route stay as they are. The change log keeps the
+        // whole record, so it could be put back by hand.
+        async function deleteCustomerFromEditor() {
+            const ed = customerEdit;
+            if (!ed || !ed.key) return;
+            const key = ed.key;
+            const record = addressData[key];
+            if (!record) { showToast(`"${key}" is no longer saved.`, true); closeCustomerEditor(); return; }
+            const noteCount = Object.values(record.notes || {}).filter(n => n && n.text && !n.deleted).length;
+            const ok = await showConfirmModal(`Delete "${key}" from address lookup${noteCount ? `, with ${noteCount} note${noteCount === 1 ? '' : 's'}` : ''}? Stops already on a route stay.`);
+            if (!ok || customerEdit !== ed) return;
+            const before = customerSnapshot(key, record);
+            closeCustomerEditor();
+            showToast(`Deleted "${key}".`);
+            db.ref('address_lookup').child(key).remove().then(() => {
+                logCustomerChange('Customer deleted', before, 'none (customer deleted)', { deleted_record: record });
+            }).catch(err => showToast("Couldn't delete the customer: " + ((err && err.message) || 'unknown error'), true));
         }
 
         let toastTimer = null;
-        function showToast(message, isError) {
+        // opts (optional): { actionLabel, onAction, duration } adds a button to the message.
+        function showToast(message, isError, opts) {
+            opts = opts || {};
             const el = document.getElementById('app-toast');
             if (!el) return;
             el.textContent = message;
+            if (opts.actionLabel && typeof opts.onAction === 'function') {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'toast-action';
+                btn.textContent = opts.actionLabel;
+                btn.addEventListener('click', () => {
+                    el.classList.remove('is-visible');
+                    clearTimeout(toastTimer);
+                    opts.onAction();
+                });
+                el.appendChild(btn);
+            }
             el.classList.toggle('is-error', !!isError);
             el.classList.remove('is-visible');
             void el.offsetWidth;
             el.classList.add('is-visible');
             clearTimeout(toastTimer);
-            toastTimer = setTimeout(() => el.classList.remove('is-visible'), isError ? 6000 : 3500);
+            toastTimer = setTimeout(() => el.classList.remove('is-visible'), opts.duration || (isError ? 6000 : 3500));
         }
         document.addEventListener('keydown', (e) => {
             if (e.key !== 'Escape') return;
