@@ -683,7 +683,10 @@
         }
         @media (max-width: 380px) {
             .shiny-text { font-size: 13px; }
-            .map-btn { width: 38px; height: 38px; min-width: 38px; min-height: 38px; }
+            .map-btn { width: 36px; height: 36px; min-width: 36px; min-height: 36px; }
+            header { padding-left: 12px; padding-right: 12px; gap: 8px; }
+            .brand { gap: 8px; }
+            .header-actions { gap: 6px; }
             .btn-save, .btn-delete-all-saved, .btn-clear { padding: 10px 12px; }
             .btn-save svg, .btn-delete-all-saved svg, .btn-clear svg { display: none; }
         }
@@ -805,6 +808,43 @@
         }
         #app-toast.is-visible { display: block; animation: drop-in .25s var(--ease); }
         #app-toast.is-error { color: #fff; background: rgba(220,38,38,0.92); border-color: rgba(255,255,255,0.2); }
+        /* ---------- SETTINGS, DRIVER CHIP, PILL EXTRAS ---------- */
+        .driver-chip {
+            display: inline-flex; align-items: center; gap: 6px; max-width: 60%; min-height: 34px; padding: 6px 12px; cursor: pointer;
+            font-family: inherit; font-size: 13px; font-weight: 800; color: var(--text); background: var(--card-2);
+            border: 1px solid var(--border-strong); border-radius: 999px; transition: border-color .15s, background .15s;
+        }
+        .driver-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .driver-chip svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--accent); }
+        .driver-chip.is-set { color: var(--accent-ink); background: linear-gradient(180deg, #ffe066, #f5c518 60%, #e2ac00); border-color: rgba(160,110,0,0.6); }
+        .driver-chip.is-set svg { color: var(--accent-ink); }
+        .driver-chip:hover { border-color: var(--accent); }
+        .settings-box { max-width: 460px; width: 100%; max-height: calc(100vh - 32px); overflow-y: auto; }
+        .settings-section { margin-top: 18px; }
+        .settings-section h4 { margin: 0 0 4px; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+        .settings-help { margin: 0 0 10px; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+        .settings-add { display: flex; gap: 8px; }
+        .settings-add input { flex: 1; min-width: 0; }
+        .settings-add button { flex-shrink: 0; }
+        .driver-rows { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+        .driver-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 11px; background: var(--card-2); border: 1px solid var(--border); }
+        .driver-row label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; font-weight: 700; }
+        .driver-row label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .driver-row input[type=checkbox], .settings-toggle input[type=checkbox] { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--accent); }
+        .driver-row input[type=time] { width: 104px; min-height: 36px; padding: 4px 6px; font-size: 14px; }
+        .driver-row .driver-remove { width: 34px; height: 34px; flex-shrink: 0; padding: 0; cursor: pointer; border-radius: 9px; color: var(--muted); background: transparent; border: 1px solid var(--border-strong); }
+        .driver-row .driver-remove:hover { color: #ef4444; border-color: rgba(239,68,68,0.5); }
+        .driver-empty { padding: 10px; font-size: 13px; color: var(--muted); }
+        .settings-toggle { display: flex; align-items: center; gap: 10px; padding: 8px 0; cursor: pointer; font-size: 14px; font-weight: 600; }
+        .settings-number { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
+        .settings-number input { width: 80px; min-height: 38px; }
+        .pill-meta { font-weight: 600; opacity: .72; font-size: 12px; font-variant-numeric: tabular-nums; }
+        .pill-list-btn {
+            display: grid; place-items: center; width: 26px; height: 26px; margin: -4px -8px -4px 2px; padding: 0; cursor: pointer; border-radius: 50%;
+            color: var(--accent-ink); background: rgba(26,19,0,0.14); border: none;
+        }
+        .pill-list-btn svg { width: 14px; height: 14px; }
+        .pill-list-btn:hover { background: rgba(26,19,0,0.26); }
         @media (max-width: 768px) {
             .details-back-btn { top: 14px; left: 14px; width: 42px; height: 42px; }
             .details-edit-btn { top: 14px; right: 14px; width: 42px; height: 42px; }
@@ -905,6 +945,9 @@
             </svg>
         </button>
         <button id="map-btn" class="map-btn" onclick="openMap()" aria-label="Map" title="Open map"></button>
+        <button id="settings-btn" class="map-btn" onclick="openSettings()" aria-label="Settings" title="Settings">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        </button>
     </div>
 </header>
 
@@ -913,6 +956,9 @@
         <div class="panel">
             <div class="panel-head">
                 <span class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>New Stop</span>
+                <button type="button" id="driver-chip" class="driver-chip" onclick="pickDriver()" aria-label="Choose the driver for this route">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg><span id="driver-chip-text">Pick driver</span>
+                </button>
             </div>
             <div id="connectivity-banner" style="display:none;"></div>
             <div class="flex-row">
@@ -1134,6 +1180,38 @@
                 <button type="button" class="dialog-btn ok" onclick="saveCustomerEdit()">Save</button>
             </div>
             <button type="button" id="customer-delete" class="customer-delete" onclick="deleteCustomerFromEditor()" hidden>Delete customer</button>
+        </div>
+    </div>
+
+    <!-- Settings -->
+    <div id="settings-overlay" class="sheet-overlay" onpointerdown="settingsDownOnBackdrop = (event.target === this)" onclick="if (event.target === this && settingsDownOnBackdrop) closeSettings()">
+        <div class="dialog-panel settings-box" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+            <div class="static-note-header">
+                <span id="settings-title" class="customer-title">Settings</span>
+                <button type="button" class="static-note-close" onclick="closeSettings()" aria-label="Close">✕</button>
+            </div>
+            <div class="settings-section">
+                <h4>Drivers</h4>
+                <p class="settings-help">Type each driver's sign-in name (the part of their email before @), so Route Helper finds their route. Ticked drivers show when you pick a driver.</p>
+                <div class="settings-add">
+                    <input type="text" id="settings-driver-input" placeholder="Driver name" autocomplete="off" autocapitalize="words" onkeydown="if (event.key === 'Enter') addSettingsDriver()">
+                    <button type="button" class="dialog-btn ok" onclick="addSettingsDriver()">Add</button>
+                </div>
+                <div id="settings-driver-rows" class="driver-rows"></div>
+                <p class="settings-help" style="margin-top:8px;">The time next to a driver is their usual start time. It's filled in for you when you make their route.</p>
+            </div>
+            <div class="settings-section">
+                <h4>Route timing</h4>
+                <label class="settings-number">Gas stop before the first stop <input type="number" id="settings-gas" min="0" max="120" inputmode="numeric" onchange="saveSettingsField('gasStopMinutes', this.value)"> min</label>
+            </div>
+            <div class="settings-section">
+                <h4>Warnings when adding a stop</h4>
+                <label class="settings-toggle"><input type="checkbox" id="settings-warn-duplicate" onchange="saveSettingsField('warnDuplicate', this.checked)">The customer is already on this list</label>
+                <label class="settings-toggle"><input type="checkbox" id="settings-warn-other" onchange="saveSettingsField('warnOtherRoute', this.checked)">The customer is on another driver's saved route</label>
+            </div>
+            <div class="dialog-actions">
+                <button type="button" class="dialog-btn ok" onclick="closeSettings()">Done</button>
+            </div>
         </div>
     </div>
 
@@ -1414,7 +1492,11 @@
             db.ref('developer/route_planner/saved_routes').on('value', snap => {
                 savedRoutesCache = snap.val() || {};
                 renderSavedPills(snap.val() || {});
+                updateDriverChip();
             });
+            // Shared settings (drivers, gas stop, warnings)
+            db.ref(SETTINGS_PATH).on('value', snap => onSettingsFromServer(snap.val()));
+            updateDriverChip();
 
             // Live connection state, and the trigger to retry anything pending the
             // instant a connection comes back, instead of waiting for the driver
@@ -1648,13 +1730,29 @@
         }
 
         // ---------- JOB MANAGEMENT ----------
-        function addJob() {
+        let addJobBusy = false;
+        async function addJob() {
+            if (addJobBusy) return;
             const name = document.getElementById('f-name').value.trim();
             const address = document.getElementById('f-address').value.trim();
             const city = document.getElementById('f-city').value.trim();
             if (!name || !address || !city) {
                 showAlertModal("Please fill in all fields.");
                 return;
+            }
+            // Warnings (each can be turned off in Settings). Asked before anything is added.
+            addJobBusy = true;
+            try {
+                const want = name.toLowerCase();
+                if (appSettings.warnDuplicate && Object.keys(jobs).some(id => jobs[id] && jobs[id].status === 'pending_pickup' && String(jobs[id].name || '').trim().toLowerCase() === want)) {
+                    if (!(await showConfirmModal(`"${name}" is already on this list. Add it again?`))) return;
+                }
+                if (appSettings.warnOtherRoute) {
+                    const others = driversWithCustomerToday(name, currentDriver || getContactListDriver());
+                    if (others.length > 0 && !(await showConfirmModal(`"${name}" is already on ${others.map(driverLabel).join(' and ')}'s route saved today. Add it here too?`))) return;
+                }
+            } finally {
+                addJobBusy = false;
             }
             const newJob = {
                 name: name,
@@ -2836,8 +2934,8 @@
                 const startInput = document.getElementById('custom-dialog-input');
                 if (startInput) startInput.type = 'time';
                 const startAnswer = await showPromptModal(
-                    `Driver start time?\n\nShows arrival times on the map and warns about stops that aren't open yet. ${GAS_STOP_MINUTES} min for the gas station is added before the first stop.\n\nLeave blank to skip.`,
-                    routeState.startTime || ''
+                    `Driver start time?\n\nShows arrival times on the map and warns about stops that aren't open yet. ${gasStopMinutes()} min for the gas station is added before the first stop.\n\nLeave blank to skip.`,
+                    routeState.startTime || driverStart(currentDriver) || ''
                 );
                 if (startInput) startInput.type = 'text';
                 if (startAnswer === null) return;
@@ -2958,7 +3056,7 @@
         }
 
         // ---------- ARRIVAL TIMES & OPENING HOURS ----------
-        const GAS_STOP_MINUTES = 10;      // gas station before the first stop
+        const GAS_STOP_MINUTES = 10;      // default gas station minutes before the first stop (changeable in Settings)
         const STOP_SERVICE_MINUTES = 3;   // time to drop off at each stop
         const HOURS_GRACE_MINUTES = 5;    // only warn if more than this early
         const segmentDurationCache = {};  // same keys as segmentCache -> drive seconds from Google
@@ -2993,7 +3091,7 @@
             const result = {};
             const start = parseHHMM(routeState.startTime);
             if (start === null) return result;
-            let t = start + GAS_STOP_MINUTES;
+            let t = start + gasStopMinutes();
             let prev = DEPOT;
             for (const id of routeState.order) {
                 const job = jobs[id];
@@ -3086,7 +3184,7 @@
             const start = parseHHMM(routeState.startTime);
             if (start !== null) {
                 const lastId = routeState.order[routeState.order.length - 1];
-                if (!lastId) departMinutes = start + GAS_STOP_MINUTES;
+                if (!lastId) departMinutes = start + gasStopMinutes();
                 else if (typeof arrivals[lastId] === 'number') departMinutes = arrivals[lastId] + STOP_SERVICE_MINUTES;
             }
             Object.keys(pulsingMarkers).forEach(id => {
@@ -3122,7 +3220,7 @@
             try {
                 // Where he's leaving from, and when
                 let prevPoint = DEPOT;
-                let departMinutes = parseHHMM(routeState.startTime) + GAS_STOP_MINUTES;
+                let departMinutes = parseHHMM(routeState.startTime) + gasStopMinutes();
                 await ensureLegDurations();
                 const lastId = routeState.order[routeState.order.length - 1];
                 if (lastId) {
@@ -3726,7 +3824,8 @@
                 driverList.innerHTML = getKnownDriverNames().map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
                 dialogInput.setAttribute('list', 'driver-name-list');
             }
-            const usernameInput = await showPromptModal("Enter driver username (e.g., alysha):", "");
+            // The driver picked for this route is used straight away; otherwise ask.
+            const usernameInput = currentDriver ? currentDriver : await showPromptModal("Enter driver username (e.g., alysha):", "");
             if (dialogInput) dialogInput.removeAttribute('list');
             if (usernameInput === null || usernameInput.trim() === "") return;
             let username = usernameInput.trim().toLowerCase();
@@ -3738,7 +3837,7 @@
                 showAlertModal("Driver username can't contain: . # $ [ ] /");
                 return;
             }
-            let label = username.charAt(0).toUpperCase() + username.slice(1);
+            let label = appSettings.drivers[username] ? driverLabel(username) : username.charAt(0).toUpperCase() + username.slice(1);
             rememberDriverName(username);
 
             // If a route already exists under this key, make sure the admin knows
@@ -3838,6 +3937,8 @@
                     pendingRouteSave = null;
                     persistRouteSaveCache();
                     updateConnectivityBanner();
+                    showToast(`Saved ${label}'s route.`);
+                    setCurrentDriver('');
                     // After saving, clear all jobs from the route stops (local unsynced ones too)
                     pendingJobIds = {};
                     jobs = {};
@@ -3945,7 +4046,23 @@
                 // const label = route.label || 'Unnamed'; // removed label from pill
                 const pill = document.createElement('div');
                 pill.className = 'saved-route-pill';
-                pill.textContent = key; // only show the username key
+                const nameEl = document.createElement('span');
+                nameEl.textContent = key; // the username key
+                pill.appendChild(nameEl);
+                const stopCount = route && route.stops ? Object.keys(route.stops).length : 0;
+                const meta = document.createElement('span');
+                meta.className = 'pill-meta';
+                meta.textContent = `${stopCount} · ${formatSavedTime(route && route.timestamp)}`;
+                pill.appendChild(meta);
+                // List straight from the pill: shows that route's list without loading it.
+                const listBtn = document.createElement('button');
+                listBtn.type = 'button';
+                listBtn.className = 'pill-list-btn';
+                listBtn.setAttribute('aria-label', `Show ${key}'s list`);
+                listBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="18" rx="2.5"/><path d="M9 11h6M9 15h6"/></svg>';
+                ['mousedown', 'touchstart'].forEach(t => listBtn.addEventListener(t, e => e.stopPropagation(), { passive: true }));
+                listBtn.addEventListener('click', e => { e.stopPropagation(); openContactListForRoute(key); });
+                pill.appendChild(listBtn);
                 pill.dataset.key = key;
                 // A long-press (delete) also produces a click when the finger/mouse lifts;
                 // that click is ignored so it can't replace the delete dialog with "Load route?".
@@ -3959,7 +4076,9 @@
                 pill.addEventListener('click', async function(e) {
                     if (Date.now() < suppressClickUntil) return;
                     if (this.classList.contains('loading')) return;
-                    if (await showConfirmModal(`Load route for "${key}"? This will replace your current stops.`)) {
+                    // Nothing on the list: load straight away. Otherwise say what gets replaced.
+                    const onList = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').length;
+                    if (onList === 0 || await showConfirmModal(`Load route for "${key}"? The ${onList} stop${onList === 1 ? '' : 's'} on your list now will be replaced.`)) {
                         loadSavedRoute(key);
                     }
                 });
@@ -4055,6 +4174,8 @@
                     document.getElementById('eta-display').style.display = 'none';
                     document.getElementById('eta-display').classList.remove('eta-glow');
                 }
+                // Saving again goes back to this driver.
+                setCurrentDriver(key);
                 // Collapse the saved routes dropdown
                 document.getElementById('saved-routes-container').style.display = 'none';
                 document.getElementById('toggle-saved-routes-arrow').textContent = '▼';
@@ -4287,6 +4408,9 @@
             const names = getCurrentStopNames();
             const listDriver = getContactListDriver();
             if (listDriver) db.ref('developer/route_planner/contact_lists/' + listDriver).set({ names: names, count: names.length, updatedAt: firebase.database.ServerValue.TIMESTAMP, driver: listDriver }).catch(err => console.warn('Contact list save failed:', err));
+            showContactList(names);
+        }
+        function showContactList(names) {
             const container = document.getElementById('contact-list-items');
             if (names.length === 0) {
                 container.innerHTML = '<div class="contact-list-line" style="font-size:28px;">No stops in list</div>';
@@ -4545,6 +4669,7 @@
         const DRIVER_NAMES_KEY = 'ec_route_planner_driver_names';
         function getKnownDriverNames() {
             const names = new Set(Object.keys(savedRoutesCache || {}));
+            tickedDrivers().forEach(d => names.add(d.key));
             try {
                 (JSON.parse(localStorage.getItem(DRIVER_NAMES_KEY) || '[]') || []).forEach(n => { if (n) names.add(n); });
             } catch (e) {}
@@ -4937,6 +5062,194 @@
             closeTimePicker();
         }
 
+        // ---------- SETTINGS ----------
+        // Shared settings in developer/route_planner/settings, with a copy on this device so
+        // they work before the connection is up. drivers: { <sign-in name>: { name, enabled, start } }
+        const SETTINGS_PATH = 'developer/route_planner/settings';
+        const SETTINGS_CACHE_KEY = 'ec_route_planner_settings';
+        let settingsDownOnBackdrop = false;
+        function normalizeSettings(raw) {
+            raw = (raw && typeof raw === 'object') ? raw : {};
+            const gas = Number(raw.gasStopMinutes);
+            return {
+                gasStopMinutes: isFinite(gas) && gas >= 0 && gas <= 120 ? Math.round(gas) : GAS_STOP_MINUTES,
+                warnDuplicate: raw.warnDuplicate !== false,
+                warnOtherRoute: raw.warnOtherRoute !== false,
+                drivers: (raw.drivers && typeof raw.drivers === 'object') ? raw.drivers : {}
+            };
+        }
+        let appSettings = (() => {
+            try { return normalizeSettings(JSON.parse(localStorage.getItem(SETTINGS_CACHE_KEY) || 'null')); }
+            catch (e) { return normalizeSettings(null); }
+        })();
+        function persistSettingsCache() {
+            try { localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(appSettings)); } catch (e) {}
+        }
+        function onSettingsFromServer(raw) {
+            appSettings = normalizeSettings(raw);
+            persistSettingsCache();
+            if (document.getElementById('settings-overlay').classList.contains('is-open')) renderSettings();
+            updateDriverChip();
+        }
+        // Changes one setting on this device straight away, then sends it.
+        function writeSetting(path, value) {
+            const parts = path.split('/');
+            let node = appSettings;
+            for (let i = 0; i < parts.length - 1; i++) {
+                if (!node[parts[i]] || typeof node[parts[i]] !== 'object') node[parts[i]] = {};
+                node = node[parts[i]];
+            }
+            const last = parts[parts.length - 1];
+            if (value === null) delete node[last]; else node[last] = value;
+            persistSettingsCache();
+            db.ref(SETTINGS_PATH + '/' + path).set(value)
+                .catch(err => showToast("Couldn't save the setting: " + ((err && err.message) || 'unknown error'), true));
+        }
+        function gasStopMinutes() { return appSettings.gasStopMinutes; }
+
+        // Driver names: the key is the sign-in name in lower case, the same key Save always used.
+        function driverKeyFor(name) { return String(name || '').trim().toLowerCase(); }
+        function driverLabel(key) {
+            const d = appSettings.drivers[key];
+            const name = (d && d.name) ? String(d.name) : String(key || '');
+            return name.charAt(0).toUpperCase() + name.slice(1);
+        }
+        function driverStart(key) {
+            const d = key ? appSettings.drivers[key] : null;
+            return (d && typeof d.start === 'string' && parseHHMM(d.start) !== null) ? d.start : '';
+        }
+        function settingsDrivers() {
+            return Object.keys(appSettings.drivers)
+                .filter(k => appSettings.drivers[k] && typeof appSettings.drivers[k] === 'object')
+                .map(k => ({ key: k, label: driverLabel(k), enabled: appSettings.drivers[k].enabled !== false, start: driverStart(k) }))
+                .sort((a, b) => a.label.localeCompare(b.label));
+        }
+        function tickedDrivers() { return settingsDrivers().filter(d => d.enabled); }
+
+        function openSettings() {
+            renderSettings();
+            document.getElementById('settings-overlay').classList.add('is-open');
+        }
+        function closeSettings() {
+            document.getElementById('settings-overlay').classList.remove('is-open');
+        }
+        function renderSettings() {
+            const rows = document.getElementById('settings-driver-rows');
+            const list = settingsDrivers();
+            rows.innerHTML = list.length ? list.map(d => `
+                <div class="driver-row">
+                    <label><input type="checkbox" ${d.enabled ? 'checked' : ''} onchange="writeSetting('drivers/' + ${jsArg(d.key)} + '/enabled', this.checked)"><span>${escapeHtml(d.label)}</span></label>
+                    <input type="time" value="${escapeHtml(d.start)}" aria-label="${escapeHtml(d.label)} usual start time" onchange="writeSetting('drivers/' + ${jsArg(d.key)} + '/start', this.value || null)">
+                    <button type="button" class="driver-remove" aria-label="Remove ${escapeHtml(d.label)}" onclick="removeSettingsDriver(${jsArg(d.key)})">✕</button>
+                </div>`).join('') : '<div class="driver-empty">No drivers yet. Type a name above and tap Add.</div>';
+            document.getElementById('settings-gas').value = appSettings.gasStopMinutes;
+            document.getElementById('settings-warn-duplicate').checked = appSettings.warnDuplicate;
+            document.getElementById('settings-warn-other').checked = appSettings.warnOtherRoute;
+        }
+        function addSettingsDriver() {
+            const input = document.getElementById('settings-driver-input');
+            const name = input.value.trim();
+            if (!name) return;
+            if (/[.#$\[\]\/]/.test(name)) { showToast("A driver name can't contain: . # $ [ ] /", true); return; }
+            const key = driverKeyFor(name);
+            const existing = appSettings.drivers[key];
+            if (existing) {
+                if (existing.enabled === false) writeSetting('drivers/' + key + '/enabled', true);
+                showToast(`${driverLabel(key)} is already on the list.`);
+            } else {
+                writeSetting('drivers/' + key, { name: name.charAt(0).toUpperCase() + name.slice(1), enabled: true });
+            }
+            input.value = '';
+            input.focus();
+            renderSettings();
+        }
+        async function removeSettingsDriver(key) {
+            if (!(await showConfirmModal(`Remove ${driverLabel(key)} from your drivers? Their saved route stays.`))) return;
+            writeSetting('drivers/' + key, null);
+            if (currentDriver === key) setCurrentDriver('');
+            renderSettings();
+        }
+        function saveSettingsField(field, value) {
+            if (field === 'gasStopMinutes') {
+                const n = Math.round(Number(value));
+                if (!isFinite(n) || n < 0 || n > 120) { showToast('Gas stop minutes must be between 0 and 120.', true); renderSettings(); return; }
+                value = n;
+            }
+            writeSetting(field, value);
+        }
+
+        // ---------- DRIVER FIRST ----------
+        // The driver this route is for, picked before or while adding stops. Save uses it
+        // without asking for a name. Kept on this device so a refresh doesn't lose it.
+        const CURRENT_DRIVER_KEY = 'ec_route_planner_current_driver';
+        let currentDriver = (() => { try { return localStorage.getItem(CURRENT_DRIVER_KEY) || ''; } catch (e) { return ''; } })();
+        function setCurrentDriver(key) {
+            currentDriver = key || '';
+            try { if (currentDriver) localStorage.setItem(CURRENT_DRIVER_KEY, currentDriver); else localStorage.removeItem(CURRENT_DRIVER_KEY); } catch (e) {}
+            updateDriverChip();
+        }
+        function updateDriverChip() {
+            const chip = document.getElementById('driver-chip');
+            if (!chip) return;
+            document.getElementById('driver-chip-text').textContent = currentDriver ? driverLabel(currentDriver) : 'Pick driver';
+            chip.classList.toggle('is-set', !!currentDriver);
+        }
+        function isSameDay(ms) {
+            if (!ms) return false;
+            const a = new Date(Number(ms)), b = new Date();
+            return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+        }
+        function formatSavedTime(ms) {
+            if (!ms) return '';
+            const d = new Date(Number(ms));
+            if (isNaN(d.getTime())) return '';
+            if (isSameDay(ms)) return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        }
+        function savedStopCount(key) {
+            const route = savedRoutesCache && savedRoutesCache[key];
+            return route && route.stops ? Object.keys(route.stops).length : 0;
+        }
+        async function pickDriver() {
+            const list = tickedDrivers();
+            if (list.length === 0) {
+                if (await showConfirmModal('No drivers yet. Add your drivers in Settings?')) openSettings();
+                return;
+            }
+            const options = list.map(d => {
+                const route = savedRoutesCache && savedRoutesCache[d.key];
+                return d.label + (route && route.stops ? `  ·  saved ${formatSavedTime(route.timestamp)} (${savedStopCount(d.key)})` : '');
+            });
+            if (currentDriver) options.push('No driver (ask when saving)');
+            const i = await showChoiceModal('Who is this route for?', options);
+            if (i === null || i === undefined) return;
+            if (i >= list.length) { setCurrentDriver(''); return; }
+            const key = list[i].key;
+            setCurrentDriver(key);
+            const route = savedRoutesCache && savedRoutesCache[key];
+            if (route && route.stops && getContactListDriver() !== key) {
+                showToast(`${driverLabel(key)} already has a saved route (${savedStopCount(key)} stops, saved ${formatSavedTime(route.timestamp)}). Saving will replace it.`, false, { duration: 7000 });
+            }
+        }
+        // Customers on other drivers' routes saved today, for the warning when adding a stop.
+        function driversWithCustomerToday(name, exceptKey) {
+            const want = String(name || '').trim().toLowerCase();
+            return Object.keys(savedRoutesCache || {}).filter(key => {
+                const route = savedRoutesCache[key];
+                if (key === exceptKey || !route || !route.stops || !isSameDay(route.timestamp)) return false;
+                return Object.values(route.stops).some(st => st && String(st.name || '').trim().toLowerCase() === want);
+            });
+        }
+        // The List for a saved route, without loading it over the stops you're working on.
+        function openContactListForRoute(key) {
+            const route = savedRoutesCache && savedRoutesCache[key];
+            if (!route || !route.stops) { showToast('That route is empty.', true); return; }
+            const ids = (Array.isArray(route.order) ? route.order : []).filter(id => route.stops[id]);
+            Object.keys(route.stops).forEach(id => { if (!ids.includes(id)) ids.push(id); });
+            const names = ids.map((id, i) => (i + 1) + ') ' + (route.stops[id].name || 'No name'));
+            showContactList(names);
+        }
+
         // ---------- EDIT A CUSTOMER (address lookup) ----------
         // The same customer editor as Route Helper. Opened from the pencil in the name
         // suggestions, or the pencil on a stop's details. Name, address and city can be
@@ -5306,6 +5619,7 @@
         document.addEventListener('keydown', (e) => {
             if (e.key !== 'Escape') return;
             if (document.getElementById('time-picker-overlay').classList.contains('is-open')) closeTimePicker();
+            else if (document.getElementById('settings-overlay').classList.contains('is-open') && document.getElementById('custom-dialog-modal').style.display !== 'flex') closeSettings();
             else if (customerEdit) closeCustomerEditor();
         });
 
