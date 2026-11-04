@@ -312,6 +312,7 @@
         .saved-route-pill::before { content: ""; width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; background: rgba(26,19,0,0.14) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a1300' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 21c0-4 4-6 8-6s8 2 8 6'/%3E%3C/svg%3E") center/11px no-repeat; }
         .saved-route-pill:hover { transform: translateY(-2px); box-shadow: 0 10px 22px -8px rgba(245,197,24,0.9), inset 0 1px 0 rgba(255,255,255,0.55); }
         .saved-route-pill:active { transform: scale(.95); }
+        .saved-route-pill.is-unsent { outline: 2px dashed #dc2626; outline-offset: 2px; }
         .saved-route-pill.loading { opacity: 0.6; filter: saturate(.4); pointer-events: none; }
 
         /* ==========================================================================
@@ -1685,7 +1686,10 @@
         const ROUTE_SAVE_PENDING_KEY = 'ec_route_planner_pending_route_save';
 
         let pendingJobIds = {};      // job id -> true, for adds not yet confirmed by Firebase
-        let pendingRouteSave = null; // { username, routeData, contactList } for a save not yet confirmed, or null
+        // driver -> { username, routeData, contactList } for each save Firebase hasn't confirmed yet.
+        // One entry per driver, so saving the next driver before the last one is confirmed
+        // can't drop the earlier one.
+        let pendingRouteSaves = {};
         let isOnline = true;         // kept current by the .info/connected listener in initApp
 
         function loadJobsCacheFromStorage() {
@@ -1705,12 +1709,17 @@
         }
         function loadRouteSaveCacheFromStorage() {
             try {
-                pendingRouteSave = JSON.parse(localStorage.getItem(ROUTE_SAVE_PENDING_KEY) || 'null');
-            } catch (e) { pendingRouteSave = null; }
+                const raw = JSON.parse(localStorage.getItem(ROUTE_SAVE_PENDING_KEY) || 'null');
+                pendingRouteSaves = {};
+                if (raw && raw.username && raw.routeData) pendingRouteSaves[raw.username] = raw; // older single-save format
+                else if (raw && typeof raw === 'object') {
+                    Object.keys(raw).forEach(k => { if (raw[k] && raw[k].username && raw[k].routeData) pendingRouteSaves[k] = raw[k]; });
+                }
+            } catch (e) { pendingRouteSaves = {}; }
         }
         function persistRouteSaveCache() {
             try {
-                if (pendingRouteSave) localStorage.setItem(ROUTE_SAVE_PENDING_KEY, JSON.stringify(pendingRouteSave));
+                if (Object.keys(pendingRouteSaves).length > 0) localStorage.setItem(ROUTE_SAVE_PENDING_KEY, JSON.stringify(pendingRouteSaves));
                 else localStorage.removeItem(ROUTE_SAVE_PENDING_KEY);
             } catch (e) {}
         }
@@ -1721,15 +1730,21 @@
         function updateConnectivityBanner() {
             const el = document.getElementById('connectivity-banner');
             if (!el) return;
-            const pendingCount = Object.keys(pendingJobIds).length + (pendingRouteSave ? 1 : 0);
+            const unsentRoutes = Object.keys(pendingRouteSaves);
+            const pendingCount = Object.keys(pendingJobIds).length + unsentRoutes.length;
             if (isOnline && pendingCount === 0) {
                 el.style.display = 'none';
                 return;
             }
             el.style.display = 'block';
-            el.textContent = isOnline
-                ? `Syncing ${pendingCount} pending item${pendingCount === 1 ? '' : 's'}...`
-                : (pendingCount > 0 ? `Offline - ${pendingCount} item${pendingCount === 1 ? '' : 's'} not saved yet` : 'Offline');
+            // Name the drivers whose route hasn't reached Route Helper yet, so it's obvious
+            // which driver can't see their route.
+            const names = unsentRoutes.map(k => { try { return driverLabel(k); } catch (e) { return k; } }).join(', ');
+            el.textContent = unsentRoutes.length > 0
+                ? `Not sent to Route Helper yet: ${names}. Keep Route Planner open${isOnline ? ', sending...' : ' until it reconnects.'}`
+                : (isOnline
+                    ? `Syncing ${pendingCount} pending item${pendingCount === 1 ? '' : 's'}...`
+                    : (pendingCount > 0 ? `Offline - ${pendingCount} item${pendingCount === 1 ? '' : 's'} not saved yet` : 'Offline'));
         }
 
         // Retries anything still pending. Safe to call repeatedly - anything
@@ -1750,18 +1765,42 @@
             updateConnectivityBanner();
         }
         async function flushPendingRouteSave() {
-            if (!pendingRouteSave) return;
-            const { username, routeData, contactList } = pendingRouteSave;
-            try {
-                await db.ref('developer/route_planner/saved_routes/' + username).set(routeData);
-                if (contactList) db.ref('developer/route_planner/contact_lists/' + username).set(contactList).catch(err => console.warn('Contact list save failed:', err));
-                pendingRouteSave = null;
-                persistRouteSaveCache();
-            } catch (e) {
-                // still failing - leave it pending, next reconnect/launch retries it
+            for (const key of Object.keys(pendingRouteSaves)) {
+                const entry = pendingRouteSaves[key];
+                const { username, routeData, contactList } = entry;
+                try {
+                    await db.ref('developer/route_planner/saved_routes/' + username).set(routeData);
+                    if (contactList) db.ref('developer/route_planner/contact_lists/' + username).set(contactList).catch(err => console.warn('Contact list save failed:', err));
+                    // Only clear it if no newer save for this driver replaced it meanwhile.
+                    if (pendingRouteSaves[key] === entry) delete pendingRouteSaves[key];
+                    persistRouteSaveCache();
+                    renderSavedPills(savedRoutesCache || {});
+                } catch (e) {
+                    // still failing - leave it pending, next reconnect/launch retries it
+                }
             }
             updateConnectivityBanner();
         }
+
+        // A browser tab that sat in the background, or a laptop/phone that went to sleep, can
+        // keep a dead connection that Firebase hasn't noticed yet. Writes made then wait in
+        // memory and the saved route looks saved here (Firebase shows its own pending writes),
+        // but Route Helper never gets it until the connection comes back. Dropping and
+        // reopening the connection makes Firebase reconnect straight away; writes waiting in
+        // memory are kept and sent on reconnect.
+        let lastReconnectKick = 0;
+        function kickConnection() {
+            if (Date.now() - lastReconnectKick < 5000) return;
+            lastReconnectKick = Date.now();
+            try { db.goOffline(); db.goOnline(); } catch (e) { console.warn('Reconnect failed:', e); }
+        }
+        function hasUnsentWork() {
+            return Object.keys(pendingRouteSaves).length > 0 || Object.keys(pendingJobIds).length > 0;
+        }
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && hasUnsentWork()) { kickConnection(); attemptFlush(); }
+        });
+        window.addEventListener('pageshow', () => { if (hasUnsentWork()) { kickConnection(); attemptFlush(); } });
         function attemptFlush() {
             flushPendingJobs();
             flushPendingRouteSave();
@@ -4079,9 +4118,18 @@
             // set() only resolves on server ack, and a dropped connection between
             // now and then would otherwise lose this save with no trace. Retried
             // automatically on reconnect by flushPendingRouteSave.
-            pendingRouteSave = { username, routeData, contactList };
+            const saveEntry = { username, routeData, contactList };
+            pendingRouteSaves[username] = saveEntry;
             persistRouteSaveCache();
             updateConnectivityBanner();
+            renderSavedPills(savedRoutesCache || {});
+            // A save normally lands in well under a second. If it hasn't, say so plainly
+            // and force a fresh connection, instead of the route only looking saved here.
+            setTimeout(() => {
+                if (pendingRouteSaves[username] !== saveEntry) return;
+                showToast(`${label}'s route hasn't reached Route Helper yet. Keep Route Planner open, it will send when the connection is back.`, true);
+                kickConnection();
+            }, 8000);
 
             // One list per driver: developer/route_planner/contact_lists/<driver>
             db.ref('developer/route_planner/contact_lists/' + username).set(contactList).catch(err => console.warn('Contact list save failed:', err));
@@ -4109,8 +4157,9 @@
             // Save under the username key
             db.ref('developer/route_planner/saved_routes/' + username).set(routeData)
                 .then(() => {
-                    pendingRouteSave = null;
+                    if (pendingRouteSaves[username] === saveEntry) delete pendingRouteSaves[username];
                     persistRouteSaveCache();
+                    renderSavedPills(savedRoutesCache || {});
                     updateConnectivityBanner();
                     showToast(`Saved ${label}'s route.`);
                     setCurrentDriver('');
@@ -4228,6 +4277,12 @@
                 const meta = document.createElement('span');
                 meta.className = 'pill-meta';
                 meta.textContent = `${stopCount} · ${formatSavedTime(route && route.timestamp)}`;
+                // Saved here but not confirmed by the server yet, so the driver can't see it.
+                if (pendingRouteSaves[key]) {
+                    pill.classList.add('is-unsent');
+                    meta.textContent += ' · not sent';
+                    pill.title = 'Not sent to Route Helper yet';
+                }
                 pill.appendChild(meta);
                 // List straight from the pill: shows that route's list without loading it.
                 const listBtn = document.createElement('button');
