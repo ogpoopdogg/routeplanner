@@ -1531,6 +1531,8 @@
                 savedRoutesCache = snap.val() || {};
                 renderSavedPills(snap.val() || {});
                 updateDriverChip();
+                // Once per page load, a few seconds in: drop Google coordinates older than 30 days
+                if (!geoPruneScheduled) { geoPruneScheduled = true; setTimeout(pruneOldRouteGeo, 5000); }
             });
             // Shared settings (drivers, gas stop, warnings)
             db.ref(SETTINGS_PATH).on('value', snap => onSettingsFromServer(snap.val()));
@@ -3999,6 +4001,75 @@
             updateUI();
             updateCreateRouteButton();
             updateOrderingOverlays();
+        }
+
+        // ---------- GOOGLE COORDINATES: 30-DAY LIMIT ----------
+        // Google's Maps Platform terms let us keep latitude/longitude from its Geocoding and Routes APIs
+        // for up to 30 consecutive days (Service Specific Terms, Geocoding API and Routes API caching).
+        // Route history keeps every save, so once a save is 30 days old its road line (path) and stop
+        // coordinates are removed. Names, addresses, order and times stay, and Route Watcher's Show route
+        // already handles saves without them (straight lines / "no map location").
+        // Same for saved_routes/<driver> when the driver's latest save is over 30 days old.
+        // Each device remembers how far it has cleaned per driver, so a run only reads saves it hasn't seen.
+        const GOOGLE_GEO_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+        const GEO_PRUNE_KEY = 'ec_route_geo_pruned_v1'; // { driver: newest save time (ms) already cleaned }
+        let geoPruneScheduled = false;
+        let geoPruneRunning = false;
+
+        // Firebase update paths that null the coordinates in one saved route (and its road line)
+        function geoNullUpdates(prefix, route) {
+            const updates = {};
+            if (!route || typeof route !== 'object') return updates;
+            if (route.path !== undefined && route.path !== null) updates[prefix + 'path'] = null;
+            const stops = route.stops;
+            if (stops && typeof stops === 'object') {
+                Object.keys(stops).forEach(id => {
+                    const st = stops[id];
+                    if (st && typeof st === 'object' && ((st.lat !== undefined && st.lat !== null) || (st.lng !== undefined && st.lng !== null))) {
+                        updates[prefix + 'stops/' + id + '/lat'] = null;
+                        updates[prefix + 'stops/' + id + '/lng'] = null;
+                    }
+                });
+            }
+            return updates;
+        }
+
+        async function pruneOldRouteGeo() {
+            if (geoPruneRunning || !navigator.onLine) return;
+            geoPruneRunning = true;
+            let done = {};
+            try { done = JSON.parse(localStorage.getItem(GEO_PRUNE_KEY) || '{}') || {}; } catch (e) { done = {}; }
+            const remember = () => { try { localStorage.setItem(GEO_PRUNE_KEY, JSON.stringify(done)); } catch (e) { /* storage full or blocked: next run re-reads */ } };
+            const cutoff = Date.now() - GOOGLE_GEO_MAX_AGE_MS;
+            try {
+                const drivers = Object.keys(savedRoutesCache || {}).filter(d => d && !/[.#$\[\]\/]/.test(d));
+                for (const d of drivers) {
+                    // Latest route for this driver
+                    const latest = savedRoutesCache[d];
+                    if (latest && Number(latest.timestamp) > 0 && Number(latest.timestamp) < cutoff) {
+                        const u = geoNullUpdates('', latest);
+                        if (Object.keys(u).length) await db.ref('developer/route_planner/saved_routes/' + d).update(u);
+                    }
+                    // Dated history: keys are save times in ms (13 digits, so text order = time order)
+                    const from = Number(done[d]) || 0;
+                    let q = db.ref('developer/route_planner/route_history/' + d).orderByKey();
+                    if (from) q = q.startAt(String(from + 1));
+                    const snap = await q.endAt(String(cutoff)).once('value');
+                    let updates = {};
+                    let newest = from;
+                    snap.forEach(child => {
+                        Object.assign(updates, geoNullUpdates(child.key + '/', child.val()));
+                        const k = Number(child.key);
+                        if (isFinite(k) && k > newest) newest = k;
+                    });
+                    if (Object.keys(updates).length) await db.ref('developer/route_planner/route_history/' + d).update(updates);
+                    if (newest > from) { done[d] = newest; remember(); }
+                }
+            } catch (err) {
+                console.warn('Old route coordinates not removed (will try again next time):', err && err.message);
+            } finally {
+                geoPruneRunning = false;
+            }
         }
 
         // ---------- SAVE ROUTE ----------
