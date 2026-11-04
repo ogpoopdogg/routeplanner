@@ -5557,17 +5557,37 @@
             document.getElementById('driver-chip-text').textContent = currentDriver ? driverLabel(currentDriver) : 'Pick driver';
             chip.classList.toggle('is-set', !!currentDriver);
         }
+        // ---------- BRANDON TIME ----------
+        // Times are Brandon, MB time, whatever the phone or computer is set to (same as the Time Clock and RouteWatcher).
+        // Manitoba stays on UTC-5 all year from 2026-11-01 (it no longer falls back). A device or browser whose time zone
+        // data is older than that thinks Manitoba went to UTC-6 and shows times an hour behind, so from then on this page
+        // works out Brandon time itself. Earlier times use the America/Winnipeg rules, which are right for the past.
+        function brandonBase(ms) {
+            return ms >= Date.UTC(2026, 10, 1, 7) ? { date: new Date(ms - 5 * 3600000), zone: 'UTC' } : { date: new Date(ms), zone: 'America/Winnipeg' };
+        }
+        function brandonFormat(ms, opts) {
+            const w = brandonBase(Number(ms));
+            try { return new Intl.DateTimeFormat(undefined, Object.assign({}, opts, { timeZone: w.zone })).format(w.date); }
+            catch (e) { return new Date(Number(ms)).toLocaleString([], opts); } // very old browser: device time
+        }
+        // { y, m (1-12), d, hh, mm, ss } in Brandon time
+        function brandonParts(ms) {
+            const out = {};
+            const w = brandonBase(Number(ms));
+            new Intl.DateTimeFormat('en-US', { timeZone: w.zone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                .formatToParts(w.date).forEach(p => { out[p.type] = p.value; });
+            return { y: +out.year, m: +out.month, d: +out.day, hh: parseInt(out.hour, 10) % 24, mm: +out.minute, ss: +out.second };
+        }
         function isSameDay(ms) {
             if (!ms) return false;
-            const a = new Date(Number(ms)), b = new Date();
-            return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+            const a = brandonParts(ms), b = brandonParts(Date.now());
+            return a.y === b.y && a.m === b.m && a.d === b.d;
         }
         function formatSavedTime(ms) {
             if (!ms) return '';
-            const d = new Date(Number(ms));
-            if (isNaN(d.getTime())) return '';
-            if (isSameDay(ms)) return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-            return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+            if (isNaN(new Date(Number(ms)).getTime())) return '';
+            if (isSameDay(ms)) return brandonFormat(ms, { hour: 'numeric', minute: '2-digit' });
+            return brandonFormat(ms, { month: 'short', day: 'numeric' });
         }
         function savedStopCount(key) {
             const route = savedRoutesCache && savedRoutesCache[key];
@@ -5799,9 +5819,9 @@
         }
         let logKeyBase = '', logKeyCount = 0;
         function logCustomerChange(change, before, after, extra) {
-            const d = new Date();
+            const d = brandonParts(Date.now());
             const pad = n => String(n).padStart(2, '0');
-            const when = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+            const when = `${d.y}-${pad(d.m)}-${pad(d.d)} ${pad(d.hh)}:${pad(d.mm)}:${pad(d.ss)}`;
             const by = currentUser || 'unknown';
             // Two changes by the same person in the same second get (2), (3)...
             const base = `${when} ${String(by).replace(/[.#$\[\]\/]/g, ',')}`;
