@@ -313,6 +313,9 @@
         .saved-route-pill:hover { transform: translateY(-2px); box-shadow: 0 10px 22px -8px rgba(245,197,24,0.9), inset 0 1px 0 rgba(255,255,255,0.55); }
         .saved-route-pill:active { transform: scale(.95); }
         .saved-route-pill.is-unsent { outline: 2px dashed #dc2626; outline-offset: 2px; }
+        /* An unfinished list (stops added, route not made yet). Only Route Planner sees it. */
+        .saved-route-pill.is-draft { color: var(--text); background: var(--input-bg); border: 1.5px dashed var(--accent); box-shadow: none; }
+        .saved-route-pill.is-draft::before { background-color: var(--accent); }
         .saved-route-pill.loading { opacity: 0.6; filter: saturate(.4); pointer-events: none; }
 
         /* ==========================================================================
@@ -847,6 +850,7 @@
         }
         .pill-list-btn svg { width: 14px; height: 14px; }
         .pill-list-btn:hover { background: rgba(26,19,0,0.26); }
+        .saved-route-pill.is-draft .pill-list-btn { color: var(--accent); background: var(--accent-soft); }
         @media (max-width: 768px) {
             .details-back-btn { top: 14px; left: 14px; width: 42px; height: 42px; }
             .details-edit-btn { top: 14px; right: 14px; width: 42px; height: 42px; }
@@ -1282,6 +1286,11 @@
         // Global variables
         let currentUser = null;
         let savedRoutesCache = {};   // developer/route_planner/saved_routes (used to tag the contact list with its driver)
+        // Unfinished lists: developer/route_planner/draft_routes/<driver>. Saved before the route is made,
+        // so the stops aren't lost while doing something else. Route Helper never reads this path, so a
+        // driver doesn't get a half-made list; it reaches them only when the route is made and saved.
+        const DRAFT_ROUTES_PATH = 'developer/route_planner/draft_routes';
+        let draftRoutesCache = {};
         let jobs = {};              // All jobs under developer/route_planner/jobs
         let addressData = {};        // From address_lookup
         let map, mapMarkers = {}, activePolyline = null;
@@ -1533,6 +1542,11 @@
                 updateDriverChip();
                 // Once per page load, a few seconds in: drop Google coordinates older than 30 days
                 if (!geoPruneScheduled) { geoPruneScheduled = true; setTimeout(pruneOldRouteGeo, 5000); }
+            });
+            // Listen for unfinished lists
+            db.ref(DRAFT_ROUTES_PATH).on('value', snap => {
+                draftRoutesCache = snap.val() || {};
+                renderSavedPills(savedRoutesCache || {});
             });
             // Shared settings (drivers, gas stop, warnings)
             db.ref(SETTINGS_PATH).on('value', snap => onSettingsFromServer(snap.val()));
@@ -4073,6 +4087,131 @@
         }
 
         // ---------- SAVE ROUTE ----------
+        // The driver a save goes to: the picked driver straight away, otherwise ask.
+        // Returns the lower-case key, or null if cancelled or not a usable name.
+        async function askDriverForSave() {
+            // Offer existing driver names as suggestions while typing (avoids typos)
+            const driverList = document.getElementById('driver-name-list');
+            const dialogInput = document.getElementById('custom-dialog-input');
+            if (driverList && dialogInput) {
+                driverList.innerHTML = getKnownDriverNames().map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
+                dialogInput.setAttribute('list', 'driver-name-list');
+            }
+            const usernameInput = currentDriver ? currentDriver : await showPromptModal("Enter driver username (e.g., alysha):", "");
+            if (dialogInput) dialogInput.removeAttribute('list');
+            if (usernameInput === null || usernameInput.trim() === "") return null;
+            const username = usernameInput.trim().toLowerCase();
+            // Reject characters Firebase keys can't contain, and '/' specifically —
+            // a stray slash would turn this into a nested path instead of a single
+            // route key, which could land inside another driver's existing route
+            // instead of creating/overwriting a clean top-level entry.
+            if (/[.#$\[\]\/]/.test(username)) {
+                showAlertModal("Driver username can't contain: . # $ [ ] /");
+                return null;
+            }
+            rememberDriverName(username);
+            return username;
+        }
+        function savedRouteLabel(username) {
+            return appSettings.drivers[username] ? driverLabel(username) : username.charAt(0).toUpperCase() + username.slice(1);
+        }
+        // One stop as it is stored in a saved route (or an unfinished list)
+        function savedStopFromJob(job) {
+            return {
+                name: job.name,
+                pickup_location: job.pickup_location,
+                city: job.city,
+                status: job.status || 'pending_pickup',
+                manual_priority: job.manual_priority || false,
+                box_qty: job.box_qty || 0,
+                piece_qty: job.piece_qty || 0,
+                envelope_qty: job.envelope_qty || 0,
+                skid_qty: job.skid_qty || 0,
+                weight_lbs: job.weight_lbs || 0,
+                other_details: job.other_details || '',
+                timestamp: job.timestamp,
+                created_by: job.created_by,
+                lat: job.lat || null,
+                lng: job.lng || null,
+                pinned: job.pinned ? true : null
+            };
+        }
+        // Empties the stop list, map and ETA after a save, ready for the next driver.
+        function clearWorkingList() {
+            setCurrentDriver('');
+            loadedDraftKey = null;
+            // Clear all jobs from the route stops (local unsynced ones too)
+            pendingJobIds = {};
+            jobs = {};
+            persistJobsCache();
+            updateConnectivityBanner();
+            db.ref('developer/route_planner/jobs').remove();
+            etaTotalMinutes = 0;
+            etaTotalKm = 0;
+            document.getElementById('eta-display').style.display = 'none';
+            document.getElementById('eta-display').classList.remove('eta-glow');
+            // Reset ordering state
+            resetOrderingState();
+            renderList();
+            if (map) {
+                Object.values(mapMarkers).forEach(m => m.setMap(null));
+                mapMarkers = {};
+                if (activePolyline) activePolyline.setMap(null);
+                activePolyline = null;
+            }
+        }
+
+        // ---------- SAVE AN UNFINISHED LIST ----------
+        // Stops added but the route not made yet. Saved under the driver in draft_routes (not
+        // saved_routes), so Route Helper doesn't get it. Tap its pill later to keep going; making
+        // the route and saving sends it to the driver and removes the unfinished copy.
+        let loadedDraftKey = null; // the unfinished list now on screen, so saving it again doesn't ask
+        async function saveUnfinishedList() {
+            const ids = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup');
+            if (ids.length === 0) {
+                showAlertModal("No stops to save.");
+                return;
+            }
+            const username = await askDriverForSave();
+            if (!username) return;
+            const label = savedRouteLabel(username);
+            const existing = draftRoutesCache[username];
+            if (existing && loadedDraftKey !== username) {
+                const n = existing.stops ? Object.keys(existing.stops).length : 0;
+                if (!(await showConfirmModal(`${label} already has an unfinished list (${n} stop${n === 1 ? '' : 's'}). Replace it with this one?`))) return;
+            }
+            const stops = {};
+            ids.forEach(id => { stops[id] = savedStopFromJob(jobs[id]); });
+            const draft = {
+                label: label,
+                timestamp: Date.now(),
+                stops: stops,
+                order: ids,
+                driverUsername: username,
+                isDraft: true,
+                startTime: routeState.startTime || null
+            };
+            // The list is cleared only once the server has it. Until then the stops stay on
+            // screen (and in the working list), so closing the app early loses nothing.
+            let done = false;
+            const slow = setTimeout(() => {
+                if (!done) { showToast(`${label}'s unfinished list hasn't saved yet. Keep Route Planner open, it will save when the connection is back.`, true); kickConnection(); }
+            }, 8000);
+            db.ref(DRAFT_ROUTES_PATH + '/' + username).set(draft).then(() => {
+                done = true;
+                clearTimeout(slow);
+                // Stops added while it was saving are left on screen instead of being wiped.
+                const now = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup');
+                const same = now.length === ids.length && now.every(id => stops[id]);
+                if (same) clearWorkingList();
+                showToast(`Saved ${label}'s unfinished list (${ids.length} stop${ids.length === 1 ? '' : 's'}). It goes to Route Helper once you make the route and save.`);
+            }).catch(err => {
+                done = true;
+                clearTimeout(slow);
+                showAlertModal("Error saving the unfinished list: " + err.message);
+            });
+        }
+
         async function saveCurrentRoute() {
             let order = [];
             let assignedIndices = {};
@@ -4085,7 +4224,8 @@
                 order = routeState.order;
                 assignedIndices = routeState.assignedIndices;
             } else {
-                showAlertModal("No stops to save. Please create a route first.");
+                // Route not made yet: save the list as it is, to finish later.
+                saveUnfinishedList();
                 return;
             }
 
@@ -4102,28 +4242,9 @@
                 }
             }
 
-            // Offer existing driver names as suggestions while typing (avoids typos)
-            const driverList = document.getElementById('driver-name-list');
-            const dialogInput = document.getElementById('custom-dialog-input');
-            if (driverList && dialogInput) {
-                driverList.innerHTML = getKnownDriverNames().map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
-                dialogInput.setAttribute('list', 'driver-name-list');
-            }
-            // The driver picked for this route is used straight away; otherwise ask.
-            const usernameInput = currentDriver ? currentDriver : await showPromptModal("Enter driver username (e.g., alysha):", "");
-            if (dialogInput) dialogInput.removeAttribute('list');
-            if (usernameInput === null || usernameInput.trim() === "") return;
-            let username = usernameInput.trim().toLowerCase();
-            // Reject characters Firebase keys can't contain, and '/' specifically —
-            // a stray slash would turn this into a nested path instead of a single
-            // route key, which could land inside another driver's existing route
-            // instead of creating/overwriting a clean top-level entry.
-            if (/[.#$\[\]\/]/.test(username)) {
-                showAlertModal("Driver username can't contain: . # $ [ ] /");
-                return;
-            }
-            let label = appSettings.drivers[username] ? driverLabel(username) : username.charAt(0).toUpperCase() + username.slice(1);
-            rememberDriverName(username);
+            const username = await askDriverForSave();
+            if (!username) return;
+            const label = savedRouteLabel(username);
 
             // If a route already exists under this key, make sure the admin knows
             // they're about to overwrite it — protects against a typo'd username
@@ -4144,26 +4265,7 @@
             const stopsObj = {};
             order.forEach(id => {
                 const job = jobs[id];
-                if (job) {
-                    stopsObj[id] = {
-                        name: job.name,
-                        pickup_location: job.pickup_location,
-                        city: job.city,
-                        status: job.status || 'pending_pickup',
-                        manual_priority: job.manual_priority || false,
-                        box_qty: job.box_qty || 0,
-                        piece_qty: job.piece_qty || 0,
-                        envelope_qty: job.envelope_qty || 0,
-                        skid_qty: job.skid_qty || 0,
-                        weight_lbs: job.weight_lbs || 0,
-                        other_details: job.other_details || '',
-                        timestamp: job.timestamp,
-                        created_by: job.created_by,
-                        lat: job.lat || null,
-                        lng: job.lng || null,
-                        pinned: job.pinned ? true : null
-                    };
-                }
+                if (job) stopsObj[id] = savedStopFromJob(job);
             });
 
             if (Object.keys(stopsObj).length === 0) return;
@@ -4233,26 +4335,9 @@
                     renderSavedPills(savedRoutesCache || {});
                     updateConnectivityBanner();
                     showToast(`Saved ${label}'s route.`);
-                    setCurrentDriver('');
-                    // After saving, clear all jobs from the route stops (local unsynced ones too)
-                    pendingJobIds = {};
-                    jobs = {};
-                    persistJobsCache();
-                    updateConnectivityBanner();
-                    db.ref('developer/route_planner/jobs').remove();
-                    etaTotalMinutes = 0;
-                    etaTotalKm = 0;
-                    document.getElementById('eta-display').style.display = 'none';
-                    document.getElementById('eta-display').classList.remove('eta-glow');
-                    // Reset ordering state
-                    resetOrderingState();
-                    renderList();
-                    if (map) {
-                        Object.values(mapMarkers).forEach(m => m.setMap(null));
-                        mapMarkers = {};
-                        if (activePolyline) activePolyline.setMap(null);
-                        activePolyline = null;
-                    }
+                    // The route is made and sent, so this driver's unfinished list is done with.
+                    if (draftRoutesCache[username]) db.ref(DRAFT_ROUTES_PATH + '/' + username).remove().catch(err => console.warn('Unfinished list cleanup failed:', err));
+                    clearWorkingList();
                 })
                 .catch(err => {
                     // Already surfaced to the driver right now via the alert below.
@@ -4272,10 +4357,12 @@
             modal.style.display = 'flex';
 
             const savedRoutesRef = db.ref('developer/route_planner/saved_routes');
-            savedRoutesRef.once('value').then(snap => {
+            Promise.all([savedRoutesRef.once('value'), db.ref(DRAFT_ROUTES_PATH).once('value')]).then(([snap, draftSnap]) => {
                 const savedData = snap.val() || {};
+                const draftData = draftSnap.val() || {};
                 const keys = Object.keys(savedData);
-                if (keys.length === 0) {
+                const draftKeys = Object.keys(draftData);
+                if (keys.length === 0 && draftKeys.length === 0) {
                     listContainer.innerHTML = '<div style="font-size:13px; color:#888;">No saved routes.</div>';
                     return;
                 }
@@ -4284,6 +4371,11 @@
                     const route = savedData[key];
                     const label = (route && route.label) ? route.label : 'Unnamed';
                     html += `<div class="delete-route-check-item"><input type="checkbox" id="delete-route-${escapeHtml(key)}" data-route-key="${escapeHtml(key)}"><label for="delete-route-${escapeHtml(key)}">${escapeHtml(label)}</label></div>`;
+                });
+                draftKeys.forEach(key => {
+                    const route = draftData[key];
+                    const label = ((route && route.label) ? route.label : key) + ' (unfinished)';
+                    html += `<div class="delete-route-check-item"><input type="checkbox" id="delete-draft-${escapeHtml(key)}" data-route-key="${escapeHtml(key)}" data-draft="1"><label for="delete-draft-${escapeHtml(key)}">${escapeHtml(label)}</label></div>`;
                 });
                 listContainer.innerHTML = html;
             }).catch(err => {
@@ -4294,14 +4386,14 @@
         async function confirmDeleteRoutes() {
             const selectedKeys = [];
             document.querySelectorAll('#delete-routes-list input[type="checkbox"]:checked').forEach(cb => {
-                selectedKeys.push(cb.dataset.routeKey);
+                selectedKeys.push((cb.dataset.draft ? DRAFT_ROUTES_PATH : 'developer/route_planner/saved_routes') + '/' + cb.dataset.routeKey);
             });
             if (selectedKeys.length === 0) {
                 showAlertModal("No routes selected.");
                 return;
             }
             if (await showConfirmModal(`Delete ${selectedKeys.length} selected route(s)?`)) {
-                const promises = selectedKeys.map(key => db.ref(`developer/route_planner/saved_routes/${key}`).remove());
+                const promises = selectedKeys.map(path => db.ref(path).remove());
                 Promise.all(promises)
                     .then(() => {
                         cancelDeleteRoutes();
@@ -4318,7 +4410,12 @@
         function renderSavedPills(data) {
             const container = document.getElementById('saved-routes-container');
             container.innerHTML = '';
-            const keys = Object.keys(data);
+            const madeKeys = Object.keys(data);
+            const draftKeys = Object.keys(draftRoutesCache || {}).filter(k => draftRoutesCache[k]);
+            // Made routes first, then unfinished lists (dashed pills)
+            const items = madeKeys.map(k => ({ key: k, route: data[k], isDraft: false }))
+                .concat(draftKeys.map(k => ({ key: k, route: draftRoutesCache[k], isDraft: true })));
+            const keys = items;
             const countBadge = document.getElementById('saved-routes-count-badge');
             if (countBadge) {
                 if (keys.length > 0) { countBadge.textContent = keys.length; countBadge.style.display = 'inline-block'; }
@@ -4336,11 +4433,10 @@
                 }
             }
             if (keys.length === 0) return;
-            keys.forEach(key => {
-                const route = data[key];
-                // const label = route.label || 'Unnamed'; // removed label from pill
+            items.forEach(({ key, route, isDraft }) => {
+                const routePath = (isDraft ? DRAFT_ROUTES_PATH : 'developer/route_planner/saved_routes') + '/' + key;
                 const pill = document.createElement('div');
-                pill.className = 'saved-route-pill';
+                pill.className = 'saved-route-pill' + (isDraft ? ' is-draft' : '');
                 const nameEl = document.createElement('span');
                 nameEl.textContent = key; // the username key
                 pill.appendChild(nameEl);
@@ -4348,8 +4444,11 @@
                 const meta = document.createElement('span');
                 meta.className = 'pill-meta';
                 meta.textContent = `${stopCount} · ${formatSavedTime(route && route.timestamp)}`;
-                // Saved here but not confirmed by the server yet, so the driver can't see it.
-                if (pendingRouteSaves[key]) {
+                if (isDraft) {
+                    meta.textContent += ' · unfinished';
+                    pill.title = 'Unfinished list: route not made yet, not sent to Route Helper';
+                } else if (pendingRouteSaves[key]) {
+                    // Saved here but not confirmed by the server yet, so the driver can't see it.
                     pill.classList.add('is-unsent');
                     meta.textContent += ' · not sent';
                     pill.title = 'Not sent to Route Helper yet';
@@ -4359,10 +4458,10 @@
                 const listBtn = document.createElement('button');
                 listBtn.type = 'button';
                 listBtn.className = 'pill-list-btn';
-                listBtn.setAttribute('aria-label', `Show ${key}'s list`);
+                listBtn.setAttribute('aria-label', isDraft ? `Show ${key}'s unfinished list` : `Show ${key}'s list`);
                 listBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="18" rx="2.5"/><path d="M9 11h6M9 15h6"/></svg>';
                 ['mousedown', 'touchstart'].forEach(t => listBtn.addEventListener(t, e => e.stopPropagation(), { passive: true }));
-                listBtn.addEventListener('click', e => { e.stopPropagation(); openContactListForRoute(key); });
+                listBtn.addEventListener('click', e => { e.stopPropagation(); openContactListForRoute(key, isDraft); });
                 pill.appendChild(listBtn);
                 pill.dataset.key = key;
                 // A long-press (delete) also produces a click when the finger/mouse lifts;
@@ -4379,8 +4478,9 @@
                     if (this.classList.contains('loading')) return;
                     // Nothing on the list: load straight away. Otherwise say what gets replaced.
                     const onList = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').length;
-                    if (onList === 0 || await showConfirmModal(`Load route for "${key}"? The ${onList} stop${onList === 1 ? '' : 's'} on your list now will be replaced.`)) {
-                        loadSavedRoute(key);
+                    const what = isDraft ? `unfinished list for "${key}"` : `route for "${key}"`;
+                    if (onList === 0 || await showConfirmModal(`Load ${what}? The ${onList} stop${onList === 1 ? '' : 's'} on your list now will be replaced.`)) {
+                        if (isDraft) loadDraftRoute(key); else loadSavedRoute(key);
                     }
                 });
                 // Long press to delete (mousedown + mouseup timer)
@@ -4390,8 +4490,8 @@
                     timer = setTimeout(async () => {
                         timer = null;
                         longPressFired = true;
-                        if (await showConfirmModal(`Delete saved route for "${key}"?`)) {
-                            db.ref(`developer/route_planner/saved_routes/${key}`).remove()
+                        if (await showConfirmModal(isDraft ? `Delete the unfinished list for "${key}"?` : `Delete saved route for "${key}"?`)) {
+                            db.ref(routePath).remove()
                                 .catch(err => showAlertModal("Error deleting route: " + err.message));
                         }
                     }, 500);
@@ -4404,8 +4504,8 @@
                     timer = setTimeout(async () => {
                         timer = null;
                         longPressFired = true;
-                        if (await showConfirmModal(`Delete saved route for "${key}"?`)) {
-                            db.ref(`developer/route_planner/saved_routes/${key}`).remove()
+                        if (await showConfirmModal(isDraft ? `Delete the unfinished list for "${key}"?` : `Delete saved route for "${key}"?`)) {
+                            db.ref(routePath).remove()
                                 .catch(err => showAlertModal("Error deleting route: " + err.message));
                         }
                     }, 500);
@@ -4477,10 +4577,45 @@
                 }
                 // Saving again goes back to this driver.
                 setCurrentDriver(key);
+                loadedDraftKey = null;
                 // Collapse the saved routes dropdown
                 document.getElementById('saved-routes-container').style.display = 'none';
                 document.getElementById('toggle-saved-routes-arrow').textContent = '▼';
             }).catch(err => showAlertModal("Error loading saved route: " + err.message));
+        }
+
+        // ---------- LOAD AN UNFINISHED LIST ----------
+        // Puts the stops back on the list (no route yet) for the same driver, to keep adding.
+        function loadDraftRoute(key) {
+            db.ref(DRAFT_ROUTES_PATH + '/' + key).once('value').then(snap => {
+                const data = snap.val();
+                if (!data || !data.stops) { showAlertModal("That unfinished list is empty."); return; }
+                const stopsObj = data.stops;
+                jobs = {};
+                Object.keys(stopsObj).forEach(id => { jobs[id] = stopsObj[id]; });
+                pendingJobIds = {};
+                persistJobsCache();
+                updateConnectivityBanner();
+                db.ref('developer/route_planner/jobs').set(stopsObj)
+                    .catch(err => showAlertModal("Error loading the unfinished list: " + err.message));
+                etaTotalMinutes = 0;
+                etaTotalKm = 0;
+                document.getElementById('eta-display').style.display = 'none';
+                document.getElementById('eta-display').classList.remove('eta-glow');
+                if (map) {
+                    Object.values(mapMarkers).forEach(m => m.setMap(null));
+                    mapMarkers = {};
+                }
+                // No route yet: the stops come back unnumbered, ready for Make Route
+                resetOrderingState();
+                routeState.startTime = data.startTime || null;
+                updateRoute(); // unnumbered list, stop counter, no route line
+                setCurrentDriver(key);
+                loadedDraftKey = key;
+                document.getElementById('saved-routes-container').style.display = 'none';
+                document.getElementById('toggle-saved-routes-arrow').textContent = '▼';
+                showToast(`${savedRouteLabel(key)}'s unfinished list is back. Keep adding stops, then make the route and save.`);
+            }).catch(err => showAlertModal("Error loading the unfinished list: " + err.message));
         }
 
                             // ---------- SHARE ROUTE (composes email with route info) ----------
@@ -5695,8 +5830,8 @@
             });
         }
         // The List for a saved route, without loading it over the stops you're working on.
-        function openContactListForRoute(key) {
-            const route = savedRoutesCache && savedRoutesCache[key];
+        function openContactListForRoute(key, isDraft) {
+            const route = isDraft ? (draftRoutesCache && draftRoutesCache[key]) : (savedRoutesCache && savedRoutesCache[key]);
             if (!route || !route.stops) { showToast('That route is empty.', true); return; }
             const ids = (Array.isArray(route.order) ? route.order : []).filter(id => route.stops[id]);
             Object.keys(route.stops).forEach(id => { if (!ids.includes(id)) ids.push(id); });
