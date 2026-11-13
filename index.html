@@ -209,8 +209,11 @@
 
         .flex-row { display: flex; gap: 10px; margin-bottom: 10px; }
         /* The stop panel, tighter than the rest of the app (less padding, shorter fields) */
-        #stop-panel { padding: 10px 12px 0; }
+        #stop-panel { padding: 10px 12px 0; z-index: 30; } /* above the buttons and lists below it, so its suggestion lists show on top */
         #stop-panel-body { zoom: var(--form-scale, 1); }
+        /* Name and city suggestions: same size whatever the panel size (undo the panel's zoom), a bit larger than other lists */
+        #stop-panel #suggestions, #stop-panel #city-suggestions { zoom: calc(1 / var(--form-scale, 1)); max-height: 340px; background: var(--bg-2); backdrop-filter: none; -webkit-backdrop-filter: none; } /* solid: the panel's see-through blur can't reach the buttons below it */
+        #stop-panel #suggestions .suggestion-item, #stop-panel #city-suggestions .suggestion-item { padding: 14px 16px; font-size: 16.5px; }
         #stop-panel .driver-bar { margin: 0 -2px 8px; padding-bottom: 2px; }
         #stop-panel .flex-row { gap: 8px; margin-bottom: 8px; }
         #stop-panel input { min-height: 42px; padding: 9px 14px; }
@@ -295,6 +298,7 @@
         /* ==========================================================================
            SAVED ROUTES
            ========================================================================== */
+        .saved-wrap[hidden] { display: none !important; }
         .saved-wrap { margin-top: 12px; animation: rise-in .5s var(--ease) .06s both; }
         #toggle-saved-routes-btn {
             width: 100%; min-height: 52px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; text-align: left; cursor: pointer;
@@ -868,6 +872,7 @@
         .driver-bar { display: flex; gap: 8px; overflow-x: auto; margin: -4px -2px 12px; padding: 2px 2px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
         .driver-bar::-webkit-scrollbar { display: none; }
         .driver-btn {
+            -webkit-touch-callout: none; user-select: none; -webkit-user-select: none;
             flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 7px 13px; cursor: pointer;
             font-family: inherit; font-size: 14px; font-weight: 800; color: var(--text); background: var(--card-2);
             border: 1.5px solid var(--border-strong); border-radius: 999px; transition: transform .15s var(--spring), border-color .15s, background .15s;
@@ -877,6 +882,17 @@
         .driver-btn.status-sent { border-color: rgba(34,197,94,0.6); }
         .driver-btn.status-sent .driver-btn-meta { color: #22c55e; opacity: 1; }
         .driver-btn.status-draft { border-style: dashed; border-color: var(--accent); }
+        /* Changes on this phone not saved yet: amber, with a dot */
+        .driver-btn.status-changed { border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,0.18); }
+        .driver-btn.status-changed .driver-btn-meta { color: #f59e0b; opacity: 1; }
+        .driver-btn.status-changed .driver-btn-meta::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 4px; border-radius: 50%; background: currentColor; vertical-align: 1px; }
+        /* Last route from an earlier day */
+        .driver-btn.status-old .driver-btn-meta { color: var(--muted); font-weight: 600; }
+        /* The picked driver (yellow) keeps its status as a coloured ring */
+        .driver-btn.is-picked.status-sent { box-shadow: 0 0 0 2px #22c55e, 0 6px 16px -8px rgba(245,197,24,0.8); }
+        .driver-btn.is-picked.status-changed { box-shadow: 0 0 0 2px #f59e0b, 0 6px 16px -8px rgba(245,197,24,0.8); }
+        .driver-btn.is-picked.status-unsent { box-shadow: 0 0 0 2px #dc2626, 0 6px 16px -8px rgba(245,197,24,0.8); }
+        .driver-btn.is-picked .driver-btn-meta { color: var(--accent-ink) !important; }
         .driver-btn.status-unsent { border-style: dashed; border-color: #dc2626; }
         .driver-btn.status-unsent .driver-btn-meta { color: #ef4444; opacity: 1; }
         .driver-btn.is-picked { color: var(--accent-ink); background: linear-gradient(180deg, #ffe066, #f5c518 60%, #e2ac00); border-color: rgba(160,110,0,0.7); box-shadow: 0 6px 16px -8px rgba(245,197,24,0.8); }
@@ -1112,7 +1128,8 @@
             </div>
 
             <!-- Saved Routes Pills - Collapsible -->
-            <div class="saved-wrap">
+            <!-- Hidden: the driver buttons above show each driver's saved route (hold a button to open or delete it) -->
+            <div class="saved-wrap" hidden>
                 <button id="toggle-saved-routes-btn">
                     <span class="saved-label"><span class="saved-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>All Saved Routes <span id="saved-routes-count-badge" style="display:none;">0</span></span>
                     <span id="toggle-saved-routes-arrow">▼</span>
@@ -1145,7 +1162,7 @@
         <button id="reset-driver-view-btn" onclick="resetMapView()" style="display:none;">← BACK</button>
         <!-- CREATE ROUTE button inside map -->
         <button id="create-route-map" class="create-route-btn map-modal-btn" onclick="startCreateRoute()">CREATE ROUTE</button>
-        <button id="auto-optimize-btn" class="create-route-btn map-modal-btn" onclick="autoOptimizeRoute()">AUTO-OPTIMIZE</button>
+        <button id="auto-optimize-btn" class="create-route-btn map-modal-btn" onclick="autoOptimizeFromFirstStop()">AUTO-OPTIMIZE</button>
         <div id="map-stop-counter"></div>
         <div id="calculating-route-indicator">Calculating route...</div>
         <button id="undo-assignment-btn" onclick="undoLastAssignment()" aria-label="Undo last assignment">
@@ -1410,7 +1427,7 @@
     </button>
 
     <!-- Mic Button (above Share Button): starts listening for customer names straight away -->
-    <button id="mic-btn-bottom" class="fab" onclick="quickVoiceAdd()" aria-label="Say customer names to add them" title="Say customer names to add them"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg></button>
+    <button id="mic-btn-bottom" class="fab" onclick="quickVoiceAdd()" aria-label="Say a customer name to add it. Hold to paste or say a list." title="Tap: say a name. Hold: paste or say a list."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg></button>
 
     <!-- List Button (below Share Button) -->
     <button id="list-btn-bottom" class="fab" onclick="openContactListModal()" aria-label="List" title="Contact list"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="18" rx="2.5"/><path d="M9 3.5h6v3H9zM9 11h6M9 15h6"/></svg></button>
@@ -1906,11 +1923,16 @@
         // whether it has changes not saved yet. Tapping a driver's button shows that driver's list
         // (empty if none), so lists don't get mixed up. Save sends it to the database and clears it.
         const DRIVER_LISTS_KEY = 'ec_route_planner_driver_lists';
+        // Read from the phone once, then kept in memory (written back on every change)
+        let driverListsCache = null;
         function readDriverLists() {
-            try { const all = JSON.parse(localStorage.getItem(DRIVER_LISTS_KEY) || '{}'); return (all && typeof all === 'object') ? all : {}; }
-            catch (e) { return {}; }
+            if (driverListsCache) return driverListsCache;
+            try { const all = JSON.parse(localStorage.getItem(DRIVER_LISTS_KEY) || '{}'); driverListsCache = (all && typeof all === 'object') ? all : {}; }
+            catch (e) { driverListsCache = {}; }
+            return driverListsCache;
         }
         function writeDriverLists(all) {
+            driverListsCache = all;
             try { localStorage.setItem(DRIVER_LISTS_KEY, JSON.stringify(all)); } catch (e) { /* storage full or blocked */ }
         }
         function listStopCount(list) {
@@ -2206,7 +2228,6 @@
                     updateConnectivityBanner();
                     resetFormFields();
                     markListChanged();
-                markListChanged();
                     insertStopIntoFinalizedRoute(newId).catch(err => console.warn("Route insertion failed:", err));
 
                     newJobRef.set(newJob).then(() => {
@@ -4209,6 +4230,22 @@
             return { order: bestFound.path.map(k => ids[k - 1]), earlyCount: evaluate(bestFound.path).earlyCount };
         }
 
+        // AUTO-OPTIMIZE asks which stop is first, then puts the rest in order from that stop on, so the
+        // route starts in the right direction. Pins already tapped in CREATE ROUTE count as the start.
+        async function autoOptimizeFromFirstStop() {
+            const pendingIds = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup');
+            const tapped = Object.keys(routeState.assignedIndices || {}).filter(id => jobs[id]);
+            if (pendingIds.length >= 2 && tapped.length === 0) {
+                const ids = pendingIds.slice().sort((a, b) => String(jobs[a].name || '').localeCompare(String(jobs[b].name || '')));
+                const i = await showChoiceModal('Which stop is first? The rest are put in order from there.', ids.map(id => jobs[id].name || jobs[id].address || 'No name'));
+                if (i === null || i === undefined || !ids[i]) return;
+                const first = ids[i];
+                if (!isOrderingMode && !routeState.isFinalized) { isOrderingMode = true; }
+                routeState.order = [first];
+                routeState.assignedIndices = { [first]: 1 };
+            }
+            return autoOptimizeRoute();
+        }
         async function autoOptimizeRoute() {
             const optimizeBtn = document.getElementById('auto-optimize-btn');
             const indicator = document.getElementById('calculating-route-indicator');
@@ -5079,6 +5116,8 @@
 
         // ---------- RENDER SAVED ROUTES PILLS ----------
         function renderSavedPills(data) {
+            const wrap = document.querySelector('.saved-wrap');
+            if (wrap && wrap.hidden) return; // replaced by the driver buttons: nothing to draw
             const container = document.getElementById('saved-routes-container');
             container.innerHTML = '';
             const madeKeys = Object.keys(data);
@@ -5144,39 +5183,10 @@
                     if (longPressFired) { longPressFired = false; suppressClickUntil = Date.now() + 600; }
                 };
                 // Click to load
-                pill.addEventListener('click', async function(e) {
+                pill.addEventListener('click', function(e) {
                     if (Date.now() < suppressClickUntil) return;
                     if (this.classList.contains('loading')) return;
-                    // The route opens as this driver's list. Another driver's list on screen is kept on
-                    // this phone, so only this driver's own list can be replaced: ask first if it has stops.
-                    const what = isDraft ? `unfinished list for "${key}"` : `route for "${key}"`;
-                    const load = () => { if (isDraft) loadDraftRoute(key); else loadSavedRoute(key); };
-                    if (currentDriver && key !== currentDriver) {
-                        const kept = readDriverLists()[key];
-                        const n = listStopCount(kept);
-                        if (n > 0 && !(await showConfirmModal(`${driverLabel(key)} has ${n} stop${n === 1 ? '' : 's'} on this phone${kept.listChanged ? ' that aren\'t saved' : ''}. Open the ${isDraft ? 'unfinished list' : 'saved route'} instead?`))) return;
-                        load();
-                        return;
-                    }
-                    const onList = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').length;
-                    if (onList === 0) { load(); return; }
-                    if (listChanged && key !== currentDriver) {
-                        const whose = currentDriver ? `${driverLabel(currentDriver)}'s route` : 'this route';
-                        const choice = await showChoiceModal(`Save your changes to ${whose} first?`, ['Save, then open ' + key, "Don't save, open " + key]);
-                        if (choice === 0) {
-                            // Up to 10 s once the route is sent (questions while saving don't count)
-                            let slowTimer = null, startSlowTimer = null;
-                            const tooSlow = new Promise(r => { startSlowTimer = () => { slowTimer = setTimeout(() => r('slow'), 10000); }; });
-                            const saved = await Promise.race([saveCurrentRoute({ onWriting: () => startSlowTimer() }), tooSlow]);
-                            clearTimeout(slowTimer);
-                            if (saved === 'slow') { showToast(`Not saved yet (no connection), so ${key}'s route wasn't opened. It will save when the connection is back.`, true); return; }
-                            if (saved === true) load();
-                        } else if (choice === 1) {
-                            load();
-                        }
-                        return;
-                    }
-                    if (await showConfirmModal(`Load ${what}? The ${onList} stop${onList === 1 ? '' : 's'} on your list now will be replaced.`)) load();
+                    openSavedForDriver(key, isDraft);
                 });
                 // Long press to delete (mousedown + mouseup timer)
                 let timer = null;
@@ -5210,6 +5220,41 @@
                 container.appendChild(pill);
             });
         }
+        // Opens a driver's saved route (or unfinished list) as their list, asking first when that
+        // would replace stops on this phone. Used by the driver buttons' hold menu.
+        async function openSavedForDriver(key, isDraft) {
+            // The route opens as this driver's list. Another driver's list on screen is kept on
+            // this phone, so only this driver's own list can be replaced: ask first if it has stops.
+            const what = isDraft ? `unfinished list for "${key}"` : `route for "${key}"`;
+            const load = () => { if (isDraft) loadDraftRoute(key); else loadSavedRoute(key); };
+            if (currentDriver && key !== currentDriver) {
+                const kept = readDriverLists()[key];
+                const n = listStopCount(kept);
+                if (n > 0 && !(await showConfirmModal(`${driverLabel(key)} has ${n} stop${n === 1 ? '' : 's'} on this phone${kept.listChanged ? ' that aren\'t saved' : ''}. Open the ${isDraft ? 'unfinished list' : 'saved route'} instead?`))) return;
+                load();
+                return;
+            }
+            const onList = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').length;
+            if (onList === 0) { load(); return; }
+            if (listChanged && key !== currentDriver) {
+                const whose = currentDriver ? `${driverLabel(currentDriver)}'s route` : 'this route';
+                const choice = await showChoiceModal(`Save your changes to ${whose} first?`, ['Save, then open ' + key, "Don't save, open " + key]);
+                if (choice === 0) {
+                    // Up to 10 s once the route is sent (questions while saving don't count)
+                    let slowTimer = null, startSlowTimer = null;
+                    const tooSlow = new Promise(r => { startSlowTimer = () => { slowTimer = setTimeout(() => r('slow'), 10000); }; });
+                    const saved = await Promise.race([saveCurrentRoute({ onWriting: () => startSlowTimer() }), tooSlow]);
+                    clearTimeout(slowTimer);
+                    if (saved === 'slow') { showToast(`Not saved yet (no connection), so ${key}'s route wasn't opened. It will save when the connection is back.`, true); return; }
+                    if (saved === true) load();
+                } else if (choice === 1) {
+                    load();
+                }
+                return;
+            }
+            if (await showConfirmModal(`Load ${what}? The ${onList} stop${onList === 1 ? '' : 's'} on your list now will be replaced.`)) load();
+        }
+
         // ---------- LOAD SAVED ROUTE ----------
         function loadSavedRoute(key) {
             const ref = db.ref(`developer/route_planner/saved_routes/${key}`);
@@ -5372,7 +5417,10 @@
             // Show date modal
             document.getElementById('date-modal').style.display = 'flex';
             // Set default date to today
-            const today = new Date().toISOString().split('T')[0];
+            // Today, or tomorrow from 7 PM Brandon time: routes made in the evening are for the next day
+            const bp = brandonParts(Date.now());
+            const day = new Date(Date.UTC(bp.y, bp.m - 1, bp.d + (bp.hh >= 19 ? 1 : 0)));
+            const today = day.toISOString().split('T')[0];
             document.getElementById('route-date-input').value = today;
             pendingShareDate = null;
             populateShareRouteChecklist();
@@ -5394,7 +5442,10 @@
                 keys.forEach(key => {
                     const route = savedData[key];
                     const label = (route && route.label) ? route.label : 'Unnamed';
-                    html += `<div class="share-route-check-item"><input type="checkbox" id="share-route-${escapeHtml(key)}" data-route-key="${escapeHtml(key)}" checked><label for="share-route-${escapeHtml(key)}">${escapeHtml(label)}</label></div>`;
+                    // Routes from an earlier day are listed but not ticked, so they don't go out by mistake
+                    const today = route && isSameDay(route.timestamp);
+                    const when = route && route.timestamp && !today ? ` (${formatSavedTime(route.timestamp)})` : '';
+                    html += `<div class="share-route-check-item"><input type="checkbox" id="share-route-${escapeHtml(key)}" data-route-key="${escapeHtml(key)}"${today ? ' checked' : ''}><label for="share-route-${escapeHtml(key)}">${escapeHtml(label + when)}</label></div>`;
                 });
                 listContainer.innerHTML = html;
             }).catch(err => {
@@ -5692,77 +5743,6 @@
         }
 
         function resetMapView() { zoomToAll(); }
-
-        // ---------- EXTERNAL ROUTE NAVIGATION (similar to driver.html) ----------
-        function openExternalRoute() {
-            let order = [];
-            if (routeState.isFinalized && routeState.order.length > 0) {
-                order = routeState.order;
-            } else if (isOrderingMode && routeState.order.length > 0) {
-                order = routeState.order;
-            } else {
-                showAlertModal("No stops to route. Please create a route first.");
-                return;
-            }
-            if (order.length === 0) {
-                showAlertModal("No stops to route.");
-                return;
-            }
-            const shop = shopAddress();
-            // Unique stop addresses, in route order
-            const seenLocs = new Set();
-            const stops = [];
-            order.forEach(id => {
-                const job = jobs[id];
-                if (!job) return;
-                const key = `${job.pickup_location}, ${job.city || "Brandon"}`;
-                if (seenLocs.has(key)) return;
-                seenLocs.add(key);
-                stops.push(key);
-            });
-            if (stops.length === 0) {
-                showAlertModal("No stops to route.");
-                return;
-            }
-
-            // Google documents up to 9 waypoints per Maps link. Short routes open straight
-            // away; longer ones let the driver pick a section (or send everything as before).
-            const PER_LINK = 9;
-            // "Return to the shop" off: the trip ends at the last stop.
-            const endAtLast = !appSettings.returnToShop;
-            if (stops.length <= PER_LINK) {
-                if (endAtLast) launchMapsDirections(shop, stops[stops.length - 1], stops.slice(0, -1));
-                else launchMapsDirections(shop, shop, stops);
-                return;
-            }
-            const chunks = [];
-            for (let i = 0; i < stops.length; i += PER_LINK) {
-                chunks.push({ start: i, items: stops.slice(i, i + PER_LINK) });
-            }
-            const options = [`All stops (first ${Math.min(stops.length, 25)}, as before)`]
-                .concat(chunks.map(c => `Stops ${c.start + 1}–${c.start + c.items.length}`));
-            showChoiceModal(
-                `This route has ${stops.length} stops. Google Maps links officially support ${PER_LINK} stops at a time, so stops past ${PER_LINK} may be dropped.\n\nWhich stops do you want to open?`,
-                options
-            ).then(choice => {
-                if (choice === null) return;
-                if (choice === 0) {
-                    const first = stops.slice(0, 25);
-                    if (endAtLast) launchMapsDirections(shop, first[first.length - 1], first.slice(0, -1));
-                    else launchMapsDirections(shop, shop, first);
-                    return;
-                }
-                const idx = choice - 1;
-                const chunk = chunks[idx];
-                // Each section starts where the previous one ended; the last one returns to the shop
-                const origin = idx === 0 ? shop : chunks[idx - 1].items[chunks[idx - 1].items.length - 1];
-                if (idx === chunks.length - 1 && !endAtLast) {
-                    launchMapsDirections(origin, shop, chunk.items);
-                } else {
-                    launchMapsDirections(origin, chunk.items[chunk.items.length - 1], chunk.items.slice(0, -1));
-                }
-            });
-        }
 
         function launchMapsDirections(origin, destination, waypointList) {
             const waypoints = waypointList.map(w => encodeURIComponent(w)).join("|");
@@ -6309,6 +6289,7 @@
         })();
         applyFormScale(appSettings.formScale);
         setupFormResize();
+        setupDriverHold();
         function persistSettingsCache() {
             try { localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(appSettings)); } catch (e) {}
         }
@@ -6578,6 +6559,10 @@
             const bar = document.getElementById('driver-bar');
             if (!bar) return;
             const list = tickedDrivers();
+            // Also anyone with a route saved today or an unfinished list (they used to show under All Saved Routes)
+            const extra = Object.keys(savedRoutesCache || {}).filter(k => savedRoutesCache[k] && savedRoutesCache[k].stops && isSameDay(savedRoutesCache[k].timestamp))
+                .concat(Object.keys(draftRoutesCache || {}).filter(k => draftRoutesCache[k] && draftRoutesCache[k].stops));
+            extra.forEach(k => { if (!list.some(d => d.key === k)) list.push({ key: k, label: driverLabel(k) }); });
             // A driver picked earlier who isn't ticked in Settings any more still shows, so it's clear who's picked
             if (currentDriver && !list.some(d => d.key === currentDriver)) list.unshift({ key: currentDriver, label: driverLabel(currentDriver) });
             if (list.length === 0) {
@@ -6593,19 +6578,30 @@
                     : { n: listStopCount(kept[d.key]), changed: !!(kept[d.key] && kept[d.key].listChanged) };
                 let status = 'none', meta = '';
                 if (pendingRouteSaves[d.key]) { status = 'unsent'; meta = 'not sent'; }
-                else if (local.changed && local.n > 0) { status = 'draft'; meta = local.n + ' not saved'; }
+                else if (local.changed && local.n > 0) { status = 'changed'; meta = local.n + ' not saved'; }
                 else if (route && route.stops && isSameDay(route.timestamp)) { status = 'sent'; meta = '✓ ' + Object.keys(route.stops).length; }
                 else if (draft && draft.stops) { status = 'draft'; meta = 'unfinished'; }
-                const title = meta.endsWith('not saved') ? `${local.n} stops on this phone, not saved yet` : (status === 'sent' ? `Route sent today, ${Object.keys(route.stops).length} stops` : (status === 'unsent' ? 'Saved but not sent to Route Helper yet' : (status === 'draft' ? 'Unfinished list saved' : 'No route yet today')));
+                else if (route && route.stops) { status = 'old'; meta = formatSavedTime(route.timestamp); }
+                const titles = {
+                    changed: `${local.n} stops on this phone, not saved yet`,
+                    sent: route && route.stops ? `Route saved and sent today, ${Object.keys(route.stops).length} stops` : '',
+                    unsent: 'Saved but not sent to Route Helper yet',
+                    draft: 'Unfinished list saved (route not made yet)',
+                    old: `Last route saved ${formatSavedTime(route && route.timestamp)}, nothing saved today`,
+                    none: 'Nothing saved yet'
+                };
+                const title = titles[status] + '. Hold for saved routes.';
                 const picked = d.key === currentDriver;
-                return `<button type="button" class="driver-btn status-${status}${picked ? ' is-picked' : ''}" aria-pressed="${picked}" title="${escapeHtml(title)}" onclick="tapDriverButton(${jsArg(d.key)})"><span class="driver-btn-name">${escapeHtml(d.label)}</span>${meta ? `<span class="driver-btn-meta">${escapeHtml(meta)}</span>` : ''}</button>`;
+                return `<button type="button" class="driver-btn status-${status}${picked ? ' is-picked' : ''}" data-key="${escapeHtml(d.key)}" aria-pressed="${picked}" title="${escapeHtml(title)}" onclick="tapDriverButton(${jsArg(d.key)})"><span class="driver-btn-name">${escapeHtml(d.label)}</span>${meta ? `<span class="driver-btn-meta">${escapeHtml(meta)}</span>` : ''}</button>`;
             }).join('');
         }
         // Tapping a driver shows that driver's list, kept on this phone (empty if none). The list on
         // screen stays kept under its own driver. Stops added before any driver was picked go with
         // the driver tapped. Nothing is sent to the database until Save.
         let switchingDriver = false;
+        let driverHoldUntil = 0; // a hold opens the menu; the tap that ends it is ignored
         async function tapDriverButton(key) {
+            if (Date.now() < driverHoldUntil) return;
             if (switchingDriver || key === currentDriver) return;
             switchingDriver = true;
             try { await switchToDriver(key); } finally { switchingDriver = false; }
@@ -6644,6 +6640,57 @@
             if (!kept && draft && draft.stops) { showListOnScreen(null); loadDraftRoute(key); return; }
             showListOnScreen(kept);
             if (listStopCount(kept) === 0) warnSentToday(key);
+        }
+        // Hold a driver button: their saved route and unfinished list (open, see the list, delete).
+        // This replaces the All Saved Routes section.
+        async function driverSavedMenu(key) {
+            const label = driverLabel(key);
+            const route = savedRoutesCache && savedRoutesCache[key];
+            const draft = draftRoutesCache && draftRoutesCache[key];
+            const n = x => x && x.stops ? Object.keys(x.stops).length : 0;
+            const items = [];
+            if (route && route.stops) {
+                items.push([`Open saved route (${n(route)} stops, ${formatSavedTime(route.timestamp)})`, () => openSavedForDriver(key, false)]);
+                items.push(['Show saved route list', () => openContactListForRoute(key, false)]);
+            }
+            if (draft && draft.stops) {
+                items.push([`Open unfinished list (${n(draft)} stops)`, () => openSavedForDriver(key, true)]);
+                items.push(['Show unfinished list', () => openContactListForRoute(key, true)]);
+            }
+            if (route && route.stops) items.push(['Delete saved route', async () => {
+                if (await showConfirmModal(`Delete ${label}'s saved route? Route Helper won't have it any more.`)) db.ref('developer/route_planner/saved_routes/' + key).remove().catch(err => showAlertModal("Error deleting route: " + err.message));
+            }]);
+            if (draft && draft.stops) items.push(['Delete unfinished list', async () => {
+                if (await showConfirmModal(`Delete ${label}'s unfinished list?`)) db.ref(DRAFT_ROUTES_PATH + '/' + key).remove().catch(err => showAlertModal("Error deleting route: " + err.message));
+            }]);
+            if (items.length === 0) { showToast(`${label} has no saved route yet.`); return; }
+            const i = await showChoiceModal(label, items.map(x => x[0]));
+            if (i === null || i === undefined || !items[i]) return;
+            items[i][1]();
+        }
+        function setupDriverHold() {
+            const bar = document.getElementById('driver-bar');
+            if (!bar) return;
+            let timer = null, startX = 0, startY = 0;
+            const cancel = () => { clearTimeout(timer); timer = null; };
+            const open = key => { cancel(); driverHoldUntil = Date.now() + 700; driverSavedMenu(key); };
+            bar.addEventListener('pointerdown', e => {
+                const btn = e.target.closest('.driver-btn[data-key]');
+                if (!btn) return;
+                startX = e.clientX; startY = e.clientY;
+                cancel();
+                timer = setTimeout(() => open(btn.dataset.key), 550);
+            });
+            bar.addEventListener('pointermove', e => { if (timer && (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10)) cancel(); });
+            ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => bar.addEventListener(t, cancel));
+            // Right-click, or the phone's own long-press menu
+            bar.addEventListener('contextmenu', e => {
+                const btn = e.target.closest('.driver-btn[data-key]');
+                if (!btn) return;
+                e.preventDefault();
+                if (Date.now() < driverHoldUntil) return; // the hold already opened it
+                open(btn.dataset.key);
+            });
         }
         function warnSentToday(key) {
             const route = savedRoutesCache && savedRoutesCache[key];
@@ -6686,27 +6733,6 @@
         function savedStopCount(key) {
             const route = savedRoutesCache && savedRoutesCache[key];
             return route && route.stops ? Object.keys(route.stops).length : 0;
-        }
-        async function pickDriver() {
-            const list = tickedDrivers();
-            if (list.length === 0) {
-                if (await showConfirmModal('No drivers yet. Add your drivers in Settings?')) openSettings();
-                return;
-            }
-            const options = list.map(d => {
-                const route = savedRoutesCache && savedRoutesCache[d.key];
-                return d.label + (route && route.stops ? `  ·  saved ${formatSavedTime(route.timestamp)} (${savedStopCount(d.key)})` : '');
-            });
-            if (currentDriver) options.push('No driver (ask when saving)');
-            const i = await showChoiceModal('Who is this route for?', options);
-            if (i === null || i === undefined) return;
-            if (i >= list.length) { setCurrentDriver(''); return; }
-            const key = list[i].key;
-            setCurrentDriver(key);
-            const route = savedRoutesCache && savedRoutesCache[key];
-            if (route && route.stops && isSameDay(route.timestamp) && getContactListDriver() !== key) {
-                showToast(`${driverLabel(key)} already has a saved route (${savedStopCount(key)} stops, saved ${formatSavedTime(route.timestamp)}). Saving will replace it.`, false, { duration: 7000 });
-            }
         }
         // Customers on other drivers' routes saved today, for the warning when adding a stop.
         function driversWithCustomerToday(name, exceptKey) {
@@ -6881,6 +6907,7 @@
         //   A name that is also the start of a longer name ("AAA" and "AAA Bobcat") waits for the end.
         // - Otherwise the phone's final guess is matched (sound-alike too) as soon as it arrives.
         function quickVoiceAdd() {
+            if (Date.now() < micHoldUntil) return; // the hold opened the list sheet instead
             if (quickVoiceRec) { try { quickVoiceRec.stop(); } catch (e) {} return; }
             listenVoiceAliases();
             const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -6937,6 +6964,17 @@
                 noSpeech = setTimeout(() => { try { rec.stop(); } catch (e) {} }, 7000);
             } catch (e) { quickVoiceRec = null; btn.classList.remove('is-listening'); }
         }
+        // Hold the mic button: the "Add several stops" sheet (paste or say a list of names, check them, add)
+        let micHoldUntil = 0;
+        (function setupMicHold() {
+            const btn = document.getElementById('mic-btn-bottom');
+            if (!btn) return;
+            let timer = null;
+            const cancel = () => { clearTimeout(timer); timer = null; };
+            btn.addEventListener('pointerdown', () => { cancel(); timer = setTimeout(() => { timer = null; micHoldUntil = Date.now() + 700; openMultiAdd(false); }, 550); });
+            ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => btn.addEventListener(t, cancel));
+            btn.addEventListener('contextmenu', e => e.preventDefault());
+        })();
         // Words that are a customer's whole name or a taught phrase, and not the start of a longer name
         function sureVoiceMatch(text) {
             const norm = normName(text);
