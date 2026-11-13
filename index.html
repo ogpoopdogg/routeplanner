@@ -217,7 +217,9 @@
         #stop-panel #f-address { padding-right: 44px; }
         #stop-panel .frequent-row { margin: 0 -2px 8px; }
         #stop-panel .btn-add { min-height: 46px; padding: 11px 20px; margin-top: 0; }
-        #stop-panel .action-row { margin-top: 8px; }
+        .route-controls { margin: 10px 0 0; }
+        .route-controls .action-row { margin-top: 0; }
+        .route-controls .driver-bar { margin: 10px -2px 0; }
         #stop-panel-grip { display: flex; align-items: center; justify-content: center; height: 20px; margin: 2px -12px 0; cursor: ns-resize; touch-action: none; user-select: none; -webkit-user-select: none; }
         #stop-panel-grip span { width: 44px; height: 5px; border-radius: 3px; background: var(--border-strong); transition: background .2s, width .2s; }
         #stop-panel-grip:hover span, #stop-panel-grip.is-dragging span { background: var(--accent); width: 60px; }
@@ -1065,8 +1067,6 @@
         <div class="panel" id="stop-panel">
           <!-- Everything in the panel is drawn at the size picked with the handle below (Settings: formScale) -->
           <div id="stop-panel-body">
-            <!-- Drivers: tap one to make this route for them. Each shows how far they are today. -->
-            <div id="driver-bar" class="driver-bar" role="group" aria-label="Driver for this route"></div>
             <div id="connectivity-banner" style="display:none;"></div>
             <div class="flex-row">
                 <div class="rel" style="position: relative; width: 100%;">
@@ -1092,18 +1092,24 @@
             <!-- Most-used customers in the last 30 days: one tap adds the stop -->
             <div id="frequent-row" class="frequent-row" hidden></div>
             <button class="btn-add" onclick="addJob()">ADD TO ROUTE</button>
-            <div class="action-row">
-                <div class="action-group">
-                    <button class="btn-save" onclick="saveCurrentRoute()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v5h8V3M7 21v-7h10v7"/></svg>Save</button>
-                    <button class="btn-delete-all-saved" onclick="openDeleteRoutesModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete</button>
-                </div>
-                <button class="btn-clear" onclick="clearAllJobs()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>Clear</button>
-            </div>
             <!-- CREATE ROUTE button removed from main page; only on map -->
           </div>
           <!-- Drag up or down to make the whole panel smaller or bigger. Double-tap: normal size. -->
           <div id="stop-panel-grip" role="separator" aria-orientation="horizontal" aria-label="Drag to resize the stop panel" title="Drag to resize. Double-tap for normal size."><span></span></div>
         </div>
+
+            <!-- Save / Delete / Clear, then the drivers: always here, under the stop panel -->
+            <div class="route-controls">
+                <div class="action-row">
+                    <div class="action-group">
+                        <button class="btn-save" onclick="saveCurrentRoute()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v5h8V3M7 21v-7h10v7"/></svg>Save</button>
+                        <button class="btn-delete-all-saved" onclick="openDeleteRoutesModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete</button>
+                    </div>
+                    <button class="btn-clear" onclick="clearAllJobs()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>Clear</button>
+                </div>
+                <!-- Drivers: tap one to show their list. Each shows how far they are today. -->
+                <div id="driver-bar" class="driver-bar" role="group" aria-label="Driver for this route"></div>
+            </div>
 
             <!-- Saved Routes Pills - Collapsible -->
             <div class="saved-wrap">
@@ -3532,44 +3538,13 @@
         }
 
         // ---------- MAKE ROUTE (main page) ----------
-        // One button: puts the stops in the best order (around opening times when known) and opens
-        // the map to show the route it made.
-        let makeRouteBusy = false;
-        async function makeRouteFromMain() {
-            if (makeRouteBusy) return;
+        // Opens the map and starts building the route by hand (same as the map's CREATE ROUTE button):
+        // tap the pins in the order the driver should go. The stops aren't put in order automatically.
+        function makeRouteFromMain() {
             const pendingIds = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup');
             if (pendingIds.length === 0) { showAlertModal("Add some stops first."); return; }
-            makeRouteBusy = true;
-            try {
-                if (routeState.isFinalized || routeState.order.length > 0) {
-                    if (!(await showConfirmModal("Make the route again? The order you have now will be replaced."))) return;
-                    const keepStart = routeState.startTime;
-                    resetOrderingState();
-                    routeState.autoOptimized = false;
-                    routeState.startTime = keepStart;
-                    updateAutoOptimizeButtonVisual();
-                    if (map) { Object.values(mapMarkers).forEach(m => m.setMap(null)); mapMarkers = {}; }
-                }
-                openMap(true);
-                if (pendingIds.length === 1) {
-                    // One stop: nothing to put in order
-                    routeState.order = pendingIds.slice();
-                    routeState.assignedIndices = { [pendingIds[0]]: 1 };
-                    routeState.isFinalized = true;
-                    isOrderingMode = false;
-                    await ensureAllJobsGeocoded();
-                    if (map) updateMapMarkersForOrdering();
-                    await updateForwardRoute();
-                    await fetchReturnRoute();
-                    renderList();
-                    updateUI();
-                    scheduleAutoETA();
-                } else {
-                    await autoOptimizeRoute();
-                }
-            } finally {
-                makeRouteBusy = false;
-            }
+            openMap(true);
+            startCreateRoute(); // asks first if a made route would be replaced
         }
 
         function zoomToAllWaypoints() {
