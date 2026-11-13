@@ -1667,6 +1667,7 @@
             });
             // Shared settings (drivers, gas stop, warnings)
             db.ref(SETTINGS_PATH).on('value', snap => onSettingsFromServer(snap.val()));
+            listenVoiceAliases(); // taught voice phrases ready before the mic is first tapped
             updateDriverChip();
 
             // Live connection state, and the trigger to retry anything pending the
@@ -6828,6 +6829,12 @@
         // is matched to a customer (sound-alike and Voice learner included) and added to the route right
         // away. Names it can't match are listed in a message instead.
         let quickVoiceRec = null;
+        // Mic button: listens and adds the stop the moment the name is recognised.
+        // - While still listening, the words so far are checked against the address book. If they are a
+        //   customer's whole name (or a phrase taught in the voice learner), the stop is added right
+        //   away and listening stops, without waiting for the phone to decide you've finished talking.
+        //   A name that is also the start of a longer name ("AAA" and "AAA Bobcat") waits for the end.
+        // - Otherwise the phone's final guess is matched (sound-alike too) as soon as it arrives.
         function quickVoiceAdd() {
             if (quickVoiceRec) { try { quickVoiceRec.stop(); } catch (e) {} return; }
             listenVoiceAliases();
@@ -6837,33 +6844,19 @@
             const rec = new Ctor();
             quickVoiceRec = rec;
             rec.lang = 'en-CA';
-            rec.continuous = true;
-            rec.interimResults = true;
+            rec.continuous = false;   // the phone ends listening itself when you stop talking
+            rec.interimResults = true; // words as they come, so a sure match is added straight away
             rec.maxAlternatives = 5;
-            const said = [];
-            let used = 0, silence = null;
-            // Stops 2.5 s after the last words, or after 8 s if nothing is said
-            const wait = ms => { clearTimeout(silence); silence = setTimeout(() => { try { rec.stop(); } catch (e) {} }, ms); };
-            rec.onresult = ev => {
-                let interim = '';
-                for (let i = used; i < ev.results.length; i++) {
-                    const r = ev.results[i];
-                    if (r.isFinal) {
-                        const guesses = Array.from({ length: r.length }, (_, k) => r[k] && r[k].transcript.trim()).filter(Boolean);
-                        const best = bestGuess(guesses);
-                        if (best) said.push(best);
-                        used = i + 1;
-                    } else interim += r[0].transcript;
-                }
-                wait(2500);
-            };
-            rec.onerror = ev => { if (ev && ev.error === 'not-allowed') showToast('The microphone is blocked for this page. Allow it in the browser settings.', true); };
-            rec.onend = async () => {
-                clearTimeout(silence);
+            let finished = false, finalText = '', noSpeech = null;
+            const finish = async (text) => {
+                if (finished) return;
+                finished = true;
+                clearTimeout(noSpeech);
                 if (quickVoiceRec === rec) quickVoiceRec = null;
                 btn.classList.remove('is-listening');
-                if (said.length === 0) { showToast("Didn't hear a name. Tap the mic and try again.", true); return; }
-                const rows = matchSpokenNames(said.join('\n'));
+                try { rec.abort(); } catch (e) {}
+                if (!text) { showToast("Didn't hear a name. Tap the mic and try again.", true); return; }
+                const rows = matchSpokenNames(text);
                 const names = rows.filter(r => r.pick && addressData[r.pick]).map(r => r.pick);
                 const missing = rows.filter(r => !r.pick).map(r => r.heard);
                 for (const name of names) {
@@ -6874,8 +6867,39 @@
                 // No captions: the stops just appear. Only a name it couldn't match gets a message.
                 if (missing.length) showToast(`Couldn't find "${missing.join('", "')}". Teach it in Settings > Voice learner.`, true, { duration: 6000 });
             };
+            rec.onresult = ev => {
+                if (finished) return;
+                const parts = [], interim = [];
+                for (let i = 0; i < ev.results.length; i++) {
+                    const res = ev.results[i];
+                    if (res.isFinal) {
+                        const guesses = Array.from({ length: res.length }, (_, k) => res[k] && res[k].transcript.trim()).filter(Boolean);
+                        parts.push(bestGuess(guesses));
+                    } else if (res[0]) interim.push(res[0].transcript);
+                }
+                finalText = parts.filter(Boolean).join(' ');
+                if (interim.length === 0) { finish(finalText); return; }
+                // Still talking: add now if the words so far are a sure match
+                const soFar = (finalText + ' ' + interim.join(' ')).trim();
+                if (sureVoiceMatch(soFar)) finish(soFar);
+            };
+            rec.onerror = ev => { if (ev && ev.error === 'not-allowed') showToast('The microphone is blocked for this page. Allow it in the browser settings.', true); };
+            rec.onend = () => { if (!finished) finish(finalText); };
             btn.classList.add('is-listening');
-            try { rec.start(); wait(8000); } catch (e) { quickVoiceRec = null; btn.classList.remove('is-listening'); }
+            try {
+                rec.start();
+                // Nothing said in 7 s: stop
+                noSpeech = setTimeout(() => { try { rec.stop(); } catch (e) {} }, 7000);
+            } catch (e) { quickVoiceRec = null; btn.classList.remove('is-listening'); }
+        }
+        // Words that are a customer's whole name or a taught phrase, and not the start of a longer name
+        function sureVoiceMatch(text) {
+            const norm = normName(text);
+            if (!norm) return false;
+            const idx = customerIndex();
+            const alias = voiceAliases[norm] && addressData[voiceAliases[norm]];
+            if (!idx.exact[norm] && !alias) return false;
+            return !idx.startsLonger[norm];
         }
 
         function stopMultiAddListening() {
@@ -6917,15 +6941,37 @@
             }
             return prev[b.length];
         }
+        // Customer names worked out once each time the address book loads, not on every word heard
+        let customerIndexFor = null, customerIndexCache = null;
+        function customerIndex() {
+            if (customerIndexCache && customerIndexFor === addressData) return customerIndexCache;
+            const list = [], exact = {}, startsLonger = {};
+            Object.keys(addressData).forEach(name => {
+                const norm = normName(name);
+                if (!norm) return;
+                const words = norm.split(' ').filter(w => w && w !== 'and' && w !== 'the');
+                const joined = words.join('');
+                list.push({ name, norm, words, keys: words.map(soundKey), joined, joinedKey: soundKey(joined) });
+                if (!exact[norm] || norm.length > normName(exact[norm]).length) exact[norm] = name;
+                // "aaa" is the start of "aaa bobcat": hearing "aaa" alone isn't sure yet
+                const all = norm.split(' ');
+                for (let i = 1; i < all.length; i++) startsLonger[all.slice(0, i).join(' ')] = true;
+            });
+            customerIndexFor = addressData;
+            customerIndexCache = { list, exact, startsLonger };
+            return customerIndexCache;
+        }
         function likeness(a, b) { const m = Math.max(a.length, b.length); return m === 0 ? 0 : 1 - editDistance(a, b) / m; }
         // How alike a heard word is to a word in a customer's name, 0 to 1
-        function wordLikeness(heard, have) {
+        function wordLikeness(heard, have, heardKey, haveKey) {
             if (heard === have) return 1;
             if (heard.length >= 3 && have.length >= 3 && (have.startsWith(heard) || heard.startsWith(have))) return 0.9;
-            const ka = soundKey(heard), kb = soundKey(have);
-            let best = likeness(heard, have);
+            const ka = heardKey !== undefined ? heardKey : soundKey(heard), kb = haveKey !== undefined ? haveKey : soundKey(have);
+            // Only worked out when it could reach the 0.6 that counts (lengths too different can't), to keep it quick
+            const could = (x, y, need) => 1 - Math.abs(x.length - y.length) / Math.max(x.length, y.length) >= need;
+            let best = could(heard, have, 0.6) ? likeness(heard, have) : 0;
             if (ka.length >= 2 && ka === kb) best = Math.max(best, 0.85);
-            else if (ka.length >= 3 && kb.length >= 3) best = Math.max(best, likeness(ka, kb) * 0.8);
+            else if (ka.length >= 3 && kb.length >= 3 && could(ka, kb, 0.75)) best = Math.max(best, likeness(ka, kb) * 0.8);
             return best;
         }
         // Closest customers to some words. Each heard word is paired with the most alike word in the
@@ -6935,18 +6981,19 @@
             const want = words.filter(w => w.length > 1 && w !== 'and' && w !== 'the');
             if (want.length === 0) return [];
             const wantJoined = want.join('');
-            return Object.keys(addressData).map(name => {
-                const have = normName(name).split(' ').filter(w => w && w !== 'and' && w !== 'the');
+            const wantKeys = want.map(soundKey);
+            const wantJoinedKey = soundKey(wantJoined);
+            return customerIndex().list.map(c => {
+                const name = c.name, have = c.words;
                 if (have.length === 0) return { name, score: 0 };
                 let total = 0;
-                want.forEach(w => {
+                want.forEach((w, wi) => {
                     let best = 0;
-                    have.forEach(h => { best = Math.max(best, wordLikeness(w, h)); });
+                    have.forEach((h, hi) => { if (best < 1) best = Math.max(best, wordLikeness(w, h, wantKeys[wi], c.keys[hi])); });
                     if (best >= 0.6) total += best;
                 });
                 let score = (2 * total) / (want.length + have.length);
-                const haveJoined = have.join('');
-                const joined = Math.max(likeness(wantJoined, haveJoined), soundKey(wantJoined).length >= 3 ? likeness(soundKey(wantJoined), soundKey(haveJoined)) * 0.85 : 0);
+                const joined = Math.max(likeness(wantJoined, c.joined), wantJoinedKey.length >= 3 ? likeness(wantJoinedKey, c.joinedKey) * 0.85 : 0);
                 if (joined >= 0.7) score = Math.max(score, joined);
                 return { name, score };
             }).filter(x => x.score >= 0.25).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name)).slice(0, count || 5);
@@ -6956,13 +7003,17 @@
             const norm = normName(text);
             if (!norm) return 0;
             if (voiceAliases[norm] && addressData[voiceAliases[norm]]) return 1.01;
-            if (Object.keys(addressData).some(n => normName(n) === norm)) return 1;
+            if (customerIndex().exact[norm]) return 1;
             const close = closestCustomers(norm.split(' '), 1);
             return close.length ? close[0].score : 0;
         }
         function bestGuess(guesses) {
             let best = guesses[0] || '', bestScore = -1;
-            guesses.forEach(g => { const sc = guessScore(g); if (sc > bestScore + 0.02) { best = g; bestScore = sc; } });
+            for (const g of guesses) {
+                const sc = guessScore(g);
+                if (sc > bestScore + 0.02) { best = g; bestScore = sc; }
+                if (bestScore >= 1) break; // a whole name or taught phrase: no need to check the rest
+            }
             return best;
         }
         // What was heard -> the customer picked for it, saved when stops are added, so a name the speech
@@ -6984,10 +7035,10 @@
         }
         // Rows for what was said or pasted: { heard, pick, kind: 'ok'|'check'|'missing', options, on }
         function matchSpokenNames(text) {
-            const names = Object.keys(addressData).map(name => ({ name, norm: normName(name) })).filter(x => x.norm)
-                .sort((a, b) => b.norm.length - a.norm.length); // longest first, so "Westman Medical Supply" beats "Westman"
-            const exact = {};
-            names.forEach(x => { if (!exact[x.norm]) exact[x.norm] = x.name; });
+            const idx = customerIndex();
+            if (!idx.byLength) idx.byLength = idx.list.slice().sort((a, b) => b.norm.length - a.norm.length); // longest first, so "Westman Medical Supply" beats "Westman"
+            const names = idx.byLength;
+            const exact = idx.exact;
             const rows = [];
             const addRow = (heard, pick, kind, options) => rows.push({ heard, pick, kind, options: options || (pick ? [pick] : []), on: kind !== 'missing' });
             const aliasFor = norm => (voiceAliases[norm] && addressData[voiceAliases[norm]]) ? voiceAliases[norm] : null;
