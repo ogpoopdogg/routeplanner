@@ -1162,7 +1162,7 @@
         <button id="reset-driver-view-btn" onclick="resetMapView()" style="display:none;">← BACK</button>
         <!-- CREATE ROUTE button inside map -->
         <button id="create-route-map" class="create-route-btn map-modal-btn" onclick="startCreateRoute()">CREATE ROUTE</button>
-        <button id="auto-optimize-btn" class="create-route-btn map-modal-btn" onclick="autoOptimizeRoute()">AUTO-OPTIMIZE</button>
+        <button id="auto-optimize-btn" class="create-route-btn map-modal-btn" onclick="autoOptimizeFromFirstStop()">AUTO-OPTIMIZE</button>
         <div id="map-stop-counter"></div>
         <div id="calculating-route-indicator">Calculating route...</div>
         <button id="undo-assignment-btn" onclick="undoLastAssignment()" aria-label="Undo last assignment">
@@ -1427,7 +1427,7 @@
     </button>
 
     <!-- Mic Button (above Share Button): starts listening for customer names straight away -->
-    <button id="mic-btn-bottom" class="fab" onclick="quickVoiceAdd()" aria-label="Say customer names to add them" title="Say customer names to add them"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg></button>
+    <button id="mic-btn-bottom" class="fab" onclick="quickVoiceAdd()" aria-label="Say a customer name to add it. Hold to paste or say a list." title="Tap: say a name. Hold: paste or say a list."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg></button>
 
     <!-- List Button (below Share Button) -->
     <button id="list-btn-bottom" class="fab" onclick="openContactListModal()" aria-label="List" title="Contact list"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="18" rx="2.5"/><path d="M9 3.5h6v3H9zM9 11h6M9 15h6"/></svg></button>
@@ -1923,11 +1923,16 @@
         // whether it has changes not saved yet. Tapping a driver's button shows that driver's list
         // (empty if none), so lists don't get mixed up. Save sends it to the database and clears it.
         const DRIVER_LISTS_KEY = 'ec_route_planner_driver_lists';
+        // Read from the phone once, then kept in memory (written back on every change)
+        let driverListsCache = null;
         function readDriverLists() {
-            try { const all = JSON.parse(localStorage.getItem(DRIVER_LISTS_KEY) || '{}'); return (all && typeof all === 'object') ? all : {}; }
-            catch (e) { return {}; }
+            if (driverListsCache) return driverListsCache;
+            try { const all = JSON.parse(localStorage.getItem(DRIVER_LISTS_KEY) || '{}'); driverListsCache = (all && typeof all === 'object') ? all : {}; }
+            catch (e) { driverListsCache = {}; }
+            return driverListsCache;
         }
         function writeDriverLists(all) {
+            driverListsCache = all;
             try { localStorage.setItem(DRIVER_LISTS_KEY, JSON.stringify(all)); } catch (e) { /* storage full or blocked */ }
         }
         function listStopCount(list) {
@@ -2223,7 +2228,6 @@
                     updateConnectivityBanner();
                     resetFormFields();
                     markListChanged();
-                markListChanged();
                     insertStopIntoFinalizedRoute(newId).catch(err => console.warn("Route insertion failed:", err));
 
                     newJobRef.set(newJob).then(() => {
@@ -4226,6 +4230,22 @@
             return { order: bestFound.path.map(k => ids[k - 1]), earlyCount: evaluate(bestFound.path).earlyCount };
         }
 
+        // AUTO-OPTIMIZE asks which stop is first, then puts the rest in order from that stop on, so the
+        // route starts in the right direction. Pins already tapped in CREATE ROUTE count as the start.
+        async function autoOptimizeFromFirstStop() {
+            const pendingIds = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup');
+            const tapped = Object.keys(routeState.assignedIndices || {}).filter(id => jobs[id]);
+            if (pendingIds.length >= 2 && tapped.length === 0) {
+                const ids = pendingIds.slice().sort((a, b) => String(jobs[a].name || '').localeCompare(String(jobs[b].name || '')));
+                const i = await showChoiceModal('Which stop is first? The rest are put in order from there.', ids.map(id => jobs[id].name || jobs[id].address || 'No name'));
+                if (i === null || i === undefined || !ids[i]) return;
+                const first = ids[i];
+                if (!isOrderingMode && !routeState.isFinalized) { isOrderingMode = true; }
+                routeState.order = [first];
+                routeState.assignedIndices = { [first]: 1 };
+            }
+            return autoOptimizeRoute();
+        }
         async function autoOptimizeRoute() {
             const optimizeBtn = document.getElementById('auto-optimize-btn');
             const indicator = document.getElementById('calculating-route-indicator');
@@ -5096,6 +5116,8 @@
 
         // ---------- RENDER SAVED ROUTES PILLS ----------
         function renderSavedPills(data) {
+            const wrap = document.querySelector('.saved-wrap');
+            if (wrap && wrap.hidden) return; // replaced by the driver buttons: nothing to draw
             const container = document.getElementById('saved-routes-container');
             container.innerHTML = '';
             const madeKeys = Object.keys(data);
@@ -5395,7 +5417,9 @@
             // Show date modal
             document.getElementById('date-modal').style.display = 'flex';
             // Set default date to today
-            const today = new Date().toISOString().split('T')[0];
+            // Today in Brandon time (toISOString is UTC, which is tomorrow after 7 PM in Brandon)
+            const bp = brandonParts(Date.now());
+            const today = `${bp.y}-${String(bp.m).padStart(2, '0')}-${String(bp.d).padStart(2, '0')}`;
             document.getElementById('route-date-input').value = today;
             pendingShareDate = null;
             populateShareRouteChecklist();
@@ -5417,7 +5441,10 @@
                 keys.forEach(key => {
                     const route = savedData[key];
                     const label = (route && route.label) ? route.label : 'Unnamed';
-                    html += `<div class="share-route-check-item"><input type="checkbox" id="share-route-${escapeHtml(key)}" data-route-key="${escapeHtml(key)}" checked><label for="share-route-${escapeHtml(key)}">${escapeHtml(label)}</label></div>`;
+                    // Routes from an earlier day are listed but not ticked, so they don't go out by mistake
+                    const today = route && isSameDay(route.timestamp);
+                    const when = route && route.timestamp && !today ? ` (${formatSavedTime(route.timestamp)})` : '';
+                    html += `<div class="share-route-check-item"><input type="checkbox" id="share-route-${escapeHtml(key)}" data-route-key="${escapeHtml(key)}"${today ? ' checked' : ''}><label for="share-route-${escapeHtml(key)}">${escapeHtml(label + when)}</label></div>`;
                 });
                 listContainer.innerHTML = html;
             }).catch(err => {
@@ -5715,77 +5742,6 @@
         }
 
         function resetMapView() { zoomToAll(); }
-
-        // ---------- EXTERNAL ROUTE NAVIGATION (similar to driver.html) ----------
-        function openExternalRoute() {
-            let order = [];
-            if (routeState.isFinalized && routeState.order.length > 0) {
-                order = routeState.order;
-            } else if (isOrderingMode && routeState.order.length > 0) {
-                order = routeState.order;
-            } else {
-                showAlertModal("No stops to route. Please create a route first.");
-                return;
-            }
-            if (order.length === 0) {
-                showAlertModal("No stops to route.");
-                return;
-            }
-            const shop = shopAddress();
-            // Unique stop addresses, in route order
-            const seenLocs = new Set();
-            const stops = [];
-            order.forEach(id => {
-                const job = jobs[id];
-                if (!job) return;
-                const key = `${job.pickup_location}, ${job.city || "Brandon"}`;
-                if (seenLocs.has(key)) return;
-                seenLocs.add(key);
-                stops.push(key);
-            });
-            if (stops.length === 0) {
-                showAlertModal("No stops to route.");
-                return;
-            }
-
-            // Google documents up to 9 waypoints per Maps link. Short routes open straight
-            // away; longer ones let the driver pick a section (or send everything as before).
-            const PER_LINK = 9;
-            // "Return to the shop" off: the trip ends at the last stop.
-            const endAtLast = !appSettings.returnToShop;
-            if (stops.length <= PER_LINK) {
-                if (endAtLast) launchMapsDirections(shop, stops[stops.length - 1], stops.slice(0, -1));
-                else launchMapsDirections(shop, shop, stops);
-                return;
-            }
-            const chunks = [];
-            for (let i = 0; i < stops.length; i += PER_LINK) {
-                chunks.push({ start: i, items: stops.slice(i, i + PER_LINK) });
-            }
-            const options = [`All stops (first ${Math.min(stops.length, 25)}, as before)`]
-                .concat(chunks.map(c => `Stops ${c.start + 1}–${c.start + c.items.length}`));
-            showChoiceModal(
-                `This route has ${stops.length} stops. Google Maps links officially support ${PER_LINK} stops at a time, so stops past ${PER_LINK} may be dropped.\n\nWhich stops do you want to open?`,
-                options
-            ).then(choice => {
-                if (choice === null) return;
-                if (choice === 0) {
-                    const first = stops.slice(0, 25);
-                    if (endAtLast) launchMapsDirections(shop, first[first.length - 1], first.slice(0, -1));
-                    else launchMapsDirections(shop, shop, first);
-                    return;
-                }
-                const idx = choice - 1;
-                const chunk = chunks[idx];
-                // Each section starts where the previous one ended; the last one returns to the shop
-                const origin = idx === 0 ? shop : chunks[idx - 1].items[chunks[idx - 1].items.length - 1];
-                if (idx === chunks.length - 1 && !endAtLast) {
-                    launchMapsDirections(origin, shop, chunk.items);
-                } else {
-                    launchMapsDirections(origin, chunk.items[chunk.items.length - 1], chunk.items.slice(0, -1));
-                }
-            });
-        }
 
         function launchMapsDirections(origin, destination, waypointList) {
             const waypoints = waypointList.map(w => encodeURIComponent(w)).join("|");
@@ -6777,27 +6733,6 @@
             const route = savedRoutesCache && savedRoutesCache[key];
             return route && route.stops ? Object.keys(route.stops).length : 0;
         }
-        async function pickDriver() {
-            const list = tickedDrivers();
-            if (list.length === 0) {
-                if (await showConfirmModal('No drivers yet. Add your drivers in Settings?')) openSettings();
-                return;
-            }
-            const options = list.map(d => {
-                const route = savedRoutesCache && savedRoutesCache[d.key];
-                return d.label + (route && route.stops ? `  ·  saved ${formatSavedTime(route.timestamp)} (${savedStopCount(d.key)})` : '');
-            });
-            if (currentDriver) options.push('No driver (ask when saving)');
-            const i = await showChoiceModal('Who is this route for?', options);
-            if (i === null || i === undefined) return;
-            if (i >= list.length) { setCurrentDriver(''); return; }
-            const key = list[i].key;
-            setCurrentDriver(key);
-            const route = savedRoutesCache && savedRoutesCache[key];
-            if (route && route.stops && isSameDay(route.timestamp) && getContactListDriver() !== key) {
-                showToast(`${driverLabel(key)} already has a saved route (${savedStopCount(key)} stops, saved ${formatSavedTime(route.timestamp)}). Saving will replace it.`, false, { duration: 7000 });
-            }
-        }
         // Customers on other drivers' routes saved today, for the warning when adding a stop.
         function driversWithCustomerToday(name, exceptKey) {
             const want = String(name || '').trim().toLowerCase();
@@ -6971,6 +6906,7 @@
         //   A name that is also the start of a longer name ("AAA" and "AAA Bobcat") waits for the end.
         // - Otherwise the phone's final guess is matched (sound-alike too) as soon as it arrives.
         function quickVoiceAdd() {
+            if (Date.now() < micHoldUntil) return; // the hold opened the list sheet instead
             if (quickVoiceRec) { try { quickVoiceRec.stop(); } catch (e) {} return; }
             listenVoiceAliases();
             const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -7027,6 +6963,17 @@
                 noSpeech = setTimeout(() => { try { rec.stop(); } catch (e) {} }, 7000);
             } catch (e) { quickVoiceRec = null; btn.classList.remove('is-listening'); }
         }
+        // Hold the mic button: the "Add several stops" sheet (paste or say a list of names, check them, add)
+        let micHoldUntil = 0;
+        (function setupMicHold() {
+            const btn = document.getElementById('mic-btn-bottom');
+            if (!btn) return;
+            let timer = null;
+            const cancel = () => { clearTimeout(timer); timer = null; };
+            btn.addEventListener('pointerdown', () => { cancel(); timer = setTimeout(() => { timer = null; micHoldUntil = Date.now() + 700; openMultiAdd(false); }, 550); });
+            ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => btn.addEventListener(t, cancel));
+            btn.addEventListener('contextmenu', e => e.preventDefault());
+        })();
         // Words that are a customer's whole name or a taught phrase, and not the start of a longer name
         function sureVoiceMatch(text) {
             const norm = normName(text);
