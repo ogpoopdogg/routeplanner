@@ -938,6 +938,12 @@
         .multi-row.is-missing { border-color: rgba(239,68,68,0.45); }
         .multi-row.is-missing .multi-row-heard { color: #ef4444; }
         .multi-row-name { font-weight: 700; font-size: 14px; }
+        .voice-learn-row { padding: 8px 10px; border-radius: 11px; background: var(--card-2); border: 1px solid var(--border); }
+        .voice-learn-name { font-weight: 800; font-size: 14px; margin-bottom: 6px; }
+        .voice-learn-heard { display: flex; flex-wrap: wrap; gap: 6px; }
+        .voice-learn-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; font-size: 12.5px; font-weight: 600; color: var(--card-text); background: var(--input-bg); border: 1px solid var(--border-strong); border-radius: 999px; }
+        .voice-learn-chip button { width: 22px; height: 22px; min-height: 0; padding: 0; cursor: pointer; border: none; border-radius: 50%; color: var(--muted); background: transparent; font-size: 11px; }
+        .voice-learn-chip button:hover { color: #ef4444; }
     </style>
 </head>
 <body>
@@ -1326,6 +1332,17 @@
                 <label class="customer-label" for="settings-email-subject">Subject</label>
                 <input type="text" id="settings-email-subject" autocomplete="off" onchange="saveSettingsField('emailSubject', this.value)">
                 <p class="settings-help" style="margin-top:6px;">{date} in the subject becomes the route date.</p>
+            </div>
+            <div class="settings-section">
+                <h4>Voice learner</h4>
+                <p class="settings-help">For a customer the mic gets wrong: pick the customer, tap Record and say the name the way you normally do. Everything the phone thought it heard is saved for that customer, so saying it again finds them. Record a few times for best results.</p>
+                <div class="settings-add" style="position:relative;">
+                    <input type="text" id="voice-learn-name" placeholder="Customer name" autocomplete="off" oninput="voiceLearnSuggest(this.value)" onblur="setTimeout(() => { document.getElementById('voice-learn-suggest').style.display = 'none'; }, 200)">
+                    <button type="button" id="voice-learn-btn" class="dialog-btn ok" onclick="voiceLearnRecord()">Record</button>
+                    <div id="voice-learn-suggest" class="suggestions-box" style="top:100%; left:0; right:0;"></div>
+                </div>
+                <p id="voice-learn-status" class="settings-help" style="margin-top:8px;" hidden></p>
+                <div id="voice-learn-list" class="driver-rows"></div>
             </div>
             <div class="settings-section">
                 <h4>Warnings when adding a stop</h4>
@@ -6228,12 +6245,86 @@
         function tickedDrivers() { return settingsDrivers().filter(d => d.enabled); }
 
         function openSettings() {
+            listenVoiceAliases();
             renderSettings();
+            renderVoiceLearnList();
             document.getElementById('settings-overlay').classList.add('is-open');
         }
         function closeSettings() {
             document.getElementById('settings-overlay').classList.remove('is-open');
         }
+        // ---------- VOICE LEARNER (Settings) ----------
+        // The phone's speech engine can't be taught a voice. What can be done: record the customer's name,
+        // keep every way the phone wrote it down (its top guesses), and send those words straight to that
+        // customer from then on. Saved in developer/route_planner/voice_aliases (heard words -> customer).
+        let voiceLearnRec = null;
+        function voiceLearnSuggest(val) {
+            const box = document.getElementById('voice-learn-suggest');
+            const matches = matchList(val, Object.keys(addressData), 6);
+            if (matches.length === 0) { box.style.display = 'none'; return; }
+            box.innerHTML = matches.map(n => `<div class="suggestion-item" data-name="${escapeHtml(n)}" onclick="document.getElementById('voice-learn-name').value = this.dataset.name; document.getElementById('voice-learn-suggest').style.display = 'none';">${escapeHtml(n)}</div>`).join('');
+            box.style.display = 'block';
+        }
+        function voiceLearnStatus(text, isError) {
+            const el = document.getElementById('voice-learn-status');
+            el.hidden = !text;
+            el.textContent = text || '';
+            el.style.color = isError ? '#ef4444' : '';
+        }
+        function voiceLearnRecord() {
+            if (voiceLearnRec) { try { voiceLearnRec.stop(); } catch (e) {} return; }
+            listenVoiceAliases();
+            const typed = document.getElementById('voice-learn-name').value.trim();
+            const name = findContactKey(typed);
+            if (!name) { voiceLearnStatus(typed ? `"${typed}" isn't in your customers. Pick one from the list.` : 'Pick a customer first.', true); return; }
+            const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!Ctor) { voiceLearnStatus('Voice input is not supported on this browser.', true); return; }
+            const rec = new Ctor();
+            voiceLearnRec = rec;
+            rec.lang = 'en-CA';
+            rec.continuous = false;
+            rec.interimResults = false;
+            rec.maxAlternatives = 5;
+            const btn = document.getElementById('voice-learn-btn');
+            btn.textContent = 'Stop';
+            voiceLearnStatus(`Listening... say "${name}"`);
+            let got = false;
+            rec.onresult = ev => {
+                const r = ev.results[0];
+                if (!r) return;
+                const heard = Array.from({ length: r.length }, (_, k) => r[k] && normName(r[k].transcript)).filter(h => h && h.length <= 80);
+                const unique = Array.from(new Set(heard)).filter(h => h !== normName(name));
+                got = true;
+                if (unique.length === 0) { voiceLearnStatus(`The phone already hears "${name}" correctly. Nothing to learn.`); return; }
+                const updates = {};
+                unique.forEach(h => { updates[h] = name; voiceAliases[h] = name; });
+                db.ref(VOICE_ALIASES_PATH).update(updates)
+                    .then(() => { voiceLearnStatus(`Learned for ${name}: "${unique.join('", "')}"`); renderVoiceLearnList(); })
+                    .catch(err => voiceLearnStatus('Could not save: ' + err.message, true));
+            };
+            rec.onerror = ev => { if (ev && ev.error === 'not-allowed') voiceLearnStatus('The microphone is blocked for this page. Allow it in the browser settings.', true); };
+            rec.onend = () => {
+                if (voiceLearnRec === rec) voiceLearnRec = null;
+                btn.textContent = 'Record';
+                if (!got && !document.getElementById('voice-learn-status').style.color) voiceLearnStatus("Didn't hear anything. Tap Record and try again.", true);
+            };
+            try { rec.start(); } catch (e) { voiceLearnRec = null; btn.textContent = 'Record'; }
+        }
+        function renderVoiceLearnList() {
+            const box = document.getElementById('voice-learn-list');
+            if (!box) return;
+            const byName = {};
+            Object.keys(voiceAliases || {}).forEach(h => { const n = voiceAliases[h]; if (n) (byName[n] = byName[n] || []).push(h); });
+            const names = Object.keys(byName).sort((a, b) => a.localeCompare(b));
+            box.innerHTML = names.map(n => `<div class="voice-learn-row"><div class="voice-learn-name">${escapeHtml(n)}</div><div class="voice-learn-heard">${byName[n].sort().map(h =>
+                `<span class="voice-learn-chip">${escapeHtml(h)}<button type="button" aria-label="Forget ${escapeHtml(h)}" onclick="forgetVoiceAlias(${jsArg(h)})">✕</button></span>`).join('')}</div></div>`).join('');
+        }
+        function forgetVoiceAlias(heard) {
+            delete voiceAliases[heard];
+            db.ref(VOICE_ALIASES_PATH + '/' + heard).remove().catch(err => showToast('Could not remove: ' + err.message, true));
+            renderVoiceLearnList();
+        }
+
         function renderSettings() {
             const rows = document.getElementById('settings-driver-rows');
             const list = settingsDrivers();
@@ -6493,6 +6584,7 @@
             return String(t || '').toLowerCase().replace(/&/g, ' and ').replace(/['’]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
         }
         function openMultiAdd(listenNow) {
+            listenVoiceAliases();
             document.getElementById('multi-add-text').value = '';
             document.getElementById('multi-add-heard').hidden = true;
             multiAddRows = [];
@@ -6518,6 +6610,9 @@
             rec.continuous = true;
             rec.interimResults = true;
             rec.lang = 'en-CA';
+            // Ask for the other guesses too: for a name like "Virden" the first guess is often a
+            // common word ("burden"), and a later guess may be closer to a customer
+            rec.maxAlternatives = 5;
             const heardEl = document.getElementById('multi-add-heard');
             const textEl = document.getElementById('multi-add-text');
             let silence = null;
@@ -6528,8 +6623,10 @@
                 for (let i = used; i < ev.results.length; i++) {
                     const r = ev.results[i];
                     if (r.isFinal) {
-                        // Each pause is a new line, so each name usually lands on its own line
-                        const said = r[0].transcript.trim();
+                        // Each pause is a new line, so each name usually lands on its own line.
+                        // Of the speech engine's guesses, keep the one closest to a customer.
+                        const guesses = Array.from({ length: r.length }, (_, k) => r[k] && r[k].transcript.trim()).filter(Boolean);
+                        const said = bestGuess(guesses);
                         if (said) textEl.value = (textEl.value.trim() ? textEl.value.trim() + '\n' : '') + said;
                         used = i + 1;
                     } else interim += r[0].transcript;
@@ -6557,16 +6654,99 @@
             clearTimeout(multiAddMatchTimer);
             multiAddMatchTimer = setTimeout(runMultiAddMatch, 250);
         }
-        // Closest customers to some words: share of words in common (a word counts when one starts with the other)
+        // ---- Sound-alike matching ----
+        // Speech engines write names they don't know as common words that sound the same
+        // ("Virden" -> "burden", "verdun", "virgin"). So words are also compared by how they sound:
+        // letters that sound alike share a code (b f p v / c g j k q s x z / d t / l / m n / r) and
+        // vowels are dropped, so "virden", "burden" and "verdun" all become "1635".
+        function soundKey(word) {
+            let w = String(word || '').toLowerCase().replace(/[^a-z]/g, '');
+            if (!w) return '';
+            w = w.replace(/ph/g, 'f').replace(/ck/g, 'k').replace(/^kn/, 'n').replace(/^wr/, 'r').replace(/^ps/, 's').replace(/gh/g, 'g');
+            const code = { b: '1', f: '1', p: '1', v: '1', c: '2', g: '2', j: '2', k: '2', q: '2', s: '2', x: '2', z: '2', d: '3', t: '3', l: '4', m: '5', n: '5', r: '6' };
+            let out = '', last = '';
+            for (const ch of w) {
+                const c = code[ch] || '';
+                if (c && c !== last) out += c;
+                last = c; // a vowel between two same sounds keeps both (like "n-o-n")
+            }
+            return out;
+        }
+        function editDistance(a, b) {
+            if (a === b) return 0;
+            const prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+            for (let i = 1; i <= a.length; i++) {
+                let diag = prev[0];
+                prev[0] = i;
+                for (let j = 1; j <= b.length; j++) {
+                    const tmp = prev[j];
+                    prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1));
+                    diag = tmp;
+                }
+            }
+            return prev[b.length];
+        }
+        function likeness(a, b) { const m = Math.max(a.length, b.length); return m === 0 ? 0 : 1 - editDistance(a, b) / m; }
+        // How alike a heard word is to a word in a customer's name, 0 to 1
+        function wordLikeness(heard, have) {
+            if (heard === have) return 1;
+            if (heard.length >= 3 && have.length >= 3 && (have.startsWith(heard) || heard.startsWith(have))) return 0.9;
+            const ka = soundKey(heard), kb = soundKey(have);
+            let best = likeness(heard, have);
+            if (ka.length >= 2 && ka === kb) best = Math.max(best, 0.85);
+            else if (ka.length >= 3 && kb.length >= 3) best = Math.max(best, likeness(ka, kb) * 0.8);
+            return best;
+        }
+        // Closest customers to some words. Each heard word is paired with the most alike word in the
+        // name (spelling or sound); the score is the share of words that pair up well. A whole name said
+        // as fewer or more words ("pinnacle" alone, or "vir den") is also compared as one string.
         function closestCustomers(words, count) {
-            const want = words.filter(w => w.length > 1);
+            const want = words.filter(w => w.length > 1 && w !== 'and' && w !== 'the');
             if (want.length === 0) return [];
+            const wantJoined = want.join('');
             return Object.keys(addressData).map(name => {
-                const have = normName(name).split(' ').filter(Boolean);
-                let hit = 0;
-                want.forEach(w => { if (have.some(h => h === w || (w.length >= 3 && (h.startsWith(w) || w.startsWith(h))))) hit++; });
-                return { name, score: hit === 0 ? 0 : (2 * hit) / (want.length + have.length) };
-            }).filter(x => x.score > 0).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name)).slice(0, count || 5);
+                const have = normName(name).split(' ').filter(w => w && w !== 'and' && w !== 'the');
+                if (have.length === 0) return { name, score: 0 };
+                let total = 0;
+                want.forEach(w => {
+                    let best = 0;
+                    have.forEach(h => { best = Math.max(best, wordLikeness(w, h)); });
+                    if (best >= 0.6) total += best;
+                });
+                let score = (2 * total) / (want.length + have.length);
+                const haveJoined = have.join('');
+                const joined = Math.max(likeness(wantJoined, haveJoined), soundKey(wantJoined).length >= 3 ? likeness(soundKey(wantJoined), soundKey(haveJoined)) * 0.85 : 0);
+                if (joined >= 0.7) score = Math.max(score, joined);
+                return { name, score };
+            }).filter(x => x.score >= 0.25).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name)).slice(0, count || 5);
+        }
+        // Of the speech engine's guesses for one pause, the one that matches a customer best
+        function guessScore(text) {
+            const norm = normName(text);
+            if (!norm) return 0;
+            if (voiceAliases[norm] && addressData[voiceAliases[norm]]) return 1.01;
+            if (Object.keys(addressData).some(n => normName(n) === norm)) return 1;
+            const close = closestCustomers(norm.split(' '), 1);
+            return close.length ? close[0].score : 0;
+        }
+        function bestGuess(guesses) {
+            let best = guesses[0] || '', bestScore = -1;
+            guesses.forEach(g => { const sc = guessScore(g); if (sc > bestScore + 0.02) { best = g; bestScore = sc; } });
+            return best;
+        }
+        // What was heard -> the customer picked for it, saved when stops are added, so a name the speech
+        // engine always gets wrong ("burden pinnacle") goes straight to the right customer next time.
+        // Shared in developer/route_planner/voice_aliases.
+        const VOICE_ALIASES_PATH = 'developer/route_planner/voice_aliases';
+        let voiceAliases = {};
+        let voiceAliasesListening = false;
+        function listenVoiceAliases() {
+            if (voiceAliasesListening) return;
+            voiceAliasesListening = true;
+            db.ref(VOICE_ALIASES_PATH).on('value', snap => {
+                voiceAliases = snap.val() || {};
+                if (document.getElementById('settings-overlay').classList.contains('is-open')) renderVoiceLearnList();
+            }, err => console.warn('Voice aliases not readable:', err));
         }
         function runMultiAddMatch() {
             const text = document.getElementById('multi-add-text').value;
@@ -6576,10 +6756,13 @@
             names.forEach(x => { if (!exact[x.norm]) exact[x.norm] = x.name; });
             const rows = [];
             const addRow = (heard, pick, kind, options) => rows.push({ heard, pick, kind, options: options || (pick ? [pick] : []), on: kind !== 'missing' });
+            const aliasFor = norm => (voiceAliases[norm] && addressData[voiceAliases[norm]]) ? voiceAliases[norm] : null;
             text.split(/[\n,;]+|\b(?:next|then)\b/i).map(t => t.trim()).filter(Boolean).forEach(piece => {
                 const norm = normName(piece);
                 if (!norm) return;
                 if (exact[norm]) { addRow(piece, exact[norm], 'ok'); return; }
+                // Heard this way before and a customer was picked for it
+                if (aliasFor(norm)) { const a = aliasFor(norm); addRow(piece, a, 'ok', [a].concat(closestCustomers(norm.split(' '), 4).map(c => c.name).filter(n => n !== a))); return; }
                 // Customer names inside the piece (whole words), longest first, not overlapping
                 let rest = ' ' + norm + ' ';
                 const found = [];
@@ -6593,6 +6776,8 @@
                 // Words left over: the closest customer, to check
                 const leftover = rest.split(' ').filter(w => w && !/^#+$/.test(w) && w !== 'and');
                 if (leftover.length > 0 && (found.length === 0 || leftover.join('').length >= 3)) {
+                    const leftNorm = leftover.join(' ');
+                    if (aliasFor(leftNorm)) { addRow(leftNorm, aliasFor(leftNorm), 'ok'); return; }
                     const close = closestCustomers(leftover, 5);
                     if (close.length > 0 && close[0].score >= 0.4) addRow(leftover.join(' '), close[0].name, 'check', close.map(c => c.name));
                     else addRow(found.length ? leftover.join(' ') : piece, '', 'missing', close.map(c => c.name));
@@ -6626,6 +6811,14 @@
         async function confirmMultiAdd() {
             const chosen = multiAddChosen();
             if (chosen.length === 0) return;
+            // Remember what was heard for any name that needed checking or picking
+            multiAddRows.forEach(r => {
+                const heard = normName(r.heard);
+                if (!r.on || !r.pick || !addressData[r.pick] || r.kind === 'ok' || !heard || heard.length > 80) return;
+                if (heard === normName(r.pick)) return;
+                voiceAliases[heard] = r.pick;
+                db.ref(VOICE_ALIASES_PATH + '/' + heard).set(r.pick).catch(err => console.warn('Voice alias not saved:', err));
+            });
             closeMultiAdd();
             for (const name of chosen) {
                 selectClient(name);
