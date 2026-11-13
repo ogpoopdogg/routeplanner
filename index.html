@@ -208,6 +208,19 @@
         body.light-mode #connectivity-banner { color: #c2410c; }
 
         .flex-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        /* The stop panel, tighter than the rest of the app (less padding, shorter fields) */
+        #stop-panel { padding: 10px 12px 0; }
+        #stop-panel-body { zoom: var(--form-scale, 1); }
+        #stop-panel .driver-bar { margin: 0 -2px 8px; padding-bottom: 2px; }
+        #stop-panel .flex-row { gap: 8px; margin-bottom: 8px; }
+        #stop-panel input { min-height: 42px; padding: 9px 14px; }
+        #stop-panel #f-address { padding-right: 44px; }
+        #stop-panel .frequent-row { margin: 0 -2px 8px; }
+        #stop-panel .btn-add { min-height: 46px; padding: 11px 20px; margin-top: 0; }
+        #stop-panel .action-row { margin-top: 8px; }
+        #stop-panel-grip { display: flex; align-items: center; justify-content: center; height: 20px; margin: 2px -12px 0; cursor: ns-resize; touch-action: none; user-select: none; -webkit-user-select: none; }
+        #stop-panel-grip span { width: 44px; height: 5px; border-radius: 3px; background: var(--border-strong); transition: background .2s, width .2s; }
+        #stop-panel-grip:hover span, #stop-panel-grip.is-dragging span { background: var(--accent); width: 60px; }
         .input-wrap { position: relative; flex: 1; }
         input, select, textarea {
             width: 100%; padding: 12px 16px; min-height: 48px; background: var(--input-bg); border: 1px solid var(--border-strong); color: var(--text);
@@ -1049,10 +1062,9 @@
 
     <!-- Input fields with autocomplete -->
     <div class="page">
-        <div class="panel">
-            <div class="panel-head">
-                <span class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>New Stop</span>
-            </div>
+        <div class="panel" id="stop-panel">
+          <!-- Everything in the panel is drawn at the size picked with the handle below (Settings: formScale) -->
+          <div id="stop-panel-body">
             <!-- Drivers: tap one to make this route for them. Each shows how far they are today. -->
             <div id="driver-bar" class="driver-bar" role="group" aria-label="Driver for this route"></div>
             <div id="connectivity-banner" style="display:none;"></div>
@@ -1088,6 +1100,9 @@
                 <button class="btn-clear" onclick="clearAllJobs()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>Clear</button>
             </div>
             <!-- CREATE ROUTE button removed from main page; only on map -->
+          </div>
+          <!-- Drag up or down to make the whole panel smaller or bigger. Double-tap: normal size. -->
+          <div id="stop-panel-grip" role="separator" aria-orientation="horizontal" aria-label="Drag to resize the stop panel" title="Drag to resize. Double-tap for normal size."><span></span></div>
         </div>
 
             <!-- Saved Routes Pills - Collapsible -->
@@ -1667,6 +1682,7 @@
             });
             // Shared settings (drivers, gas stop, warnings)
             db.ref(SETTINGS_PATH).on('value', snap => onSettingsFromServer(snap.val()));
+            listenVoiceAliases(); // taught voice phrases ready before the mic is first tapped
             updateDriverChip();
 
             // Live connection state, and the trigger to retry anything pending the
@@ -6240,6 +6256,56 @@
         const placesBoxes = [];  // Google address boxes, so a new search distance reaches all of them
         const SETTINGS_CACHE_KEY = 'ec_route_planner_settings';
         let settingsDownOnBackdrop = false;
+        // ---------- STOP PANEL SIZE ----------
+        // Dragging the handle under the stop panel scales everything in it (fields, text, buttons) together.
+        // The size is saved in the shared settings, so it stays the same next time.
+        const FORM_SCALE_MIN = 0.55, FORM_SCALE_MAX = 1.3;
+        let formScaleDragging = false;
+        function applyFormScale(scale) {
+            const panel = document.getElementById('stop-panel');
+            if (panel) panel.style.setProperty('--form-scale', String(scale || 1));
+        }
+        function setupFormResize() {
+            const grip = document.getElementById('stop-panel-grip');
+            const body = document.getElementById('stop-panel-body');
+            if (!grip || !body) return;
+            let startY = 0, startScale = 1, fullHeight = 0, scale = 1, lastTap = 0;
+            const save = s => { s = Math.round(s * 100) / 100; if (s !== appSettings.formScale) writeSetting('formScale', s); };
+            grip.addEventListener('pointerdown', e => {
+                const now = Date.now();
+                if (now - lastTap < 350) { lastTap = 0; applyFormScale(1); save(1); return; } // double-tap: normal size
+                lastTap = now;
+                formScaleDragging = true;
+                startY = e.clientY;
+                startScale = scale = appSettings.formScale || 1;
+                fullHeight = body.getBoundingClientRect().height / startScale; // height at normal size
+                grip.classList.add('is-dragging');
+                try { grip.setPointerCapture(e.pointerId); } catch (err) {}
+                e.preventDefault();
+            });
+            grip.addEventListener('pointermove', e => {
+                if (!formScaleDragging || !fullHeight) return;
+                const h = fullHeight * startScale + (e.clientY - startY);
+                scale = Math.min(FORM_SCALE_MAX, Math.max(FORM_SCALE_MIN, h / fullHeight));
+                applyFormScale(scale);
+            });
+            const end = () => {
+                if (!formScaleDragging) return;
+                formScaleDragging = false;
+                grip.classList.remove('is-dragging');
+                if (Math.abs(scale - startScale) >= 0.01) save(scale);
+            };
+            grip.addEventListener('pointerup', end);
+            grip.addEventListener('pointercancel', end);
+            // Keyboard: arrow keys resize a step
+            grip.tabIndex = 0;
+            grip.addEventListener('keydown', e => {
+                if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+                e.preventDefault();
+                const s = Math.min(FORM_SCALE_MAX, Math.max(FORM_SCALE_MIN, (appSettings.formScale || 1) + (e.key === 'ArrowUp' ? -0.05 : 0.05)));
+                applyFormScale(s); save(s);
+            });
+        }
         function normalizeSettings(raw) {
             raw = (raw && typeof raw === 'object') ? raw : {};
             const gas = Number(raw.gasStopMinutes);
@@ -6257,19 +6323,24 @@
                 listMaxFont: isFinite(font) && font >= 20 && font <= 200 ? Math.round(font) : 72,
                 theme: raw.theme === 'light' || raw.theme === 'dark' ? raw.theme : '',
                 emailTo: typeof raw.emailTo === 'string' ? raw.emailTo : DEFAULT_EMAIL_TO,
-                emailSubject: typeof raw.emailSubject === 'string' && raw.emailSubject.trim() ? raw.emailSubject : DEFAULT_EMAIL_SUBJECT
+                emailSubject: typeof raw.emailSubject === 'string' && raw.emailSubject.trim() ? raw.emailSubject : DEFAULT_EMAIL_SUBJECT,
+                // Size of the stop panel, picked by dragging its handle (1 = normal)
+                formScale: isFinite(Number(raw.formScale)) && Number(raw.formScale) >= FORM_SCALE_MIN && Number(raw.formScale) <= FORM_SCALE_MAX ? Number(raw.formScale) : 1
             };
         }
         let appSettings = (() => {
             try { return normalizeSettings(JSON.parse(localStorage.getItem(SETTINGS_CACHE_KEY) || 'null')); }
             catch (e) { return normalizeSettings(null); }
         })();
+        applyFormScale(appSettings.formScale);
+        setupFormResize();
         function persistSettingsCache() {
             try { localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(appSettings)); } catch (e) {}
         }
         function onSettingsFromServer(raw) {
             const before = appSettings;
             appSettings = normalizeSettings(raw);
+            if (!formScaleDragging) applyFormScale(appSettings.formScale);
             if (appSettings.theme && appSettings.theme !== (document.body.classList.contains('light-mode') ? 'light' : 'dark')) applyTheme(appSettings.theme);
             const shopMoved = JSON.stringify(before.shop) !== JSON.stringify(appSettings.shop);
             if (shopMoved) onShopSettingsChanged();
@@ -6828,6 +6899,12 @@
         // is matched to a customer (sound-alike and Voice learner included) and added to the route right
         // away. Names it can't match are listed in a message instead.
         let quickVoiceRec = null;
+        // Mic button: listens and adds the stop the moment the name is recognised.
+        // - While still listening, the words so far are checked against the address book. If they are a
+        //   customer's whole name (or a phrase taught in the voice learner), the stop is added right
+        //   away and listening stops, without waiting for the phone to decide you've finished talking.
+        //   A name that is also the start of a longer name ("AAA" and "AAA Bobcat") waits for the end.
+        // - Otherwise the phone's final guess is matched (sound-alike too) as soon as it arrives.
         function quickVoiceAdd() {
             if (quickVoiceRec) { try { quickVoiceRec.stop(); } catch (e) {} return; }
             listenVoiceAliases();
@@ -6837,33 +6914,19 @@
             const rec = new Ctor();
             quickVoiceRec = rec;
             rec.lang = 'en-CA';
-            rec.continuous = true;
-            rec.interimResults = true;
+            rec.continuous = false;   // the phone ends listening itself when you stop talking
+            rec.interimResults = true; // words as they come, so a sure match is added straight away
             rec.maxAlternatives = 5;
-            const said = [];
-            let used = 0, silence = null;
-            // Stops 2.5 s after the last words, or after 8 s if nothing is said
-            const wait = ms => { clearTimeout(silence); silence = setTimeout(() => { try { rec.stop(); } catch (e) {} }, ms); };
-            rec.onresult = ev => {
-                let interim = '';
-                for (let i = used; i < ev.results.length; i++) {
-                    const r = ev.results[i];
-                    if (r.isFinal) {
-                        const guesses = Array.from({ length: r.length }, (_, k) => r[k] && r[k].transcript.trim()).filter(Boolean);
-                        const best = bestGuess(guesses);
-                        if (best) said.push(best);
-                        used = i + 1;
-                    } else interim += r[0].transcript;
-                }
-                wait(2500);
-            };
-            rec.onerror = ev => { if (ev && ev.error === 'not-allowed') showToast('The microphone is blocked for this page. Allow it in the browser settings.', true); };
-            rec.onend = async () => {
-                clearTimeout(silence);
+            let finished = false, finalText = '', noSpeech = null;
+            const finish = async (text) => {
+                if (finished) return;
+                finished = true;
+                clearTimeout(noSpeech);
                 if (quickVoiceRec === rec) quickVoiceRec = null;
                 btn.classList.remove('is-listening');
-                if (said.length === 0) { showToast("Didn't hear a name. Tap the mic and try again.", true); return; }
-                const rows = matchSpokenNames(said.join('\n'));
+                try { rec.abort(); } catch (e) {}
+                if (!text) { showToast("Didn't hear a name. Tap the mic and try again.", true); return; }
+                const rows = matchSpokenNames(text);
                 const names = rows.filter(r => r.pick && addressData[r.pick]).map(r => r.pick);
                 const missing = rows.filter(r => !r.pick).map(r => r.heard);
                 for (const name of names) {
@@ -6874,8 +6937,39 @@
                 // No captions: the stops just appear. Only a name it couldn't match gets a message.
                 if (missing.length) showToast(`Couldn't find "${missing.join('", "')}". Teach it in Settings > Voice learner.`, true, { duration: 6000 });
             };
+            rec.onresult = ev => {
+                if (finished) return;
+                const parts = [], interim = [];
+                for (let i = 0; i < ev.results.length; i++) {
+                    const res = ev.results[i];
+                    if (res.isFinal) {
+                        const guesses = Array.from({ length: res.length }, (_, k) => res[k] && res[k].transcript.trim()).filter(Boolean);
+                        parts.push(bestGuess(guesses));
+                    } else if (res[0]) interim.push(res[0].transcript);
+                }
+                finalText = parts.filter(Boolean).join(' ');
+                if (interim.length === 0) { finish(finalText); return; }
+                // Still talking: add now if the words so far are a sure match
+                const soFar = (finalText + ' ' + interim.join(' ')).trim();
+                if (sureVoiceMatch(soFar)) finish(soFar);
+            };
+            rec.onerror = ev => { if (ev && ev.error === 'not-allowed') showToast('The microphone is blocked for this page. Allow it in the browser settings.', true); };
+            rec.onend = () => { if (!finished) finish(finalText); };
             btn.classList.add('is-listening');
-            try { rec.start(); wait(8000); } catch (e) { quickVoiceRec = null; btn.classList.remove('is-listening'); }
+            try {
+                rec.start();
+                // Nothing said in 7 s: stop
+                noSpeech = setTimeout(() => { try { rec.stop(); } catch (e) {} }, 7000);
+            } catch (e) { quickVoiceRec = null; btn.classList.remove('is-listening'); }
+        }
+        // Words that are a customer's whole name or a taught phrase, and not the start of a longer name
+        function sureVoiceMatch(text) {
+            const norm = normName(text);
+            if (!norm) return false;
+            const idx = customerIndex();
+            const alias = voiceAliases[norm] && addressData[voiceAliases[norm]];
+            if (!idx.exact[norm] && !alias) return false;
+            return !idx.startsLonger[norm];
         }
 
         function stopMultiAddListening() {
@@ -6917,15 +7011,37 @@
             }
             return prev[b.length];
         }
+        // Customer names worked out once each time the address book loads, not on every word heard
+        let customerIndexFor = null, customerIndexCache = null;
+        function customerIndex() {
+            if (customerIndexCache && customerIndexFor === addressData) return customerIndexCache;
+            const list = [], exact = {}, startsLonger = {};
+            Object.keys(addressData).forEach(name => {
+                const norm = normName(name);
+                if (!norm) return;
+                const words = norm.split(' ').filter(w => w && w !== 'and' && w !== 'the');
+                const joined = words.join('');
+                list.push({ name, norm, words, keys: words.map(soundKey), joined, joinedKey: soundKey(joined) });
+                if (!exact[norm] || norm.length > normName(exact[norm]).length) exact[norm] = name;
+                // "aaa" is the start of "aaa bobcat": hearing "aaa" alone isn't sure yet
+                const all = norm.split(' ');
+                for (let i = 1; i < all.length; i++) startsLonger[all.slice(0, i).join(' ')] = true;
+            });
+            customerIndexFor = addressData;
+            customerIndexCache = { list, exact, startsLonger };
+            return customerIndexCache;
+        }
         function likeness(a, b) { const m = Math.max(a.length, b.length); return m === 0 ? 0 : 1 - editDistance(a, b) / m; }
         // How alike a heard word is to a word in a customer's name, 0 to 1
-        function wordLikeness(heard, have) {
+        function wordLikeness(heard, have, heardKey, haveKey) {
             if (heard === have) return 1;
             if (heard.length >= 3 && have.length >= 3 && (have.startsWith(heard) || heard.startsWith(have))) return 0.9;
-            const ka = soundKey(heard), kb = soundKey(have);
-            let best = likeness(heard, have);
+            const ka = heardKey !== undefined ? heardKey : soundKey(heard), kb = haveKey !== undefined ? haveKey : soundKey(have);
+            // Only worked out when it could reach the 0.6 that counts (lengths too different can't), to keep it quick
+            const could = (x, y, need) => 1 - Math.abs(x.length - y.length) / Math.max(x.length, y.length) >= need;
+            let best = could(heard, have, 0.6) ? likeness(heard, have) : 0;
             if (ka.length >= 2 && ka === kb) best = Math.max(best, 0.85);
-            else if (ka.length >= 3 && kb.length >= 3) best = Math.max(best, likeness(ka, kb) * 0.8);
+            else if (ka.length >= 3 && kb.length >= 3 && could(ka, kb, 0.75)) best = Math.max(best, likeness(ka, kb) * 0.8);
             return best;
         }
         // Closest customers to some words. Each heard word is paired with the most alike word in the
@@ -6935,18 +7051,19 @@
             const want = words.filter(w => w.length > 1 && w !== 'and' && w !== 'the');
             if (want.length === 0) return [];
             const wantJoined = want.join('');
-            return Object.keys(addressData).map(name => {
-                const have = normName(name).split(' ').filter(w => w && w !== 'and' && w !== 'the');
+            const wantKeys = want.map(soundKey);
+            const wantJoinedKey = soundKey(wantJoined);
+            return customerIndex().list.map(c => {
+                const name = c.name, have = c.words;
                 if (have.length === 0) return { name, score: 0 };
                 let total = 0;
-                want.forEach(w => {
+                want.forEach((w, wi) => {
                     let best = 0;
-                    have.forEach(h => { best = Math.max(best, wordLikeness(w, h)); });
+                    have.forEach((h, hi) => { if (best < 1) best = Math.max(best, wordLikeness(w, h, wantKeys[wi], c.keys[hi])); });
                     if (best >= 0.6) total += best;
                 });
                 let score = (2 * total) / (want.length + have.length);
-                const haveJoined = have.join('');
-                const joined = Math.max(likeness(wantJoined, haveJoined), soundKey(wantJoined).length >= 3 ? likeness(soundKey(wantJoined), soundKey(haveJoined)) * 0.85 : 0);
+                const joined = Math.max(likeness(wantJoined, c.joined), wantJoinedKey.length >= 3 ? likeness(wantJoinedKey, c.joinedKey) * 0.85 : 0);
                 if (joined >= 0.7) score = Math.max(score, joined);
                 return { name, score };
             }).filter(x => x.score >= 0.25).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name)).slice(0, count || 5);
@@ -6956,13 +7073,17 @@
             const norm = normName(text);
             if (!norm) return 0;
             if (voiceAliases[norm] && addressData[voiceAliases[norm]]) return 1.01;
-            if (Object.keys(addressData).some(n => normName(n) === norm)) return 1;
+            if (customerIndex().exact[norm]) return 1;
             const close = closestCustomers(norm.split(' '), 1);
             return close.length ? close[0].score : 0;
         }
         function bestGuess(guesses) {
             let best = guesses[0] || '', bestScore = -1;
-            guesses.forEach(g => { const sc = guessScore(g); if (sc > bestScore + 0.02) { best = g; bestScore = sc; } });
+            for (const g of guesses) {
+                const sc = guessScore(g);
+                if (sc > bestScore + 0.02) { best = g; bestScore = sc; }
+                if (bestScore >= 1) break; // a whole name or taught phrase: no need to check the rest
+            }
             return best;
         }
         // What was heard -> the customer picked for it, saved when stops are added, so a name the speech
@@ -6984,10 +7105,10 @@
         }
         // Rows for what was said or pasted: { heard, pick, kind: 'ok'|'check'|'missing', options, on }
         function matchSpokenNames(text) {
-            const names = Object.keys(addressData).map(name => ({ name, norm: normName(name) })).filter(x => x.norm)
-                .sort((a, b) => b.norm.length - a.norm.length); // longest first, so "Westman Medical Supply" beats "Westman"
-            const exact = {};
-            names.forEach(x => { if (!exact[x.norm]) exact[x.norm] = x.name; });
+            const idx = customerIndex();
+            if (!idx.byLength) idx.byLength = idx.list.slice().sort((a, b) => b.norm.length - a.norm.length); // longest first, so "Westman Medical Supply" beats "Westman"
+            const names = idx.byLength;
+            const exact = idx.exact;
             const rows = [];
             const addRow = (heard, pick, kind, options) => rows.push({ heard, pick, kind, options: options || (pick ? [pick] : []), on: kind !== 'missing' });
             const aliasFor = norm => (voiceAliases[norm] && addressData[voiceAliases[norm]]) ? voiceAliases[norm] : null;
