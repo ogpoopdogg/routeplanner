@@ -1421,7 +1421,7 @@
         // driver doesn't get a half-made list; it reaches them only when the route is made and saved.
         const DRAFT_ROUTES_PATH = 'developer/route_planner/draft_routes';
         let draftRoutesCache = {};
-        let jobs = {};              // All jobs under developer/route_planner/jobs
+        let jobs = {};              // The stops on the list now (kept on this phone, see localJobs)
         let addressData = {};        // From address_lookup
         let map, mapMarkers = {}, activePolyline = null;
         let autocompleteAddress;     // Google Places Autocomplete for address field
@@ -1645,25 +1645,8 @@
             // Listen for address_lookup (shared data, no change)
             db.ref('address_lookup').on('value', snap => { addressData = snap.val() || {}; renderList(); refreshAssignedMarkerTimes(); });
 
-            // Listen for jobs under developer/route_planner/jobs. Firebase's
-            // snapshot is authoritative for every key it has (so edits made from
-            // Route Watcher/Command Center, or another dispatcher, still show up
-            // normally); anything still in pendingJobIds that Firebase doesn't have
-            // yet is layered on top so it doesn't vanish from the screen mid-sync.
-            db.ref('developer/route_planner/jobs').on('value', snap => {
-                const firebaseJobs = snap.val() || {};
-                Object.keys(pendingJobIds).forEach(id => {
-                    if (id in firebaseJobs) delete pendingJobIds[id];
-                });
-                const merged = { ...firebaseJobs };
-                Object.keys(pendingJobIds).forEach(id => {
-                    if (jobs[id]) merged[id] = jobs[id];
-                });
-                jobs = merged;
-                persistJobsCache();
-                updateConnectivityBanner();
-                updateRoute();  // Re-optimize and render
-            });
+            // The stop list being built lives only on this phone (per driver, see DRIVER LISTS).
+            // It reaches the database only when Save is tapped (saved_routes / draft_routes).
 
             // Listen for saved routes
             db.ref('developer/route_planner/saved_routes').on('value', snap => {
@@ -1857,6 +1840,135 @@
         let pendingRouteSaves = {};
         let isOnline = true;         // kept current by the .info/connected listener in initApp
 
+        // ---------- THE LIST BEING BUILT STAYS ON THIS PHONE ----------
+        // The stops used to be copied to developer/route_planner/jobs on every change. Now they stay
+        // on this phone only, and reach the database when Save is tapped. localJobs.ref(path) has the
+        // same set / update / remove / push calls the code used on that path, but changes the local
+        // list instead, then redraws (as the database listener used to).
+        const localJobs = {
+            ref(path) {
+                const parts = String(path || '').split('/').filter(Boolean);
+                const setNow = v => {
+                    if (parts.length === 0) { jobs = (v && typeof v === 'object') ? JSON.parse(JSON.stringify(v)) : {}; return; }
+                    let obj = jobs;
+                    for (let i = 0; i < parts.length - 1; i++) {
+                        if (!obj[parts[i]] || typeof obj[parts[i]] !== 'object') { if (v == null) return; obj[parts[i]] = {}; }
+                        obj = obj[parts[i]];
+                    }
+                    const last = parts[parts.length - 1];
+                    if (v == null) delete obj[last];
+                    else if (obj[last] !== v) obj[last] = v;
+                };
+                const write = fn => { try { fn(); } catch (e) { return Promise.reject(e); } localJobs.changed(); return Promise.resolve(); };
+                return {
+                    key: parts.length ? parts[parts.length - 1] : null,
+                    // A new unique id, made on the phone (push() with no value sends nothing)
+                    push() { return localJobs.ref(db.ref('developer/route_planner/jobs').push().key); },
+                    set(v) { return write(() => setNow(v)); },
+                    remove() { return write(() => setNow(null)); },
+                    update(obj) { return write(() => Object.keys(obj || {}).forEach(k => localJobs.ref(parts.concat(k.split('/')).join('/'))._setNow(obj[k]))); },
+                    _setNow: setNow
+                };
+            },
+            redrawSoon: false,
+            changed() {
+                persistJobsCache();
+                if (localJobs.redrawSoon) return;
+                localJobs.redrawSoon = true;
+                Promise.resolve().then(() => { localJobs.redrawSoon = false; updateConnectivityBanner(); updateRoute(); });
+            }
+        };
+
+        // ---------- DRIVER LISTS ----------
+        // Each driver's list is kept on this phone after every change: stops, route order, ETA, and
+        // whether it has changes not saved yet. Tapping a driver's button shows that driver's list
+        // (empty if none), so lists don't get mixed up. Save sends it to the database and clears it.
+        const DRIVER_LISTS_KEY = 'ec_route_planner_driver_lists';
+        function readDriverLists() {
+            try { const all = JSON.parse(localStorage.getItem(DRIVER_LISTS_KEY) || '{}'); return (all && typeof all === 'object') ? all : {}; }
+            catch (e) { return {}; }
+        }
+        function writeDriverLists(all) {
+            try { localStorage.setItem(DRIVER_LISTS_KEY, JSON.stringify(all)); } catch (e) { /* storage full or blocked */ }
+        }
+        function listStopCount(list) {
+            return list && list.jobs ? Object.keys(list.jobs).filter(id => list.jobs[id] && list.jobs[id].status === 'pending_pickup').length : 0;
+        }
+        // The list on screen, as kept for its driver
+        function screenListSnapshot() {
+            return {
+                jobs: jobs,
+                order: routeState.order || [],
+                assignedIndices: routeState.assignedIndices || {},
+                isFinalized: !!routeState.isFinalized,
+                autoOptimized: !!routeState.autoOptimized,
+                isOrderingMode: !!isOrderingMode,
+                etaTotalMinutes: etaTotalMinutes || 0,
+                etaTotalKm: etaTotalKm || 0,
+                startTime: routeState.startTime || null,
+                listChanged: !!listChanged,
+                loadedDraftKey: loadedDraftKey || null,
+                localTypeEdits: localTypeEdits || {},
+                at: Date.now()
+            };
+        }
+        // Called on every change. Kept under the picked driver; with no driver picked the list on
+        // screen is still kept (ec_route_planner_jobs_cache) and goes with the next driver tapped.
+        function persistDriverList() {
+            if (!currentDriver || typeof routeState === 'undefined') return;
+            const all = readDriverLists();
+            all[currentDriver] = screenListSnapshot();
+            writeDriverLists(all);
+            // Refresh the driver buttons when this driver's count or "not saved" changes
+            const sig = currentDriver + '|' + listStopCount(all[currentDriver]) + '|' + !!listChanged;
+            if (sig !== lastDriverListSig) { lastDriverListSig = sig; updateDriverChip(); }
+        }
+        let lastDriverListSig = '';
+        function forgetDriverList(key) {
+            if (!key) return;
+            const all = readDriverLists();
+            if (all[key]) { delete all[key]; writeDriverLists(all); }
+        }
+        // Puts a kept list (or an empty one) on screen
+        function showListOnScreen(list) {
+            list = list || {};
+            if (isOrderingMode) { isOrderingMode = false; stopPulsingAll(); }
+            jobs = list.jobs && typeof list.jobs === 'object' ? list.jobs : {};
+            pendingJobIds = {};
+            routeState.order = Array.isArray(list.order) ? list.order.filter(id => jobs[id]) : [];
+            routeState.assignedIndices = list.assignedIndices || {};
+            routeState.isFinalized = !!list.isFinalized && routeState.order.length > 0;
+            routeState.autoOptimized = !!list.autoOptimized;
+            routeState.startTime = typeof list.startTime === 'string' ? list.startTime : null;
+            isOrderingMode = !routeState.isFinalized && !!list.isOrderingMode && routeState.order.length > 0;
+            etaTotalMinutes = Number(list.etaTotalMinutes) || 0;
+            etaTotalKm = Number(list.etaTotalKm) || 0;
+            listChanged = !!list.listChanged;
+            loadedDraftKey = list.loadedDraftKey || null;
+            localTypeEdits = list.localTypeEdits || {};
+            forwardSegments = [];
+            returnPath = null;
+            clearRoutePolylines();
+            if (activePolyline) { activePolyline.setMap(null); activePolyline = null; }
+            Object.values(mapMarkers).forEach(m => m.setMap(null));
+            mapMarkers = {};
+            persistJobsCache();
+            updateConnectivityBanner();
+            updateRoute();
+            updateCreateRouteButton();
+            updateOrderingOverlays();
+            const eta = document.getElementById('eta-display');
+            if (routeState.isFinalized && etaTotalMinutes > 0) {
+                updateETADisplay();
+                eta.style.display = 'block';
+                eta.classList.add('eta-glow');
+            } else {
+                eta.style.display = 'none';
+                eta.classList.remove('eta-glow');
+            }
+            persistDriverList();
+        }
+
         function loadJobsCacheFromStorage() {
             try {
                 const raw = JSON.parse(localStorage.getItem(JOBS_CACHE_KEY) || 'null');
@@ -1871,6 +1983,7 @@
             try {
                 localStorage.setItem(JOBS_CACHE_KEY, JSON.stringify({ jobs: jobs, pending: Object.keys(pendingJobIds) }));
             } catch (e) { /* localStorage unavailable - rendering still works, just not durable this session */ }
+            persistDriverList();
         }
         function loadRouteSaveCacheFromStorage() {
             try {
@@ -1921,7 +2034,7 @@
             for (const id of Object.keys(pendingJobIds)) {
                 if (!jobs[id]) { delete pendingJobIds[id]; continue; }
                 try {
-                    await db.ref('developer/route_planner/jobs/' + id).set(jobs[id]);
+                    await localJobs.ref(id).set(jobs[id]);
                     delete pendingJobIds[id];
                     persistJobsCache();
                 } catch (e) {
@@ -2017,7 +2130,7 @@
             const spot = pickedSpotFor(address, city);
             if (spot) { newJob.lat = spot.lat; newJob.lng = spot.lng; newJob.pinned = true; }
             if (routeState.isFinalized && spot) {
-                const newJobRef = db.ref('developer/route_planner/jobs').push();
+                const newJobRef = localJobs.ref('').push();
                 const newId = newJobRef.key;
                 lastAddedJobId = newId;
                 if (lastAddedJobClearTimer) clearTimeout(lastAddedJobClearTimer);
@@ -2054,7 +2167,7 @@
                     const loc = results[0].geometry.location;
                     newJob.lat = loc.lat();
                     newJob.lng = loc.lng();
-                    const newJobRef = db.ref('developer/route_planner/jobs').push();
+                    const newJobRef = localJobs.ref('').push();
                     lastAddedJobId = newJobRef.key;
                     if (lastAddedJobClearTimer) clearTimeout(lastAddedJobClearTimer);
                     lastAddedJobClearTimer = setTimeout(() => {
@@ -2088,7 +2201,7 @@
             }
             // push() alone generates a unique key client-side with no network
             // round-trip - only the .set() below actually talks to the server.
-            const newJobRef = db.ref('developer/route_planner/jobs').push();
+            const newJobRef = localJobs.ref('').push();
             // Mark this stop as the most recently added BEFORE the write goes out, so
             // the very first render already has the flag set and shows the pulse/glow.
             lastAddedJobId = newJobRef.key;
@@ -2139,7 +2252,7 @@
                     updateConnectivityBanner();
                     updateRoute();
                 }
-                db.ref(`developer/route_planner/jobs/${id}`).remove();
+                localJobs.ref(`${id}`).remove();
                 // If in ordering mode, also remove from routeState if assigned
                 if (routeState.assignedIndices[id]) {
                     delete routeState.assignedIndices[id];
@@ -2159,7 +2272,7 @@
                 jobs = {};
                 persistJobsCache();
                 updateConnectivityBanner();
-                db.ref('developer/route_planner/jobs').remove();
+                localJobs.ref('').remove();
                 document.getElementById('eta-display').style.display = 'none';
                 document.getElementById('eta-display').classList.remove('eta-glow');
                 document.getElementById('stop-counter').style.display = 'none';
@@ -2261,7 +2374,7 @@
                     const existingJob = jobs[jobId] || {};
                     const existingOther = existingJob.other_details || '';
                     const combined = existingOther ? (existingOther + ' ' + transcript) : transcript;
-                    db.ref(`developer/route_planner/jobs/${jobId}/other_details`).set(combined);
+                    localJobs.ref(`${jobId}/other_details`).set(combined);
                     markListChanged();
                     if (currentDetailsJobId === jobId) {
                         document.getElementById('other-input').value = combined;
@@ -2483,7 +2596,7 @@
             job.type = next;
             localTypeEdits[id] = true;
             persistJobsCache();
-            db.ref(`developer/route_planner/jobs/${id}/type`).set(next).catch(err => console.warn('Stop type not saved yet:', err));
+            localJobs.ref(`${id}/type`).set(next).catch(err => console.warn('Stop type not saved yet:', err));
             markListChanged();
             renderList();
         }
@@ -2502,7 +2615,7 @@
                 const t = stopType(saved);
                 if (t !== stopType(jobs[id])) {
                     jobs[id].type = t;
-                    db.ref(`developer/route_planner/jobs/${id}/type`).set(t).catch(() => {});
+                    localJobs.ref(`${id}/type`).set(t).catch(() => {});
                 }
             });
         }
@@ -2876,7 +2989,7 @@
                 updates[key] = detailsData[key];
             }
             markListChanged();
-            db.ref(`developer/route_planner/jobs/${currentDetailsJobId}`).update(updates)
+            localJobs.ref(`${currentDetailsJobId}`).update(updates)
                 .then(() => {
                     closeDetailsModal();
                 })
@@ -3062,8 +3175,8 @@
                         const loc = results[0].geometry.location;
                         const lat = loc.lat();
                         const lng = loc.lng();
-                        db.ref(`developer/route_planner/jobs/${jobId}/lat`).set(lat);
-                        db.ref(`developer/route_planner/jobs/${jobId}/lng`).set(lng);
+                        localJobs.ref(`${jobId}/lat`).set(lat);
+                        localJobs.ref(`${jobId}/lng`).set(lng);
                         job.lat = lat;
                         job.lng = lng;
                         resolve({ lat, lng });
@@ -4686,16 +4799,23 @@
             };
         }
         // Empties the stop list, map and ETA after a save, ready for the next driver.
-        function clearWorkingList() {
+        // savedKey: the driver just saved. Their list on this phone is done with. If another driver's
+        // list is on screen by the time the save goes through, that list is left alone.
+        function clearWorkingList(savedKey) {
+            if (savedKey) {
+                forgetDriverList(savedKey);
+                if (currentDriver && currentDriver !== savedKey) return;
+            }
+            forgetDriverList(currentDriver);
+            setCurrentDriver(''); // first, so the emptied list isn't kept under the driver just saved
             listIsClean();
-            setCurrentDriver('');
             loadedDraftKey = null;
             // Clear all jobs from the route stops (local unsynced ones too)
             pendingJobIds = {};
             jobs = {};
             persistJobsCache();
             updateConnectivityBanner();
-            db.ref('developer/route_planner/jobs').remove();
+            localJobs.ref('').remove();
             etaTotalMinutes = 0;
             etaTotalKm = 0;
             document.getElementById('eta-display').style.display = 'none';
@@ -4718,8 +4838,8 @@
         let loadedDraftKey = null; // the unfinished list now on screen, so saving it again doesn't ask
         // Anything changed since this list was loaded or saved. Opening another route asks to save first.
         let listChanged = false;
-        function markListChanged() { listChanged = true; }
-        function listIsClean() { listChanged = false; localTypeEdits = {}; }
+        function markListChanged() { listChanged = true; persistDriverList(); }
+        function listIsClean() { listChanged = false; localTypeEdits = {}; persistDriverList(); }
         async function saveUnfinishedList(onWriting) {
             const ids = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup');
             if (ids.length === 0) {
@@ -4758,7 +4878,8 @@
                 // Stops added while it was saving are left on screen instead of being wiped.
                 const now = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup');
                 const same = now.length === ids.length && now.every(id => stops[id]);
-                if (same) clearWorkingList();
+                if (same) clearWorkingList(username);
+                else forgetDriverList(username);
                 showToast(`Saved ${label}'s unfinished list (${ids.length} stop${ids.length === 1 ? '' : 's'}). It goes to Route Helper once you make the route and save.`);
                 return true;
             }).catch(err => {
@@ -4894,7 +5015,7 @@
                     showToast(`Saved ${label}'s route.`);
                     // The route is made and sent, so this driver's unfinished list is done with.
                     if (draftRoutesCache[username]) db.ref(DRAFT_ROUTES_PATH + '/' + username).remove().catch(err => console.warn('Unfinished list cleanup failed:', err));
-                    clearWorkingList();
+                    clearWorkingList(username);
                     return true;
                 })
                 .catch(err => {
@@ -5035,13 +5156,20 @@
                 pill.addEventListener('click', async function(e) {
                     if (Date.now() < suppressClickUntil) return;
                     if (this.classList.contains('loading')) return;
-                    // Nothing on the list: load straight away. Changes not saved yet: offer to save them
-                    // first. Otherwise say what gets replaced.
-                    const onList = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').length;
+                    // The route opens as this driver's list. Another driver's list on screen is kept on
+                    // this phone, so only this driver's own list can be replaced: ask first if it has stops.
                     const what = isDraft ? `unfinished list for "${key}"` : `route for "${key}"`;
                     const load = () => { if (isDraft) loadDraftRoute(key); else loadSavedRoute(key); };
+                    if (currentDriver && key !== currentDriver) {
+                        const kept = readDriverLists()[key];
+                        const n = listStopCount(kept);
+                        if (n > 0 && !(await showConfirmModal(`${driverLabel(key)} has ${n} stop${n === 1 ? '' : 's'} on this phone${kept.listChanged ? ' that aren\'t saved' : ''}. Open the ${isDraft ? 'unfinished list' : 'saved route'} instead?`))) return;
+                        load();
+                        return;
+                    }
+                    const onList = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').length;
                     if (onList === 0) { load(); return; }
-                    if (listChanged) {
+                    if (listChanged && key !== currentDriver) {
                         const whose = currentDriver ? `${driverLabel(currentDriver)}'s route` : 'this route';
                         const choice = await showChoiceModal(`Save your changes to ${whose} first?`, ['Save, then open ' + key, "Don't save, open " + key]);
                         if (choice === 0) {
@@ -5100,6 +5228,8 @@
                     showAlertModal("Route is empty.");
                     return;
                 }
+                // The list on screen stays kept under its own driver; this route becomes this driver's list
+                setCurrentDriver(key);
                 const stopsObj = data.stops;
                 const order = data.order || Object.keys(stopsObj);
                 const assignedIndices = data.assignedIndices || {};
@@ -5128,7 +5258,7 @@
 
                 // One write replaces the whole stop list (instead of remove + update),
                 // so the list doesn't flash empty and nothing waits on the server.
-                db.ref('developer/route_planner/jobs').set(stopsObj)
+                localJobs.ref('').set(stopsObj)
                     .catch(err => showAlertModal("Error loading saved route: " + err.message));
 
                 // Clear any auto-optimized polyline
@@ -5167,13 +5297,14 @@
             db.ref(DRAFT_ROUTES_PATH + '/' + key).once('value').then(snap => {
                 const data = snap.val();
                 if (!data || !data.stops) { showAlertModal("That unfinished list is empty."); return; }
+                setCurrentDriver(key);
                 const stopsObj = data.stops;
                 jobs = {};
                 Object.keys(stopsObj).forEach(id => { jobs[id] = stopsObj[id]; });
                 pendingJobIds = {};
                 persistJobsCache();
                 updateConnectivityBanner();
-                db.ref('developer/route_planner/jobs').set(stopsObj)
+                localJobs.ref('').set(stopsObj)
                     .catch(err => showAlertModal("Error loading the unfinished list: " + err.message));
                 etaTotalMinutes = 0;
                 etaTotalKm = 0;
@@ -5723,6 +5854,7 @@
                     startTime: routeState.startTime || null
                 }));
             } catch (e) {}
+            persistDriverList();
         }
         function restoreRouteState() {
             try {
@@ -6405,28 +6537,71 @@
                 bar.innerHTML = '<button type="button" class="driver-btn is-empty" onclick="openSettings()">Add your drivers in Settings</button>';
                 return;
             }
+            const kept = readDriverLists();
             bar.innerHTML = list.map(d => {
                 const route = savedRoutesCache && savedRoutesCache[d.key];
                 const draft = draftRoutesCache && draftRoutesCache[d.key];
+                // A list on this phone with changes not saved yet
+                const local = d.key === currentDriver ? { n: Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').length, changed: listChanged }
+                    : { n: listStopCount(kept[d.key]), changed: !!(kept[d.key] && kept[d.key].listChanged) };
                 let status = 'none', meta = '';
                 if (pendingRouteSaves[d.key]) { status = 'unsent'; meta = 'not sent'; }
+                else if (local.changed && local.n > 0) { status = 'draft'; meta = local.n + ' not saved'; }
                 else if (route && route.stops && isSameDay(route.timestamp)) { status = 'sent'; meta = '✓ ' + Object.keys(route.stops).length; }
                 else if (draft && draft.stops) { status = 'draft'; meta = 'unfinished'; }
-                const title = status === 'sent' ? `Route sent today, ${Object.keys(route.stops).length} stops` : (status === 'unsent' ? 'Saved but not sent to Route Helper yet' : (status === 'draft' ? 'Unfinished list saved' : 'No route yet today'));
+                const title = meta.endsWith('not saved') ? `${local.n} stops on this phone, not saved yet` : (status === 'sent' ? `Route sent today, ${Object.keys(route.stops).length} stops` : (status === 'unsent' ? 'Saved but not sent to Route Helper yet' : (status === 'draft' ? 'Unfinished list saved' : 'No route yet today')));
                 const picked = d.key === currentDriver;
                 return `<button type="button" class="driver-btn status-${status}${picked ? ' is-picked' : ''}" aria-pressed="${picked}" title="${escapeHtml(title)}" onclick="tapDriverButton(${jsArg(d.key)})"><span class="driver-btn-name">${escapeHtml(d.label)}</span>${meta ? `<span class="driver-btn-meta">${escapeHtml(meta)}</span>` : ''}</button>`;
             }).join('');
         }
-        function tapDriverButton(key) {
-            if (key === currentDriver) { setCurrentDriver(''); showToast('No driver picked. Save will ask who the route is for.'); return; }
+        // Tapping a driver shows that driver's list, kept on this phone (empty if none). The list on
+        // screen stays kept under its own driver. Stops added before any driver was picked go with
+        // the driver tapped. Nothing is sent to the database until Save.
+        let switchingDriver = false;
+        async function tapDriverButton(key) {
+            if (switchingDriver || key === currentDriver) return;
+            switchingDriver = true;
+            try { await switchToDriver(key); } finally { switchingDriver = false; }
+        }
+        async function switchToDriver(key) {
+            const label = driverLabel(key);
+            const all = readDriverLists();
+            const kept = all[key];
+            const onScreen = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').length;
+            if (!currentDriver && onScreen > 0) {
+                const theirs = listStopCount(kept);
+                if (theirs === 0) {
+                    // Their list becomes the stops on screen
+                    setCurrentDriver(key);
+                    persistDriverList();
+                    warnSentToday(key);
+                    return;
+                }
+                const choice = await showChoiceModal(`${label} already has ${theirs} stop${theirs === 1 ? '' : 's'} on this phone. What about the ${onScreen} stop${onScreen === 1 ? '' : 's'} on screen (no driver picked)?`,
+                    [`Add them to ${label}'s list`, `Throw them away, show ${label}'s list`]);
+                if (choice === 0) {
+                    const merged = Object.assign({}, kept, { jobs: Object.assign({}, kept.jobs, jobs), listChanged: true });
+                    // New stops aren't in the made route: back to an unnumbered list, make the route again
+                    const remake = kept.isFinalized || (kept.order && kept.order.length);
+                    if (remake) Object.assign(merged, { order: [], assignedIndices: {}, isFinalized: false, isOrderingMode: false, etaTotalMinutes: 0, etaTotalKm: 0 });
+                    setCurrentDriver(key);
+                    showListOnScreen(merged);
+                    showToast(`Added ${onScreen} stop${onScreen === 1 ? '' : 's'} to ${label}'s list.${remake ? ' Make the route again.' : ''}`);
+                    return;
+                }
+                if (choice !== 1) return;
+            }
             setCurrentDriver(key);
-            const onList = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').length;
             const draft = draftRoutesCache && draftRoutesCache[key];
-            // Nothing on the list and this driver has an unfinished list: carry on with it straight away
-            if (onList === 0 && draft && draft.stops) { loadDraftRoute(key); return; }
+            // Nothing kept on this phone for them, but an unfinished list saved: carry on with it
+            if (!kept && draft && draft.stops) { showListOnScreen(null); loadDraftRoute(key); return; }
+            showListOnScreen(kept);
+            if (listStopCount(kept) === 0) warnSentToday(key);
+        }
+        function warnSentToday(key) {
             const route = savedRoutesCache && savedRoutesCache[key];
             if (route && route.stops && isSameDay(route.timestamp) && getContactListDriver() !== key) {
-                showToast(`${driverLabel(key)} already has a route sent today (${savedStopCount(key)} stops, ${formatSavedTime(route.timestamp)}). Saving will replace it.`, false, { duration: 7000 });
+                showToast(`${driverLabel(key)} already has a route sent today (${savedStopCount(key)} stops, ${formatSavedTime(route.timestamp)}). Saving will replace it. Open it from Saved Routes to change it.`, false, { duration: 7000 });
             }
         }
         // ---------- BRANDON TIME ----------
@@ -7172,7 +7347,7 @@
                 fixed++;
                 Object.keys(update).forEach(k => { if (update[k] === null) delete job[k]; else job[k] = update[k]; });
                 const needsLookup = moved && !spot;
-                db.ref(`developer/route_planner/jobs/${id}`).update(update)
+                localJobs.ref(`${id}`).update(update)
                     .then(() => { if (needsLookup && typeof google !== 'undefined' && google.maps && google.maps.Geocoder) return geocodeJob(id).then(() => updateRoute()); })
                     .catch(err => console.warn('Stop update failed:', err));
             });
