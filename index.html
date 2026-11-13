@@ -478,14 +478,16 @@
         .fab:hover { transform: translateY(-3px); border-color: var(--accent-ring); box-shadow: 0 22px 40px -14px rgba(0,0,0,0.8), 0 0 0 4px var(--accent-soft); }
         .fab:hover svg { transform: scale(1.1); }
         .fab:active { transform: scale(.92); transition-duration: .08s; }
-        #share-btn-bottom { bottom: 84px; color: #1a1300; border-color: rgba(160,110,0,0.6); background: linear-gradient(180deg, #ffe066, #f5c518 60%, #dba300); box-shadow: 0 16px 34px -12px rgba(245,197,24,0.7), inset 0 1px 0 rgba(255,255,255,0.5); animation-delay: .2s; }
-        #share-btn-bottom:hover { box-shadow: 0 22px 40px -12px rgba(245,197,24,0.85), 0 0 0 4px var(--accent-soft); }
+        #share-btn-bottom { bottom: 84px; animation-delay: .2s; }
         #list-btn-bottom { bottom: 16px; }
         /* Mic above Share: say customer names to add them to the route */
-        #mic-btn-bottom { bottom: 152px; color: var(--accent); animation-delay: .3s; }
-        #mic-btn-bottom svg { stroke: var(--accent) !important; }
-        #mic-btn-bottom.is-listening { color: #fff; border-color: rgba(239,68,68,0.7); background: linear-gradient(180deg, #f87171, #ef4444 60%, #dc2626); animation: mic-pulse-glow 1s ease-in-out infinite; }
-        #mic-btn-bottom.is-listening svg { stroke: #fff !important; }
+        #mic-btn-bottom { bottom: 152px; color: #60a5fa; border: 2px solid #3b82f6; box-shadow: 0 16px 34px -12px rgba(0,0,0,0.75), 0 0 0 3px rgba(59,130,246,0.18), 0 0 18px -4px rgba(59,130,246,0.6); animation-delay: .3s; }
+        #mic-btn-bottom svg { stroke: #60a5fa !important; }
+        #mic-btn-bottom:hover { border-color: #60a5fa; box-shadow: 0 22px 40px -14px rgba(0,0,0,0.8), 0 0 0 4px rgba(59,130,246,0.25), 0 0 22px -4px rgba(59,130,246,0.7); }
+        body.light-mode #mic-btn-bottom { color: #2563eb; border-color: #2563eb; box-shadow: 0 16px 34px -14px rgba(15,23,42,0.35), 0 0 0 3px rgba(37,99,235,0.15); }
+        body.light-mode #mic-btn-bottom svg { stroke: #2563eb !important; }
+        #mic-btn-bottom.is-listening, body.light-mode #mic-btn-bottom.is-listening { color: #fff; border-color: rgba(239,68,68,0.7); background: linear-gradient(180deg, #f87171, #ef4444 60%, #dc2626); animation: mic-pulse-glow 1s ease-in-out infinite; }
+        #mic-btn-bottom.is-listening svg, body.light-mode #mic-btn-bottom.is-listening svg { stroke: #fff !important; }
         #install-btn {
             display: none; position: fixed; right: 16px; bottom: 15px; z-index: 1002; min-height: 46px; padding: 12px 18px; border-radius: 14px; cursor: pointer;
             font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #fff; border: 1px solid rgba(255,255,255,0.15);
@@ -690,7 +692,7 @@
         body.light-mode header { box-shadow: 0 10px 30px -22px rgba(15,23,42,0.4); }
         body.light-mode .map-btn { background: linear-gradient(180deg, #fff, #f3f4f7); }
         body.light-mode #map-btn { background: url('//mt.google.com/vt/lyrs=m&x=235&y=348&z=10') center/cover, linear-gradient(135deg, #cfe3ff, #d7f0de); }
-        body.light-mode .fab:not(#share-btn-bottom) { box-shadow: 0 16px 34px -14px rgba(15,23,42,0.35), var(--hairline); }
+        body.light-mode .fab { box-shadow: 0 16px 34px -14px rgba(15,23,42,0.35), var(--hairline); }
         body.light-mode .job-number.has-note { color: #fff; }
         body.light-mode #toggle-saved-routes-btn, body.light-mode .panel, body.light-mode #job-list-container, body.light-mode #eta-display { background: var(--card); }
         body.light-mode #contact-list-close, body.light-mode .close-map { border-color: transparent; }
@@ -6661,8 +6663,6 @@
                         used = i + 1;
                     } else interim += r[0].transcript;
                 }
-                const shown = said.concat(interim ? [interim] : []).join(', ');
-                if (shown) showToast('Hearing: ' + shown, false, { duration: 4000 });
                 wait(2500);
             };
             rec.onerror = ev => { if (ev && ev.error === 'not-allowed') showToast('The microphone is blocked for this page. Allow it in the browser settings.', true); };
@@ -6679,13 +6679,10 @@
                     await addJob();
                 }
                 resetFormFields();
-                const parts = [];
-                if (names.length) parts.push(`Added ${names.join(', ')}.`);
-                if (missing.length) parts.push(`Couldn't find "${missing.join('", "')}". Teach it in Settings > Voice learner.`);
-                showToast(parts.join(' '), names.length === 0, { duration: 6000 });
+                // No captions: the stops just appear. Only a name it couldn't match gets a message.
+                if (missing.length) showToast(`Couldn't find "${missing.join('", "')}". Teach it in Settings > Voice learner.`, true, { duration: 6000 });
             };
             btn.classList.add('is-listening');
-            showToast('Listening... say the customer name.', false, { duration: 3000 });
             try { rec.start(); wait(8000); } catch (e) { quickVoiceRec = null; btn.classList.remove('is-listening'); }
         }
 
