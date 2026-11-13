@@ -484,6 +484,8 @@
         /* Mic above Share: say customer names to add them to the route */
         #mic-btn-bottom { bottom: 152px; color: var(--accent); animation-delay: .3s; }
         #mic-btn-bottom svg { stroke: var(--accent) !important; }
+        #mic-btn-bottom.is-listening { color: #fff; border-color: rgba(239,68,68,0.7); background: linear-gradient(180deg, #f87171, #ef4444 60%, #dc2626); animation: mic-pulse-glow 1s ease-in-out infinite; }
+        #mic-btn-bottom.is-listening svg { stroke: #fff !important; }
         #install-btn {
             display: none; position: fixed; right: 16px; bottom: 15px; z-index: 1002; min-height: 46px; padding: 12px 18px; border-radius: 14px; cursor: pointer;
             font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #fff; border: 1px solid rgba(255,255,255,0.15);
@@ -941,9 +943,6 @@
         .voice-learn-row { padding: 8px 10px; border-radius: 11px; background: var(--card-2); border: 1px solid var(--border); }
         .voice-learn-name { font-weight: 800; font-size: 14px; margin-bottom: 6px; }
         .voice-learn-heard { display: flex; flex-wrap: wrap; gap: 6px; }
-        .voice-learn-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; font-size: 12.5px; font-weight: 600; color: var(--card-text); background: var(--input-bg); border: 1px solid var(--border-strong); border-radius: 999px; }
-        .voice-learn-chip button { width: 22px; height: 22px; min-height: 0; padding: 0; cursor: pointer; border: none; border-radius: 50%; color: var(--muted); background: transparent; font-size: 11px; }
-        .voice-learn-chip button:hover { color: #ef4444; }
     </style>
 </head>
 <body>
@@ -1342,7 +1341,6 @@
                     <div id="voice-learn-suggest" class="suggestions-box" style="top:100%; left:0; right:0;"></div>
                 </div>
                 <p id="voice-learn-status" class="settings-help" style="margin-top:8px;" hidden></p>
-                <div id="voice-learn-list" class="driver-rows"></div>
             </div>
             <div class="settings-section">
                 <h4>Warnings when adding a stop</h4>
@@ -1389,7 +1387,7 @@
     </button>
 
     <!-- Mic Button (above Share Button): starts listening for customer names straight away -->
-    <button id="mic-btn-bottom" class="fab" onclick="openMultiAdd(true)" aria-label="Say customer names to add them" title="Say customer names to add them"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg></button>
+    <button id="mic-btn-bottom" class="fab" onclick="quickVoiceAdd()" aria-label="Say customer names to add them" title="Say customer names to add them"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg></button>
 
     <!-- List Button (below Share Button) -->
     <button id="list-btn-bottom" class="fab" onclick="openContactListModal()" aria-label="List" title="Contact list"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="18" rx="2.5"/><path d="M9 3.5h6v3H9zM9 11h6M9 15h6"/></svg></button>
@@ -6247,7 +6245,6 @@
         function openSettings() {
             listenVoiceAliases();
             renderSettings();
-            renderVoiceLearnList();
             document.getElementById('settings-overlay').classList.add('is-open');
         }
         function closeSettings() {
@@ -6295,11 +6292,11 @@
                 const heard = Array.from({ length: r.length }, (_, k) => r[k] && normName(r[k].transcript)).filter(h => h && h.length <= 80);
                 const unique = Array.from(new Set(heard)).filter(h => h !== normName(name));
                 got = true;
-                if (unique.length === 0) { voiceLearnStatus(`The phone already hears "${name}" correctly. Nothing to learn.`); return; }
+                if (unique.length === 0) { voiceLearnStatus(`Saved. The phone already hears "${name}" correctly.`); return; }
                 const updates = {};
                 unique.forEach(h => { updates[h] = name; voiceAliases[h] = name; });
                 db.ref(VOICE_ALIASES_PATH).update(updates)
-                    .then(() => { voiceLearnStatus(`Learned for ${name}: "${unique.join('", "')}"`); renderVoiceLearnList(); })
+                    .then(() => voiceLearnStatus(`Saved. Saying "${name}" with the mic should now find them.`))
                     .catch(err => voiceLearnStatus('Could not save: ' + err.message, true));
             };
             rec.onerror = ev => { if (ev && ev.error === 'not-allowed') voiceLearnStatus('The microphone is blocked for this page. Allow it in the browser settings.', true); };
@@ -6310,21 +6307,6 @@
             };
             try { rec.start(); } catch (e) { voiceLearnRec = null; btn.textContent = 'Record'; }
         }
-        function renderVoiceLearnList() {
-            const box = document.getElementById('voice-learn-list');
-            if (!box) return;
-            const byName = {};
-            Object.keys(voiceAliases || {}).forEach(h => { const n = voiceAliases[h]; if (n) (byName[n] = byName[n] || []).push(h); });
-            const names = Object.keys(byName).sort((a, b) => a.localeCompare(b));
-            box.innerHTML = names.map(n => `<div class="voice-learn-row"><div class="voice-learn-name">${escapeHtml(n)}</div><div class="voice-learn-heard">${byName[n].sort().map(h =>
-                `<span class="voice-learn-chip">${escapeHtml(h)}<button type="button" aria-label="Forget ${escapeHtml(h)}" onclick="forgetVoiceAlias(${jsArg(h)})">✕</button></span>`).join('')}</div></div>`).join('');
-        }
-        function forgetVoiceAlias(heard) {
-            delete voiceAliases[heard];
-            db.ref(VOICE_ALIASES_PATH + '/' + heard).remove().catch(err => showToast('Could not remove: ' + err.message, true));
-            renderVoiceLearnList();
-        }
-
         function renderSettings() {
             const rows = document.getElementById('settings-driver-rows');
             const list = settingsDrivers();
@@ -6647,6 +6629,66 @@
             document.getElementById('multi-add-mic').classList.add('is-listening');
             try { rec.start(); quiet(); } catch (e) { multiAddRecognition = null; document.getElementById('multi-add-mic').classList.remove('is-listening'); }
         }
+        // ---------- MIC BUTTON: SAY IT, IT'S ADDED ----------
+        // Tap the mic and say one or more customer names. When you stop talking (or tap again) each name
+        // is matched to a customer (sound-alike and Voice learner included) and added to the route right
+        // away. Names it can't match are listed in a message instead.
+        let quickVoiceRec = null;
+        function quickVoiceAdd() {
+            if (quickVoiceRec) { try { quickVoiceRec.stop(); } catch (e) {} return; }
+            listenVoiceAliases();
+            const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!Ctor) { showToast('Voice input is not supported on this browser.', true); return; }
+            const btn = document.getElementById('mic-btn-bottom');
+            const rec = new Ctor();
+            quickVoiceRec = rec;
+            rec.lang = 'en-CA';
+            rec.continuous = true;
+            rec.interimResults = true;
+            rec.maxAlternatives = 5;
+            const said = [];
+            let used = 0, silence = null;
+            // Stops 2.5 s after the last words, or after 8 s if nothing is said
+            const wait = ms => { clearTimeout(silence); silence = setTimeout(() => { try { rec.stop(); } catch (e) {} }, ms); };
+            rec.onresult = ev => {
+                let interim = '';
+                for (let i = used; i < ev.results.length; i++) {
+                    const r = ev.results[i];
+                    if (r.isFinal) {
+                        const guesses = Array.from({ length: r.length }, (_, k) => r[k] && r[k].transcript.trim()).filter(Boolean);
+                        const best = bestGuess(guesses);
+                        if (best) said.push(best);
+                        used = i + 1;
+                    } else interim += r[0].transcript;
+                }
+                const shown = said.concat(interim ? [interim] : []).join(', ');
+                if (shown) showToast('Hearing: ' + shown, false, { duration: 4000 });
+                wait(2500);
+            };
+            rec.onerror = ev => { if (ev && ev.error === 'not-allowed') showToast('The microphone is blocked for this page. Allow it in the browser settings.', true); };
+            rec.onend = async () => {
+                clearTimeout(silence);
+                if (quickVoiceRec === rec) quickVoiceRec = null;
+                btn.classList.remove('is-listening');
+                if (said.length === 0) { showToast("Didn't hear a name. Tap the mic and try again.", true); return; }
+                const rows = matchSpokenNames(said.join('\n'));
+                const names = rows.filter(r => r.pick && addressData[r.pick]).map(r => r.pick);
+                const missing = rows.filter(r => !r.pick).map(r => r.heard);
+                for (const name of names) {
+                    selectClient(name);
+                    await addJob();
+                }
+                resetFormFields();
+                const parts = [];
+                if (names.length) parts.push(`Added ${names.join(', ')}.`);
+                if (missing.length) parts.push(`Couldn't find "${missing.join('", "')}". Teach it in Settings > Voice learner.`);
+                showToast(parts.join(' '), names.length === 0, { duration: 6000 });
+            };
+            btn.classList.add('is-listening');
+            showToast('Listening... say the customer name.', false, { duration: 3000 });
+            try { rec.start(); wait(8000); } catch (e) { quickVoiceRec = null; btn.classList.remove('is-listening'); }
+        }
+
         function stopMultiAddListening() {
             if (multiAddRecognition) { try { multiAddRecognition.stop(); } catch (e) {} }
         }
@@ -6745,11 +6787,14 @@
             voiceAliasesListening = true;
             db.ref(VOICE_ALIASES_PATH).on('value', snap => {
                 voiceAliases = snap.val() || {};
-                if (document.getElementById('settings-overlay').classList.contains('is-open')) renderVoiceLearnList();
             }, err => console.warn('Voice aliases not readable:', err));
         }
         function runMultiAddMatch() {
-            const text = document.getElementById('multi-add-text').value;
+            multiAddRows = matchSpokenNames(document.getElementById('multi-add-text').value);
+            renderMultiAddRows();
+        }
+        // Rows for what was said or pasted: { heard, pick, kind: 'ok'|'check'|'missing', options, on }
+        function matchSpokenNames(text) {
             const names = Object.keys(addressData).map(name => ({ name, norm: normName(name) })).filter(x => x.norm)
                 .sort((a, b) => b.norm.length - a.norm.length); // longest first, so "Westman Medical Supply" beats "Westman"
             const exact = {};
@@ -6783,8 +6828,7 @@
                     else addRow(found.length ? leftover.join(' ') : piece, '', 'missing', close.map(c => c.name));
                 }
             });
-            multiAddRows = rows;
-            renderMultiAddRows();
+            return rows;
         }
         function renderMultiAddRows() {
             const box = document.getElementById('multi-add-results');
