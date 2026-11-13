@@ -298,6 +298,7 @@
         /* ==========================================================================
            SAVED ROUTES
            ========================================================================== */
+        .saved-wrap[hidden] { display: none !important; }
         .saved-wrap { margin-top: 12px; animation: rise-in .5s var(--ease) .06s both; }
         #toggle-saved-routes-btn {
             width: 100%; min-height: 52px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; text-align: left; cursor: pointer;
@@ -871,6 +872,7 @@
         .driver-bar { display: flex; gap: 8px; overflow-x: auto; margin: -4px -2px 12px; padding: 2px 2px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
         .driver-bar::-webkit-scrollbar { display: none; }
         .driver-btn {
+            -webkit-touch-callout: none; user-select: none; -webkit-user-select: none;
             flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 7px 13px; cursor: pointer;
             font-family: inherit; font-size: 14px; font-weight: 800; color: var(--text); background: var(--card-2);
             border: 1.5px solid var(--border-strong); border-radius: 999px; transition: transform .15s var(--spring), border-color .15s, background .15s;
@@ -880,6 +882,17 @@
         .driver-btn.status-sent { border-color: rgba(34,197,94,0.6); }
         .driver-btn.status-sent .driver-btn-meta { color: #22c55e; opacity: 1; }
         .driver-btn.status-draft { border-style: dashed; border-color: var(--accent); }
+        /* Changes on this phone not saved yet: amber, with a dot */
+        .driver-btn.status-changed { border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,0.18); }
+        .driver-btn.status-changed .driver-btn-meta { color: #f59e0b; opacity: 1; }
+        .driver-btn.status-changed .driver-btn-meta::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 4px; border-radius: 50%; background: currentColor; vertical-align: 1px; }
+        /* Last route from an earlier day */
+        .driver-btn.status-old .driver-btn-meta { color: var(--muted); font-weight: 600; }
+        /* The picked driver (yellow) keeps its status as a coloured ring */
+        .driver-btn.is-picked.status-sent { box-shadow: 0 0 0 2px #22c55e, 0 6px 16px -8px rgba(245,197,24,0.8); }
+        .driver-btn.is-picked.status-changed { box-shadow: 0 0 0 2px #f59e0b, 0 6px 16px -8px rgba(245,197,24,0.8); }
+        .driver-btn.is-picked.status-unsent { box-shadow: 0 0 0 2px #dc2626, 0 6px 16px -8px rgba(245,197,24,0.8); }
+        .driver-btn.is-picked .driver-btn-meta { color: var(--accent-ink) !important; }
         .driver-btn.status-unsent { border-style: dashed; border-color: #dc2626; }
         .driver-btn.status-unsent .driver-btn-meta { color: #ef4444; opacity: 1; }
         .driver-btn.is-picked { color: var(--accent-ink); background: linear-gradient(180deg, #ffe066, #f5c518 60%, #e2ac00); border-color: rgba(160,110,0,0.7); box-shadow: 0 6px 16px -8px rgba(245,197,24,0.8); }
@@ -1115,7 +1128,8 @@
             </div>
 
             <!-- Saved Routes Pills - Collapsible -->
-            <div class="saved-wrap">
+            <!-- Hidden: the driver buttons above show each driver's saved route (hold a button to open or delete it) -->
+            <div class="saved-wrap" hidden>
                 <button id="toggle-saved-routes-btn">
                     <span class="saved-label"><span class="saved-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>All Saved Routes <span id="saved-routes-count-badge" style="display:none;">0</span></span>
                     <span id="toggle-saved-routes-arrow">▼</span>
@@ -5147,39 +5161,10 @@
                     if (longPressFired) { longPressFired = false; suppressClickUntil = Date.now() + 600; }
                 };
                 // Click to load
-                pill.addEventListener('click', async function(e) {
+                pill.addEventListener('click', function(e) {
                     if (Date.now() < suppressClickUntil) return;
                     if (this.classList.contains('loading')) return;
-                    // The route opens as this driver's list. Another driver's list on screen is kept on
-                    // this phone, so only this driver's own list can be replaced: ask first if it has stops.
-                    const what = isDraft ? `unfinished list for "${key}"` : `route for "${key}"`;
-                    const load = () => { if (isDraft) loadDraftRoute(key); else loadSavedRoute(key); };
-                    if (currentDriver && key !== currentDriver) {
-                        const kept = readDriverLists()[key];
-                        const n = listStopCount(kept);
-                        if (n > 0 && !(await showConfirmModal(`${driverLabel(key)} has ${n} stop${n === 1 ? '' : 's'} on this phone${kept.listChanged ? ' that aren\'t saved' : ''}. Open the ${isDraft ? 'unfinished list' : 'saved route'} instead?`))) return;
-                        load();
-                        return;
-                    }
-                    const onList = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').length;
-                    if (onList === 0) { load(); return; }
-                    if (listChanged && key !== currentDriver) {
-                        const whose = currentDriver ? `${driverLabel(currentDriver)}'s route` : 'this route';
-                        const choice = await showChoiceModal(`Save your changes to ${whose} first?`, ['Save, then open ' + key, "Don't save, open " + key]);
-                        if (choice === 0) {
-                            // Up to 10 s once the route is sent (questions while saving don't count)
-                            let slowTimer = null, startSlowTimer = null;
-                            const tooSlow = new Promise(r => { startSlowTimer = () => { slowTimer = setTimeout(() => r('slow'), 10000); }; });
-                            const saved = await Promise.race([saveCurrentRoute({ onWriting: () => startSlowTimer() }), tooSlow]);
-                            clearTimeout(slowTimer);
-                            if (saved === 'slow') { showToast(`Not saved yet (no connection), so ${key}'s route wasn't opened. It will save when the connection is back.`, true); return; }
-                            if (saved === true) load();
-                        } else if (choice === 1) {
-                            load();
-                        }
-                        return;
-                    }
-                    if (await showConfirmModal(`Load ${what}? The ${onList} stop${onList === 1 ? '' : 's'} on your list now will be replaced.`)) load();
+                    openSavedForDriver(key, isDraft);
                 });
                 // Long press to delete (mousedown + mouseup timer)
                 let timer = null;
@@ -5213,6 +5198,41 @@
                 container.appendChild(pill);
             });
         }
+        // Opens a driver's saved route (or unfinished list) as their list, asking first when that
+        // would replace stops on this phone. Used by the driver buttons' hold menu.
+        async function openSavedForDriver(key, isDraft) {
+            // The route opens as this driver's list. Another driver's list on screen is kept on
+            // this phone, so only this driver's own list can be replaced: ask first if it has stops.
+            const what = isDraft ? `unfinished list for "${key}"` : `route for "${key}"`;
+            const load = () => { if (isDraft) loadDraftRoute(key); else loadSavedRoute(key); };
+            if (currentDriver && key !== currentDriver) {
+                const kept = readDriverLists()[key];
+                const n = listStopCount(kept);
+                if (n > 0 && !(await showConfirmModal(`${driverLabel(key)} has ${n} stop${n === 1 ? '' : 's'} on this phone${kept.listChanged ? ' that aren\'t saved' : ''}. Open the ${isDraft ? 'unfinished list' : 'saved route'} instead?`))) return;
+                load();
+                return;
+            }
+            const onList = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').length;
+            if (onList === 0) { load(); return; }
+            if (listChanged && key !== currentDriver) {
+                const whose = currentDriver ? `${driverLabel(currentDriver)}'s route` : 'this route';
+                const choice = await showChoiceModal(`Save your changes to ${whose} first?`, ['Save, then open ' + key, "Don't save, open " + key]);
+                if (choice === 0) {
+                    // Up to 10 s once the route is sent (questions while saving don't count)
+                    let slowTimer = null, startSlowTimer = null;
+                    const tooSlow = new Promise(r => { startSlowTimer = () => { slowTimer = setTimeout(() => r('slow'), 10000); }; });
+                    const saved = await Promise.race([saveCurrentRoute({ onWriting: () => startSlowTimer() }), tooSlow]);
+                    clearTimeout(slowTimer);
+                    if (saved === 'slow') { showToast(`Not saved yet (no connection), so ${key}'s route wasn't opened. It will save when the connection is back.`, true); return; }
+                    if (saved === true) load();
+                } else if (choice === 1) {
+                    load();
+                }
+                return;
+            }
+            if (await showConfirmModal(`Load ${what}? The ${onList} stop${onList === 1 ? '' : 's'} on your list now will be replaced.`)) load();
+        }
+
         // ---------- LOAD SAVED ROUTE ----------
         function loadSavedRoute(key) {
             const ref = db.ref(`developer/route_planner/saved_routes/${key}`);
@@ -6312,6 +6332,7 @@
         })();
         applyFormScale(appSettings.formScale);
         setupFormResize();
+        setupDriverHold();
         function persistSettingsCache() {
             try { localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(appSettings)); } catch (e) {}
         }
@@ -6581,6 +6602,10 @@
             const bar = document.getElementById('driver-bar');
             if (!bar) return;
             const list = tickedDrivers();
+            // Also anyone with a route saved today or an unfinished list (they used to show under All Saved Routes)
+            const extra = Object.keys(savedRoutesCache || {}).filter(k => savedRoutesCache[k] && savedRoutesCache[k].stops && isSameDay(savedRoutesCache[k].timestamp))
+                .concat(Object.keys(draftRoutesCache || {}).filter(k => draftRoutesCache[k] && draftRoutesCache[k].stops));
+            extra.forEach(k => { if (!list.some(d => d.key === k)) list.push({ key: k, label: driverLabel(k) }); });
             // A driver picked earlier who isn't ticked in Settings any more still shows, so it's clear who's picked
             if (currentDriver && !list.some(d => d.key === currentDriver)) list.unshift({ key: currentDriver, label: driverLabel(currentDriver) });
             if (list.length === 0) {
@@ -6596,19 +6621,30 @@
                     : { n: listStopCount(kept[d.key]), changed: !!(kept[d.key] && kept[d.key].listChanged) };
                 let status = 'none', meta = '';
                 if (pendingRouteSaves[d.key]) { status = 'unsent'; meta = 'not sent'; }
-                else if (local.changed && local.n > 0) { status = 'draft'; meta = local.n + ' not saved'; }
+                else if (local.changed && local.n > 0) { status = 'changed'; meta = local.n + ' not saved'; }
                 else if (route && route.stops && isSameDay(route.timestamp)) { status = 'sent'; meta = '✓ ' + Object.keys(route.stops).length; }
                 else if (draft && draft.stops) { status = 'draft'; meta = 'unfinished'; }
-                const title = meta.endsWith('not saved') ? `${local.n} stops on this phone, not saved yet` : (status === 'sent' ? `Route sent today, ${Object.keys(route.stops).length} stops` : (status === 'unsent' ? 'Saved but not sent to Route Helper yet' : (status === 'draft' ? 'Unfinished list saved' : 'No route yet today')));
+                else if (route && route.stops) { status = 'old'; meta = formatSavedTime(route.timestamp); }
+                const titles = {
+                    changed: `${local.n} stops on this phone, not saved yet`,
+                    sent: route && route.stops ? `Route saved and sent today, ${Object.keys(route.stops).length} stops` : '',
+                    unsent: 'Saved but not sent to Route Helper yet',
+                    draft: 'Unfinished list saved (route not made yet)',
+                    old: `Last route saved ${formatSavedTime(route && route.timestamp)}, nothing saved today`,
+                    none: 'Nothing saved yet'
+                };
+                const title = titles[status] + '. Hold for saved routes.';
                 const picked = d.key === currentDriver;
-                return `<button type="button" class="driver-btn status-${status}${picked ? ' is-picked' : ''}" aria-pressed="${picked}" title="${escapeHtml(title)}" onclick="tapDriverButton(${jsArg(d.key)})"><span class="driver-btn-name">${escapeHtml(d.label)}</span>${meta ? `<span class="driver-btn-meta">${escapeHtml(meta)}</span>` : ''}</button>`;
+                return `<button type="button" class="driver-btn status-${status}${picked ? ' is-picked' : ''}" data-key="${escapeHtml(d.key)}" aria-pressed="${picked}" title="${escapeHtml(title)}" onclick="tapDriverButton(${jsArg(d.key)})"><span class="driver-btn-name">${escapeHtml(d.label)}</span>${meta ? `<span class="driver-btn-meta">${escapeHtml(meta)}</span>` : ''}</button>`;
             }).join('');
         }
         // Tapping a driver shows that driver's list, kept on this phone (empty if none). The list on
         // screen stays kept under its own driver. Stops added before any driver was picked go with
         // the driver tapped. Nothing is sent to the database until Save.
         let switchingDriver = false;
+        let driverHoldUntil = 0; // a hold opens the menu; the tap that ends it is ignored
         async function tapDriverButton(key) {
+            if (Date.now() < driverHoldUntil) return;
             if (switchingDriver || key === currentDriver) return;
             switchingDriver = true;
             try { await switchToDriver(key); } finally { switchingDriver = false; }
@@ -6647,6 +6683,57 @@
             if (!kept && draft && draft.stops) { showListOnScreen(null); loadDraftRoute(key); return; }
             showListOnScreen(kept);
             if (listStopCount(kept) === 0) warnSentToday(key);
+        }
+        // Hold a driver button: their saved route and unfinished list (open, see the list, delete).
+        // This replaces the All Saved Routes section.
+        async function driverSavedMenu(key) {
+            const label = driverLabel(key);
+            const route = savedRoutesCache && savedRoutesCache[key];
+            const draft = draftRoutesCache && draftRoutesCache[key];
+            const n = x => x && x.stops ? Object.keys(x.stops).length : 0;
+            const items = [];
+            if (route && route.stops) {
+                items.push([`Open saved route (${n(route)} stops, ${formatSavedTime(route.timestamp)})`, () => openSavedForDriver(key, false)]);
+                items.push(['Show saved route list', () => openContactListForRoute(key, false)]);
+            }
+            if (draft && draft.stops) {
+                items.push([`Open unfinished list (${n(draft)} stops)`, () => openSavedForDriver(key, true)]);
+                items.push(['Show unfinished list', () => openContactListForRoute(key, true)]);
+            }
+            if (route && route.stops) items.push(['Delete saved route', async () => {
+                if (await showConfirmModal(`Delete ${label}'s saved route? Route Helper won't have it any more.`)) db.ref('developer/route_planner/saved_routes/' + key).remove().catch(err => showAlertModal("Error deleting route: " + err.message));
+            }]);
+            if (draft && draft.stops) items.push(['Delete unfinished list', async () => {
+                if (await showConfirmModal(`Delete ${label}'s unfinished list?`)) db.ref(DRAFT_ROUTES_PATH + '/' + key).remove().catch(err => showAlertModal("Error deleting route: " + err.message));
+            }]);
+            if (items.length === 0) { showToast(`${label} has no saved route yet.`); return; }
+            const i = await showChoiceModal(label, items.map(x => x[0]));
+            if (i === null || i === undefined || !items[i]) return;
+            items[i][1]();
+        }
+        function setupDriverHold() {
+            const bar = document.getElementById('driver-bar');
+            if (!bar) return;
+            let timer = null, startX = 0, startY = 0;
+            const cancel = () => { clearTimeout(timer); timer = null; };
+            const open = key => { cancel(); driverHoldUntil = Date.now() + 700; driverSavedMenu(key); };
+            bar.addEventListener('pointerdown', e => {
+                const btn = e.target.closest('.driver-btn[data-key]');
+                if (!btn) return;
+                startX = e.clientX; startY = e.clientY;
+                cancel();
+                timer = setTimeout(() => open(btn.dataset.key), 550);
+            });
+            bar.addEventListener('pointermove', e => { if (timer && (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10)) cancel(); });
+            ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => bar.addEventListener(t, cancel));
+            // Right-click, or the phone's own long-press menu
+            bar.addEventListener('contextmenu', e => {
+                const btn = e.target.closest('.driver-btn[data-key]');
+                if (!btn) return;
+                e.preventDefault();
+                if (Date.now() < driverHoldUntil) return; // the hold already opened it
+                open(btn.dataset.key);
+            });
         }
         function warnSentToday(key) {
             const route = savedRoutesCache && savedRoutesCache[key];
