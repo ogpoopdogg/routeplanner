@@ -6524,6 +6524,7 @@
             currentDriver = key || '';
             try { if (currentDriver) localStorage.setItem(CURRENT_DRIVER_KEY, currentDriver); else localStorage.removeItem(CURRENT_DRIVER_KEY); } catch (e) {}
             updateDriverChip();
+            renderFrequentRow(); // each driver's own most-used customers
         }
         // The driver buttons above the stop form. Today's status on each: route sent today (with its
         // stop count), not sent yet, unfinished list, or nothing yet today. The picked driver is yellow.
@@ -6681,11 +6682,15 @@
         }
 
         // ---------- FREQUENT CUSTOMERS ----------
-        // The 8 customers added most in the last 30 days (from route history, every driver), shown as
+        // The 8 customers added most in the last 30 days (from route history), shown as buttons under the
+        // form: the picked driver's own most-used first, then the most-used of every driver. Shown as
         // buttons under the form. One tap adds the stop. Customers already on the list are left out.
         const FREQUENT_MAX = 8;
         const FREQUENT_DAYS = 30;
         let frequentCustomers = [];
+        // The same per driver: driver key -> names, most-added first, from that driver's own saved routes.
+        // The picked driver's buttons come from their list first, then the overall list fills the rest.
+        let frequentByDriver = {};
         let frequentLoadedAt = 0;
         async function loadFrequentCustomers() {
             frequentLoadedAt = Date.now();
@@ -6693,11 +6698,13 @@
             const drivers = Array.from(new Set(Object.keys(appSettings.drivers || {}).concat(Object.keys(savedRoutesCache || {}))))
                 .filter(k => k && !/[.#$\[\]\/]/.test(k));
             const counts = {};
+            const perDriver = {};
             await Promise.all(drivers.map(driver =>
                 db.ref('developer/route_planner/route_history/' + driver).orderByKey().startAt(since).once('value').then(snap => {
                     snap.forEach(save => {
                         const stops = (save.val() || {}).stops || {};
                         const seen = {};
+                        const mine = perDriver[driver] || (perDriver[driver] = {});
                         Object.values(stops).forEach(st => {
                             const name = st && String(st.name || '').trim();
                             const key = name && name.toLowerCase();
@@ -6705,6 +6712,8 @@
                             seen[key] = true; // once per saved route
                             if (!counts[key]) counts[key] = { name, n: 0 };
                             counts[key].n++;
+                            if (!mine[key]) mine[key] = { name, n: 0 };
+                            mine[key].n++;
                         });
                     });
                 }).catch(err => console.warn('Route history not readable for ' + driver + ':', err))
@@ -6713,6 +6722,13 @@
                 .sort((a, b) => (b.n - a.n) || a.name.localeCompare(b.name))
                 .slice(0, FREQUENT_MAX + 12) // a few spare, for when some are already on the list
                 .map(c => c.name);
+            frequentByDriver = {};
+            Object.keys(perDriver).forEach(driver => {
+                frequentByDriver[driver] = Object.values(perDriver[driver])
+                    .sort((a, b) => (b.n - a.n) || a.name.localeCompare(b.name))
+                    .slice(0, FREQUENT_MAX + 12)
+                    .map(c => c.name);
+            });
             renderFrequentRow();
         }
         function renderFrequentRow() {
@@ -6720,7 +6736,8 @@
             if (!row) return;
             const onList = new Set(Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').map(id => String(jobs[id].name || '').trim().toLowerCase()));
             // Only customers still in the address book (matched the same way as everywhere else)
-            const show = frequentCustomers.map(findContactKey).filter(name => name && !onList.has(name.toLowerCase()))
+            const mine = (currentDriver && frequentByDriver[currentDriver]) || [];
+            const show = mine.concat(frequentCustomers).map(findContactKey).filter(name => name && !onList.has(name.toLowerCase()))
                 .filter((name, i, all) => all.indexOf(name) === i).slice(0, FREQUENT_MAX);
             row.hidden = show.length === 0;
             row.innerHTML = show.map(name => `<button type="button" class="frequent-chip" title="Add ${escapeHtml(name)}" onclick="addFrequentCustomer(this.dataset.name)" data-name="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('');
