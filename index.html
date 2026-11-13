@@ -5417,9 +5417,10 @@
             // Show date modal
             document.getElementById('date-modal').style.display = 'flex';
             // Set default date to today
-            // Today in Brandon time (toISOString is UTC, which is tomorrow after 7 PM in Brandon)
+            // Today, or tomorrow from 7 PM Brandon time: routes made in the evening are for the next day
             const bp = brandonParts(Date.now());
-            const today = `${bp.y}-${String(bp.m).padStart(2, '0')}-${String(bp.d).padStart(2, '0')}`;
+            const day = new Date(Date.UTC(bp.y, bp.m - 1, bp.d + (bp.hh >= 19 ? 1 : 0)));
+            const today = day.toISOString().split('T')[0];
             document.getElementById('route-date-input').value = today;
             pendingShareDate = null;
             populateShareRouteChecklist();
