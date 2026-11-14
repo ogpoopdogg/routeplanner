@@ -869,23 +869,23 @@
         #app-toast.is-visible { display: block; animation: drop-in .25s var(--ease); }
         #app-toast.is-error { color: #fff; background: rgba(220,38,38,0.92); border-color: rgba(255,255,255,0.2); }
         /* ---------- SETTINGS, DRIVER CHIP, PILL EXTRAS ---------- */
-        .driver-bar { display: flex; gap: 8px; overflow-x: auto; margin: -4px -2px 12px; padding: 2px 2px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+        .driver-bar { display: flex; gap: 4px; overflow-x: auto; margin: -4px -2px 12px; padding: 2px 2px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
         .driver-bar::-webkit-scrollbar { display: none; }
         .driver-btn {
             -webkit-touch-callout: none; user-select: none; -webkit-user-select: none;
-            flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 7px 13px; cursor: pointer;
-            font-family: inherit; font-size: 14px; font-weight: 800; color: var(--text); background: var(--card-2);
+            flex: 1 1 auto; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; min-height: 40px; padding: 4px 6px; cursor: pointer; line-height: 1.15; white-space: nowrap;
+            font-family: inherit; font-size: 12px; font-weight: 800; color: var(--text); background: var(--card-2);
             border: 1.5px solid var(--border-strong); border-radius: 999px; transition: transform .15s var(--spring), border-color .15s, background .15s;
         }
         .driver-btn:active { transform: scale(.95); }
-        .driver-btn-meta { font-size: 11.5px; font-weight: 700; opacity: .8; font-variant-numeric: tabular-nums; }
+        .driver-btn-meta { font-size: 10px; font-weight: 700; opacity: .8; font-variant-numeric: tabular-nums; }
         .driver-btn.status-sent { border-color: rgba(34,197,94,0.6); }
         .driver-btn.status-sent .driver-btn-meta { color: #22c55e; opacity: 1; }
         .driver-btn.status-draft { border-style: dashed; border-color: var(--accent); }
         /* Changes on this phone not saved yet: amber, with a dot */
         .driver-btn.status-changed { border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,0.18); }
         .driver-btn.status-changed .driver-btn-meta { color: #f59e0b; opacity: 1; }
-        .driver-btn.status-changed .driver-btn-meta::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 4px; border-radius: 50%; background: currentColor; vertical-align: 1px; }
+        .driver-btn.status-changed .driver-btn-meta::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 3px; border-radius: 50%; background: currentColor; vertical-align: 1px; }
         /* Last route from an earlier day */
         .driver-btn.status-old .driver-btn-meta { color: var(--muted); font-weight: 600; }
         /* The picked driver (yellow) keeps its status as a coloured ring */
@@ -897,7 +897,7 @@
         .driver-btn.status-unsent .driver-btn-meta { color: #ef4444; opacity: 1; }
         .driver-btn.is-picked { color: var(--accent-ink); background: linear-gradient(180deg, #ffe066, #f5c518 60%, #e2ac00); border-color: rgba(160,110,0,0.7); box-shadow: 0 6px 16px -8px rgba(245,197,24,0.8); }
         .driver-btn.is-picked .driver-btn-meta { color: var(--accent-ink); }
-        .driver-btn.is-new { color: var(--accent); background: transparent; border-style: dashed; border-color: var(--accent); font-weight: 800; }
+        .driver-btn.is-new { flex: 0 0 auto; color: var(--accent); background: transparent; border-style: dashed; border-color: var(--accent); font-weight: 800; }
         .driver-chip {
             display: inline-flex; align-items: center; gap: 6px; max-width: 60%; min-height: 34px; padding: 6px 12px; cursor: pointer;
             font-family: inherit; font-size: 13px; font-weight: 800; color: var(--text); background: var(--card-2);
@@ -6590,9 +6590,9 @@
                     : { n: listStopCount(kept[d.key]), changed: !!(kept[d.key] && kept[d.key].listChanged) };
                 let status = 'none', meta = '';
                 if (pendingRouteSaves[d.key]) { status = 'unsent'; meta = 'not sent'; }
-                else if (local.changed && local.n > 0) { status = 'changed'; meta = local.n + ' not saved'; }
+                else if (local.changed && local.n > 0) { status = 'changed'; meta = String(local.n); }
                 else if (route && route.stops && isSameDay(route.timestamp)) { status = 'sent'; meta = '✓ ' + Object.keys(route.stops).length; }
-                else if (draft && draft.stops) { status = 'draft'; meta = 'unfinished'; }
+                else if (draft && draft.stops) { status = 'draft'; meta = 'draft'; }
                 else if (route && route.stops) { status = 'old'; meta = formatSavedTime(route.timestamp); }
                 const titles = {
                     changed: `${local.n} stops on this phone, not saved yet`,
