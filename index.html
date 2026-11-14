@@ -439,9 +439,6 @@
             0%, 100% { filter: drop-shadow(0 0 3px var(--accent)) drop-shadow(0 0 6px var(--accent)); }
             50% { filter: drop-shadow(0 0 8px var(--accent)) drop-shadow(0 0 16px var(--accent)); }
         }
-        #empty-state { text-align: center; color: var(--muted); padding: 34px 20px 26px; font-size: 14px; }
-        #empty-state::before { content: ""; display: block; width: 56px; height: 56px; margin: 0 auto 14px; border-radius: 18px; border: 1px dashed var(--border-strong);
-            background: var(--accent-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f5c518' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='6' cy='19' r='2.5'/%3E%3Ccircle cx='18' cy='5' r='2.5'/%3E%3Cpath d='M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5'/%3E%3C/svg%3E") center/26px no-repeat; }
 
         /* ==========================================================================
            STATIC CONTACT NOTES
@@ -1139,7 +1136,6 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"/></svg><span id="make-route-label">Make route</span>
             </button>
             <div id="job-list"></div>
-            <div id="empty-state">No jobs added. Use the form above to add stops.</div>
         </div>
     </div>
 
@@ -2404,16 +2400,13 @@
             }
             // Simple list without numbers
             const container = document.getElementById('job-list');
-            const emptyState = document.getElementById('empty-state');
             const counter = document.getElementById('stop-counter');
             const pendingIds = Object.keys(jobs).filter(id => jobs[id].status === 'pending_pickup');
             if (pendingIds.length === 0) {
                 container.innerHTML = '';
-                emptyState.style.display = 'block';
                 counter.style.display = 'none';
                 return;
             }
-            emptyState.style.display = 'none';
             counter.textContent = pendingIds.length;
             counter.style.display = 'inline-block';
             let html = '';
@@ -2471,18 +2464,15 @@
         // ---------- ORDERING LIST RENDER ----------
         function renderOrderingList() {
             const container = document.getElementById('job-list');
-            const emptyState = document.getElementById('empty-state');
             const counter = document.getElementById('stop-counter');
 
             // Get pending jobs
             const pendingIds = Object.keys(jobs).filter(id => jobs[id].status === 'pending_pickup');
             if (pendingIds.length === 0) {
                 container.innerHTML = '';
-                emptyState.style.display = 'block';
                 counter.style.display = 'none';
                 return;
             }
-            emptyState.style.display = 'none';
             counter.textContent = pendingIds.length;
             counter.style.display = 'inline-block';
 
