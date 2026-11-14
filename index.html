@@ -368,7 +368,8 @@
         .make-route-main.is-made { color: var(--text); background: var(--card-2); border: 1px solid rgba(139,92,246,0.55); box-shadow: none; }
         .make-route-main:active { transform: scale(.98); }
         .job-item {
-            display: flex; align-items: center; gap: 8px; padding: 6px 4px 6px 4px; border-radius: 12px; cursor: pointer; position: relative;
+            -webkit-touch-callout: none;
+            display: flex; align-items: center; gap: 6px; padding: 6px 4px 6px 4px; border-radius: 12px; cursor: pointer; position: relative;
             background: var(--input-bg); border: 1px solid var(--border); -webkit-user-select: none; user-select: none;
             transition: transform .2s var(--ease), border-color .2s var(--ease), background .2s var(--ease), box-shadow .25s var(--ease);
         }
@@ -385,8 +386,8 @@
         body:has(.job-item.is-dragging) { -webkit-user-select: none; user-select: none; }
         .job-type-toggle {
             display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0;
-            width: 28px; height: 36px; margin: 0; padding: 0; overflow: hidden; cursor: pointer; font-family: inherit;
-            border: none; border-radius: 8px; font-size: 14px; font-weight: 800; line-height: 1; color: #0A0A0B;
+            width: 24px; height: 32px; margin: 0; padding: 0; overflow: hidden; cursor: pointer; font-family: inherit;
+            border: none; border-radius: 8px; font-size: 13px; font-weight: 800; line-height: 1; color: #0A0A0B;
         }
         .job-type-toggle.type-pickup { background: #DFD549; }
         .job-type-toggle.type-delivery { background: #34B86A; }
@@ -406,31 +407,34 @@
         @keyframes job-item-new-in { from { opacity: 0; transform: translateY(-8px) scale(.98); } to { opacity: 1; transform: none; } }
         .job-item-new { animation: job-item-new-in .35s var(--spring), job-item-new-pulse 3.2s ease-out forwards; border-color: #3b82f6 !important; }
         .job-item-new::after { content: ""; position: absolute; inset: -2px; border-radius: 15px; border: 2px solid rgba(96,165,250,0.6); opacity: 1; pointer-events: none; z-index: 1; animation: job-item-new-ring 1.4s ease-out; }
+        /* A stop was just added: a big burst from the card so it's obvious */
+        .add-burst { position: fixed; z-index: 1500; pointer-events: none; border-radius: 50%; transform: translate(-50%, -50%) scale(0);
+            background: radial-gradient(circle, rgba(96,165,250,0.55) 0%, rgba(59,130,246,0.28) 40%, rgba(59,130,246,0) 70%);
+            animation: add-burst .75s cubic-bezier(.2,.7,.2,1) forwards; }
+        .add-burst.ring { background: none; border: 4px solid rgba(96,165,250,0.85); animation-duration: .9s; }
+        @keyframes add-burst { 0% { transform: translate(-50%, -50%) scale(0); opacity: 1; } 70% { opacity: .8; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 0; } }
+        @keyframes job-item-new-pop { 0% { transform: scale(.9); } 35% { transform: scale(1.06); } 60% { transform: scale(.98); } 100% { transform: scale(1); } }
+        .job-item-new.pop { animation: job-item-new-pop .6s var(--spring), job-item-new-pulse 3.2s ease-out forwards; }
+        @media (prefers-reduced-motion: reduce) { .add-burst { display: none; } .job-item-new.pop { animation: job-item-new-pulse 3.2s ease-out forwards; } }
         .job-number {
-            flex-shrink: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 10px;
-            font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; color: var(--accent-ink);
+            flex-shrink: 0; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 8px;
+            font-weight: 800; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--accent-ink);
             background: linear-gradient(180deg, #ffe066, #f5c518 60%, #dba300); box-shadow: 0 4px 12px -4px rgba(245,197,24,0.7), inset 0 1px 0 rgba(255,255,255,0.5);
             transition: transform .2s var(--spring);
         }
         .job-number:hover { transform: scale(1.08); }
         /* ---------- STATIC CONTACT NOTE GLOW ---------- */
         .job-number.has-note { cursor: pointer; color: #fff; background: linear-gradient(180deg, #60a5fa, #3b82f6 60%, #2563eb); animation: note-pulse 2.4s ease-in-out infinite; }
-        .job-info { flex: 1; overflow: hidden; min-width: 0; }
-        .job-name { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
-        .job-address { margin-top: 1px; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .job-info { flex: 1; min-width: 0; padding-right: 6px; }
+        /* Full names and addresses (they wrap instead of being cut off), about 15% smaller than before */
+        .job-name { font-weight: 700; font-size: 12.75px; line-height: 1.25; letter-spacing: -0.01em; overflow-wrap: anywhere; color: var(--text); }
+        .job-address { margin-top: 1px; font-size: 10.75px; line-height: 1.3; color: var(--muted); overflow-wrap: anywhere; }
+        /* Rows (and Make route) level with the round buttons on the right step in so the buttons never cover them;
+           rows above the buttons use the full width. Set as the page scrolls (updateFabWrap). */
+        #job-list .job-item, #make-route-main { transition: margin-right .18s var(--ease); }
+        #job-list .job-item.beside-fabs, #make-route-main.beside-fabs { margin-right: 54px; }
         .star-icon { width: 24px; height: 24px; cursor: pointer; fill: none; stroke: var(--accent); stroke-width: 2; z-index: 2; }
         .star-icon.active { fill: var(--accent); }
-        .mic-icon, .delete-icon {
-            flex-shrink: 0; box-sizing: content-box; width: 20px; height: 20px; padding: 7px; border-radius: 10px; cursor: pointer; z-index: 2;
-            border: 1px solid transparent; transition: background .2s, border-color .2s, transform .2s var(--spring), filter .2s;
-        }
-        .mic-icon { fill: var(--card-text); stroke: var(--card-text); stroke-width: 0.5; }
-        .mic-icon:hover { background: var(--accent-soft); border-color: var(--accent-ring); fill: var(--accent); stroke: var(--accent); }
-        .delete-icon { fill: #f87171; }
-        .delete-icon:hover { background: rgba(239,68,68,0.14); border-color: rgba(239,68,68,0.35); }
-        body.light-mode .delete-icon { fill: #dc2626; }
-        .mic-icon:active, .delete-icon:active { transform: scale(.88); }
-        .mic-icon.mic-recording { fill: var(--accent); stroke: var(--accent); background: var(--accent-soft); border-color: var(--accent); animation: mic-pulse-glow 1s ease-in-out infinite; }
         @keyframes mic-pulse-glow {
             0%, 100% { filter: drop-shadow(0 0 3px var(--accent)) drop-shadow(0 0 6px var(--accent)); }
             50% { filter: drop-shadow(0 0 8px var(--accent)) drop-shadow(0 0 16px var(--accent)); }
@@ -1461,10 +1465,6 @@
         let currentDetailsJobId = null;
         let detailsData = {};
 
-        // Global for voice input (mic) on route stops
-        let micRecognition = null;
-        let micRecordingJobId = null;
-
         // Global for date selection
         let pendingShareDate = null;
 
@@ -2270,7 +2270,8 @@
         }
 
         async function deleteJob(id) {
-            if (await showConfirmModal("Remove this job from route?")) {
+            const name = jobs[id] && jobs[id].name;
+            if (await showConfirmModal(name ? `Delete "${name}" from the list?` : 'Delete this stop from the list?')) {
                 markListChanged();
                 // A stop that hasn't synced yet only lives in the local cache - drop it
                 // there too, or the pending-sync merge would put it right back.
@@ -2340,83 +2341,6 @@
             if (vals.weight_lbs) details.push(`Weight: ${vals.weight_lbs} LBS`);
             if (vals.other_details) details.push(`Other: ${vals.other_details}`);
             return details.length ? details.join(' ') : 'No details';
-        }
-
-        // ---------- VOICE INPUT (MIC) FOR STOP DETAILS ----------
-        function toggleMicRecording(id) {
-            const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognitionCtor) {
-                showAlertModal("Voice input is not supported on this browser.");
-                return;
-            }
-            // If already recording this stop, stop it (manual end)
-            if (micRecordingJobId === id && micRecognition) {
-                micRecognition.stop();
-                return;
-            }
-            // If recording a different stop, stop that first
-            if (micRecognition) {
-                micRecognition.stop();
-            }
-            micRecordingJobId = id;
-            let finalTranscript = '';
-            let silenceTimer = null; // per recording, so a second mic can't cancel this one's timer
-            const recognition = new SpeechRecognitionCtor();
-            micRecognition = recognition;
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = 'en-US';
-
-            const resetMicSilenceTimer = function() {
-                if (silenceTimer) clearTimeout(silenceTimer);
-                silenceTimer = setTimeout(function() {
-                    recognition.stop();
-                }, 3000);
-            };
-
-            recognition.onresult = function(event) {
-                let latestFinal = '';
-                for (let i = 0; i < event.results.length; i++) {
-                    if (event.results[i].isFinal) {
-                        latestFinal = event.results[i][0].transcript;
-                    }
-                }
-                if (latestFinal) finalTranscript = latestFinal;
-                resetMicSilenceTimer();
-            };
-
-            recognition.onerror = function() {
-                if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
-            };
-
-            recognition.onend = function() {
-                if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
-                // This recording's words always go to the stop it was started on. Only clear
-                // the "currently recording" state if a newer recording hasn't replaced it.
-                const jobId = id;
-                if (micRecognition === recognition) {
-                    micRecognition = null;
-                    micRecordingJobId = null;
-                }
-                const transcript = finalTranscript.trim();
-                if (jobId && transcript) {
-                    const existingJob = jobs[jobId] || {};
-                    const existingOther = existingJob.other_details || '';
-                    const combined = existingOther ? (existingOther + ' ' + transcript) : transcript;
-                    localJobs.ref(`${jobId}/other_details`).set(combined);
-                    markListChanged();
-                    if (currentDetailsJobId === jobId) {
-                        document.getElementById('other-input').value = combined;
-                        detailsData.other_details = combined;
-                        updateDetailsPreview();
-                    }
-                }
-                renderList();
-            };
-
-            recognition.start();
-            resetMicSilenceTimer();
-            renderList();
         }
 
         // ---------- ROUTE OPTIMIZATION (simplified - no auto-optimization) ----------
@@ -2493,17 +2417,56 @@
             counter.textContent = pendingIds.length;
             counter.style.display = 'inline-block';
             let html = '';
+            // Newest first: a stop just added shows at the top. The order here doesn't matter:
+            // the route order is set on the map.
+            pendingIds.sort((a, b) => ((Number(jobs[b].timestamp) || 0) - (Number(jobs[a].timestamp) || 0)) || (a < b ? 1 : a > b ? -1 : 0));
             pendingIds.forEach(id => { html += stopCardHtml(id, '-', id === lastAddedJobId); });
             container.innerHTML = html;
-            if (lastAddedJobId && pendingIds.includes(lastAddedJobId)) {
+            if (lastAddedJobId && pendingIds.includes(lastAddedJobId) && burstShownFor !== lastAddedJobId) {
                 const newItem = container.querySelector('.job-item-new');
-                if (newItem) {
-                    newItem.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                    setTimeout(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, 1000);
-                }
+                if (newItem) { burstShownFor = lastAddedJobId; showAddBurst(newItem); }
             }
             attachStopCardListeners(container);
         }
+
+        // A big pulse from a stop that was just added (once per stop), and it's brought into view if needed.
+        let burstShownFor = null;
+        function showAddBurst(item) {
+            item.classList.add('pop');
+            const r = item.getBoundingClientRect();
+            if (r.top < 70 || r.bottom > window.innerHeight) item.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            const box = item.getBoundingClientRect();
+            const size = Math.max(window.innerWidth, window.innerHeight) * 1.3;
+            ['', ' ring'].forEach(extra => {
+                const b = document.createElement('div');
+                b.className = 'add-burst' + extra;
+                b.style.left = (box.left + box.width / 2) + 'px';
+                b.style.top = (Math.min(Math.max(box.top, 70), window.innerHeight - 40) + box.height / 2) + 'px';
+                b.style.width = b.style.height = (extra ? size * 0.7 : size) + 'px';
+                document.body.appendChild(b);
+                setTimeout(() => b.remove(), 1000);
+            });
+            if (navigator.vibrate) { try { navigator.vibrate(25); } catch (e) {} }
+        }
+
+        // Rows level with the round buttons step in from the right; rows above them use the full width.
+        let fabWrapQueued = false;
+        function updateFabWrap() {
+            fabWrapQueued = false;
+            const top = document.getElementById('clear-btn-float');
+            const els = document.querySelectorAll('#job-list .job-item, #make-route-main');
+            if (!top || els.length === 0) return;
+            const t = top.getBoundingClientRect();
+            const active = window.innerWidth <= 920 && t.height > 0;
+            const zoneTop = t.top - 8;
+            els.forEach(el => {
+                const r = el.getBoundingClientRect();
+                el.classList.toggle('beside-fabs', active && r.height > 0 && r.bottom > zoneTop && r.top < window.innerHeight);
+            });
+        }
+        function queueFabWrap() { if (!fabWrapQueued) { fabWrapQueued = true; requestAnimationFrame(updateFabWrap); } }
+        window.addEventListener('scroll', queueFabWrap, { passive: true });
+        window.addEventListener('resize', queueFabWrap);
 
         // ---------- ORDERING LIST RENDER ----------
         function renderOrderingList() {
@@ -2564,21 +2527,36 @@
                             <div class="job-address">${escapeHtml(job.pickup_location || '')}, ${escapeHtml(job.city || '')}</div>
                             <div class="job-eta" data-eta-id="${escapeHtml(id)}" hidden></div>
                         </div>
-                        <svg class="mic-icon${micRecordingJobId === id ? ' mic-recording' : ''}" viewBox="0 0 24 24" onclick="toggleMicRecording(${jsArg(id)})">
-                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                        </svg>
-                        <svg class="delete-icon" viewBox="0 0 24 24" onclick="deleteJob(${jsArg(id)})">
-                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                        </svg>
                     </div>
                 `;
         }
+        // Tap a stop: its details. Hold a stop: asks to delete it (like Route Helper).
+        const STOP_HOLD_MS = 550;
+        let stopHoldGuardUntil = 0; // the tap that ends a hold is ignored
+        function setupStopHold(item) {
+            let timer = null, startX = 0, startY = 0;
+            const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+            item.addEventListener('pointerdown', e => {
+                if (e.button > 0 || e.target.closest('.drag-grip, .job-type-toggle, .job-number')) return;
+                startX = e.clientX; startY = e.clientY;
+                cancel();
+                timer = setTimeout(() => {
+                    timer = null;
+                    stopHoldGuardUntil = Date.now() + 800;
+                    if (navigator.vibrate) { try { navigator.vibrate(30); } catch (err) {} }
+                    if (item.dataset.id) deleteJob(item.dataset.id);
+                }, STOP_HOLD_MS);
+            });
+            item.addEventListener('pointermove', e => { if (timer && Math.hypot(e.clientX - startX, e.clientY - startY) > 10) cancel(); });
+            ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => item.addEventListener(ev, cancel));
+            item.addEventListener('contextmenu', e => e.preventDefault());
+        }
         function attachStopCardListeners(container) {
             container.querySelectorAll('.job-item').forEach(item => {
+                setupStopHold(item);
                 item.addEventListener('click', function(e) {
-                    if (e.target.closest('.mic-icon, .delete-icon, .drag-grip, .job-type-toggle')) return;
-                    if (Date.now() < dragClickGuardUntil) return;
+                    if (e.target.closest('.drag-grip, .job-type-toggle')) return;
+                    if (Date.now() < dragClickGuardUntil || Date.now() < stopHoldGuardUntil) return;
                     const jobId = this.dataset.id;
                     if (!jobId) return;
                     openDetailsModal(jobId);
@@ -2586,6 +2564,7 @@
                 const grip = item.querySelector('.drag-grip');
                 if (grip) grip.addEventListener('pointerdown', startStopDrag);
             });
+            queueFabWrap();
         }
         // Arrival time under each numbered stop (when a start time is known), red when the driver
         // would get there more than 15 min before it opens. Updated in place as drive times arrive.
