@@ -472,7 +472,6 @@
         .fab:hover { transform: translateY(-3px); border-color: var(--accent-ring); box-shadow: 0 22px 40px -14px rgba(0,0,0,0.8), 0 0 0 4px var(--accent-soft); }
         .fab:hover svg { transform: scale(1.1); }
         .fab:active { transform: scale(.92); transition-duration: .08s; }
-        #list-btn-bottom { bottom: 133.5px; }
         /* Mic above Share: say customer names to add them to the route */
         #mic-btn-bottom { bottom: 201.5px; color: #60a5fa; border: 2px solid #3b82f6; box-shadow: 0 16px 34px -12px rgba(0,0,0,0.75), 0 0 0 3px rgba(59,130,246,0.18), 0 0 18px -4px rgba(59,130,246,0.6); animation-delay: .3s; }
         #mic-btn-bottom svg { stroke: #60a5fa !important; }
@@ -1088,6 +1087,9 @@
         <button id="share-btn" class="map-btn" onclick="shareRoute()" aria-label="Share" title="Share route">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
         </button>
+        <button id="list-btn" class="map-btn" onclick="openContactListModal()" aria-label="Contact list" title="Contact list">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3.5" width="14" height="18" rx="2.5"/><path d="M9 3.5h6v3H9zM9 11h6M9 15h6"/></svg>
+        </button>
         <button id="settings-btn" class="map-btn" onclick="openSettings()" aria-label="Settings" title="Settings">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
         </button>
@@ -1456,7 +1458,6 @@
     <button id="clear-btn-float" class="fab fab-sm" onclick="clearAllJobs()" aria-label="Clear the list" title="Clear the list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
 
     <!-- List Button (below Share Button) -->
-    <button id="list-btn-bottom" class="fab" onclick="openContactListModal()" aria-label="List" title="Contact list"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="18" rx="2.5"/><path d="M9 3.5h6v3H9zM9 11h6M9 15h6"/></svg></button>
 
     <!-- Scripts -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
