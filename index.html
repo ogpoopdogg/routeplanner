@@ -426,10 +426,6 @@
         /* Full names and addresses (they wrap instead of being cut off), about 15% smaller than before */
         .job-name { font-weight: 700; font-size: 12.75px; line-height: 1.25; letter-spacing: -0.01em; overflow-wrap: anywhere; color: var(--text); }
         .job-address { margin-top: 1px; font-size: 10.75px; line-height: 1.3; color: var(--muted); overflow-wrap: anywhere; }
-        /* Rows (and Make route) level with the round buttons on the right step in so the buttons never cover them;
-           rows above the buttons use the full width. Set as the page scrolls (updateFabWrap). */
-        #job-list .job-item, #make-route-main { transition: margin-right .18s var(--ease); }
-        #job-list .job-item.beside-fabs, #make-route-main.beside-fabs { margin-right: 54px; }
         .star-icon { width: 24px; height: 24px; cursor: pointer; fill: none; stroke: var(--accent); stroke-width: 2; z-index: 2; }
         .star-icon.active { fill: var(--accent); }
         @keyframes mic-pulse-glow {
@@ -725,6 +721,13 @@
             .page { padding: 14px; }
             .panel { padding: 14px; }
             #job-list-container { padding: 14px 12px; }
+            /* Edge to edge: no space at the sides, every section uses the full screen width */
+            .page { padding-left: 0; padding-right: 0; padding-top: 8px; }
+            .panel, #job-list-container, #eta-display { border-radius: 0; border-left: none; border-right: none; }
+            #stop-panel { padding: 8px 8px 0; }
+            #job-list-container { padding: 12px 6px; margin-top: 8px; }
+            .stops-head { margin-left: 4px; }
+            .route-controls { margin-top: 8px; padding: 0 6px; }
             #details-modal { padding: 12px; }
             #details-modal .details-modal-content { padding: 20px; max-width: 100%; }
             #details-modal .details-modal-content .stop-title { font-size: 22px; }
@@ -2487,25 +2490,6 @@
             if (navigator.vibrate) { try { navigator.vibrate(25); } catch (e) {} }
         }
 
-        // Rows level with the round buttons step in from the right; rows above them use the full width.
-        let fabWrapQueued = false;
-        function updateFabWrap() {
-            fabWrapQueued = false;
-            const top = document.getElementById('clear-btn-float');
-            const els = document.querySelectorAll('#job-list .job-item, #make-route-main');
-            if (!top || els.length === 0) return;
-            const t = top.getBoundingClientRect();
-            const active = window.innerWidth <= 920 && t.height > 0;
-            const zoneTop = t.top - 8;
-            els.forEach(el => {
-                const r = el.getBoundingClientRect();
-                el.classList.toggle('beside-fabs', active && r.height > 0 && r.bottom > zoneTop && r.top < window.innerHeight);
-            });
-        }
-        function queueFabWrap() { if (!fabWrapQueued) { fabWrapQueued = true; requestAnimationFrame(updateFabWrap); } }
-        window.addEventListener('scroll', queueFabWrap, { passive: true });
-        window.addEventListener('resize', queueFabWrap);
-
         // ---------- ORDERING LIST RENDER ----------
         function renderOrderingList() {
             const container = document.getElementById('job-list');
@@ -2599,7 +2583,6 @@
                 const grip = item.querySelector('.drag-grip');
                 if (grip) grip.addEventListener('pointerdown', startStopDrag);
             });
-            queueFabWrap();
         }
         // Arrival time under each numbered stop (when a start time is known), red when the driver
         // would get there more than 15 min before it opens. Updated in place as drive times arrive.
