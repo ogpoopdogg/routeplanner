@@ -89,16 +89,16 @@
         .dialog-title, #date-modal h3, #delete-modal h3 { margin: 0 0 4px; font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
 
         /* Buttons: shared feel */
-        .btn-add, .btn-save, .btn-clear, .btn-delete-all-saved, .create-route-btn, .login-submit, .static-note-save-btn, .primary,
+        .btn-add, .create-route-btn, .login-submit, .static-note-save-btn, .primary,
         #date-modal .date-box button, #delete-modal .delete-box button, #details-modal .modal-actions button, .dialog-btn, #picker-go-btn,
         #address-picker-modal .picker-info .picker-confirm, #address-picker-modal .picker-close, #choice-modal-options button, #install-btn {
             position: relative; overflow: hidden; isolation: isolate; font-family: inherit; letter-spacing: .04em; -webkit-user-select: none; user-select: none;
             transition: transform .18s var(--ease), box-shadow .25s var(--ease), filter .2s var(--ease), background .25s var(--ease), opacity .2s;
         }
-        .btn-add:hover, .btn-save:hover, .btn-clear:hover, .btn-delete-all-saved:hover, .create-route-btn:not(:disabled):hover, .login-submit:hover, .static-note-save-btn:hover,
+        .btn-add:hover, .create-route-btn:not(:disabled):hover, .login-submit:hover, .static-note-save-btn:hover,
         #date-modal .date-box button:hover, #delete-modal .delete-box button:hover, #details-modal .modal-actions button:hover, .dialog-btn:hover, #picker-go-btn:hover,
         #address-picker-modal .picker-info .picker-confirm:hover, #address-picker-modal .picker-close:hover, #choice-modal-options button:hover, #install-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
-        .btn-add:active, .btn-save:active, .btn-clear:active, .btn-delete-all-saved:active, .create-route-btn:not(:disabled):active, .login-submit:active, .static-note-save-btn:active,
+        .btn-add:active, .create-route-btn:not(:disabled):active, .login-submit:active, .static-note-save-btn:active,
         #date-modal .date-box button:active, #delete-modal .delete-box button:active, #details-modal .modal-actions button:active, .dialog-btn:active, #picker-go-btn:active,
         #address-picker-modal .picker-info .picker-confirm:active, #address-picker-modal .picker-close:active, #choice-modal-options button:active, #install-btn:active { transform: translateY(0) scale(.97); filter: brightness(.96); transition-duration: .08s; }
         button:disabled { cursor: not-allowed; }
@@ -190,6 +190,8 @@
            FORM CARD
            ========================================================================== */
         .page { padding: 20px; width: 100%; max-width: 760px; margin: 0 auto; }
+        /* Room at the bottom so the last stops can scroll up clear of the floating buttons on the right */
+        body .page { padding-bottom: calc(390px + env(safe-area-inset-bottom, 0px)); }
         .panel {
             position: relative; background: linear-gradient(180deg, var(--card-2), var(--card)); border-radius: var(--r-lg); padding: 18px;
             border: 1px solid var(--border); box-shadow: var(--shadow-soft), var(--hairline);
@@ -230,8 +232,7 @@
         #stop-panel.collapsed { padding-bottom: 10px; }
         #stop-panel .btn-add { min-height: 46px; padding: 11px 20px; margin-top: 0; }
         .route-controls { margin: 10px 0 0; }
-        .route-controls .action-row { margin-top: 0; }
-        .route-controls .driver-bar { margin: 10px -2px 0; }
+        .route-controls .driver-bar { margin: 0 -2px; }
         #stop-panel-grip { display: flex; align-items: center; justify-content: center; height: 20px; margin: 2px -12px 0; cursor: ns-resize; touch-action: none; user-select: none; -webkit-user-select: none; }
         #stop-panel-grip span { width: 44px; height: 5px; border-radius: 3px; background: var(--border-strong); transition: background .2s, width .2s; }
         #stop-panel-grip:hover span, #stop-panel-grip.is-dragging span { background: var(--accent); width: 60px; }
@@ -285,23 +286,6 @@
             background: linear-gradient(180deg, #4ade80, #22c55e 55%, #16a34a); box-shadow: 0 12px 28px -12px rgba(34,197,94,0.7), inset 0 1px 0 rgba(255,255,255,0.45);
         }
         .btn-add:disabled { filter: grayscale(.5) brightness(.8); }
-        .action-row { display: flex; justify-content: space-between; margin-top: 10px; gap: 8px; }
-        .action-group { display: flex; gap: 8px; }
-        .btn-save, .btn-delete-all-saved, .btn-clear {
-            min-height: 42px; padding: 10px 16px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
-            display: inline-flex; align-items: center; gap: 7px;
-        }
-        .btn-save, .btn-delete-all-saved, .btn-clear { border: 1px solid; }
-        .btn-save svg, .btn-delete-all-saved svg, .btn-clear svg { width: 15px; height: 15px; flex-shrink: 0; }
-        .btn-save { color: #bfdbfe; background: linear-gradient(180deg, rgba(59,130,246,0.22), rgba(37,99,235,0.14)); border-color: rgba(59,130,246,0.45); }
-        .btn-delete-all-saved { color: #fed7aa; background: linear-gradient(180deg, rgba(249,115,22,0.22), rgba(234,88,12,0.12)); border-color: rgba(249,115,22,0.45); }
-        .btn-clear { color: #fecaca; background: linear-gradient(180deg, rgba(239,68,68,0.22), rgba(185,28,28,0.14)); border-color: rgba(239,68,68,0.45); }
-        .btn-save:hover { box-shadow: 0 8px 22px -10px rgba(59,130,246,0.8); }
-        .btn-delete-all-saved:hover { box-shadow: 0 8px 22px -10px rgba(249,115,22,0.8); }
-        .btn-clear:hover { box-shadow: 0 8px 22px -10px rgba(239,68,68,0.8); }
-        body.light-mode .btn-save { color: #1d4ed8; background: rgba(59,130,246,0.1); }
-        body.light-mode .btn-delete-all-saved { color: #c2410c; background: rgba(249,115,22,0.1); }
-        body.light-mode .btn-clear { color: #b91c1c; background: rgba(239,68,68,0.1); }
         .primary { padding: 14px 16px; background: var(--card-2); color: var(--text); font-weight: 700; border: 1px solid var(--border-strong); border-bottom: 3px solid var(--accent); cursor: pointer; border-radius: var(--r); text-transform: uppercase; }
 
         /* ==========================================================================
@@ -516,6 +500,15 @@
         body.light-mode #mic-btn-bottom svg { stroke: #2563eb !important; }
         #mic-btn-bottom.is-listening, body.light-mode #mic-btn-bottom.is-listening { color: #fff; border-color: rgba(239,68,68,0.7); background: linear-gradient(180deg, #f87171, #ef4444 60%, #dc2626); animation: mic-pulse-glow 1s ease-in-out infinite; }
         #mic-btn-bottom.is-listening svg, body.light-mode #mic-btn-bottom.is-listening svg { stroke: #fff !important; }
+        /* Save / Delete / Clear: smaller floating buttons above the mic (80% of the others), icon only */
+        .fab.fab-sm { width: 45px; height: 45px; right: 21.5px; border-radius: 14px; }
+        .fab.fab-sm svg { width: 20px; height: 20px; }
+        #save-btn-float { bottom: 220px; color: #60a5fa; border-color: rgba(59,130,246,0.55); animation-delay: .35s; }
+        #delete-btn-float { bottom: 275px; color: #fb923c; border-color: rgba(249,115,22,0.55); animation-delay: .4s; }
+        #clear-btn-float { bottom: 330px; color: #f87171; border-color: rgba(239,68,68,0.55); animation-delay: .45s; }
+        body.light-mode #save-btn-float { color: #1d4ed8; }
+        body.light-mode #delete-btn-float { color: #c2410c; }
+        body.light-mode #clear-btn-float { color: #b91c1c; }
         #install-btn {
             display: none; position: fixed; right: 16px; bottom: 15px; z-index: 1002; min-height: 46px; padding: 12px 18px; border-radius: 14px; cursor: pointer;
             font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #fff; border: 1px solid rgba(255,255,255,0.15);
@@ -756,8 +749,6 @@
             header { padding-left: 12px; padding-right: 12px; gap: 8px; }
             .brand { gap: 8px; }
             .header-actions { gap: 6px; }
-            .btn-save, .btn-delete-all-saved, .btn-clear { padding: 10px 12px; }
-            .btn-save svg, .btn-delete-all-saved svg, .btn-clear svg { display: none; }
         }
         @media (min-width: 900px) {
             .page { padding-top: 32px; }
@@ -878,23 +869,23 @@
         #app-toast.is-visible { display: block; animation: drop-in .25s var(--ease); }
         #app-toast.is-error { color: #fff; background: rgba(220,38,38,0.92); border-color: rgba(255,255,255,0.2); }
         /* ---------- SETTINGS, DRIVER CHIP, PILL EXTRAS ---------- */
-        .driver-bar { display: flex; gap: 8px; overflow-x: auto; margin: -4px -2px 12px; padding: 2px 2px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+        .driver-bar { display: flex; gap: 4px; overflow-x: auto; margin: -4px -2px 12px; padding: 2px 2px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
         .driver-bar::-webkit-scrollbar { display: none; }
         .driver-btn {
             -webkit-touch-callout: none; user-select: none; -webkit-user-select: none;
-            flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 7px 13px; cursor: pointer;
-            font-family: inherit; font-size: 14px; font-weight: 800; color: var(--text); background: var(--card-2);
-            border: 1.5px solid var(--border-strong); border-radius: 999px; transition: transform .15s var(--spring), border-color .15s, background .15s;
+            flex: 1 1 auto; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; min-height: 40px; padding: 4px 6px; cursor: pointer; line-height: 1.15; white-space: nowrap;
+            font-family: inherit; font-size: 12px; font-weight: 800; color: var(--text); background: var(--card-2);
+            border: 1.5px solid var(--border-strong); border-radius: 8px; transition: transform .15s var(--spring), border-color .15s, background .15s;
         }
         .driver-btn:active { transform: scale(.95); }
-        .driver-btn-meta { font-size: 11.5px; font-weight: 700; opacity: .8; font-variant-numeric: tabular-nums; }
+        .driver-btn-meta { font-size: 10px; font-weight: 700; opacity: .8; font-variant-numeric: tabular-nums; }
         .driver-btn.status-sent { border-color: rgba(34,197,94,0.6); }
         .driver-btn.status-sent .driver-btn-meta { color: #22c55e; opacity: 1; }
         .driver-btn.status-draft { border-style: dashed; border-color: var(--accent); }
         /* Changes on this phone not saved yet: amber, with a dot */
         .driver-btn.status-changed { border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,0.18); }
         .driver-btn.status-changed .driver-btn-meta { color: #f59e0b; opacity: 1; }
-        .driver-btn.status-changed .driver-btn-meta::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 4px; border-radius: 50%; background: currentColor; vertical-align: 1px; }
+        .driver-btn.status-changed .driver-btn-meta::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 3px; border-radius: 50%; background: currentColor; vertical-align: 1px; }
         /* Last route from an earlier day */
         .driver-btn.status-old .driver-btn-meta { color: var(--muted); font-weight: 600; }
         /* The picked driver (yellow) keeps its status as a coloured ring */
@@ -906,7 +897,7 @@
         .driver-btn.status-unsent .driver-btn-meta { color: #ef4444; opacity: 1; }
         .driver-btn.is-picked { color: var(--accent-ink); background: linear-gradient(180deg, #ffe066, #f5c518 60%, #e2ac00); border-color: rgba(160,110,0,0.7); box-shadow: 0 6px 16px -8px rgba(245,197,24,0.8); }
         .driver-btn.is-picked .driver-btn-meta { color: var(--accent-ink); }
-        .driver-btn.is-new { color: var(--accent); background: transparent; border-style: dashed; border-color: var(--accent); font-weight: 800; }
+        .driver-btn.is-new { flex: 0 0 auto; color: var(--accent); background: transparent; border-style: dashed; border-color: var(--accent); font-weight: 800; }
         .driver-chip {
             display: inline-flex; align-items: center; gap: 6px; max-width: 60%; min-height: 34px; padding: 6px 12px; cursor: pointer;
             font-family: inherit; font-size: 13px; font-weight: 800; color: var(--text); background: var(--card-2);
@@ -1113,15 +1104,8 @@
           <div id="stop-panel-grip" role="separator" aria-orientation="horizontal" aria-label="Drag to resize the stop panel" title="Drag to resize. Double-tap for normal size."><span></span></div>
         </div>
 
-            <!-- Save / Delete / Clear, then the drivers: always here, under the stop panel -->
+            <!-- The drivers: always here, under the stop panel (Save / Delete / Clear float on the right) -->
             <div class="route-controls">
-                <div class="action-row">
-                    <div class="action-group">
-                        <button class="btn-save" onclick="saveCurrentRoute()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v5h8V3M7 21v-7h10v7"/></svg>Save</button>
-                        <button class="btn-delete-all-saved" onclick="openDeleteRoutesModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete</button>
-                    </div>
-                    <button class="btn-clear" onclick="clearAllJobs()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>Clear</button>
-                </div>
                 <!-- Drivers: tap one to show their list. Each shows how far they are today. -->
                 <div id="driver-bar" class="driver-bar" role="group" aria-label="Driver for this route"></div>
             </div>
@@ -1427,6 +1411,11 @@
 
     <!-- Mic Button (above Share Button): starts listening for customer names straight away -->
     <button id="mic-btn-bottom" class="fab" onclick="quickVoiceAdd()" aria-label="Say a customer name to add it. Hold to paste or say a list." title="Tap: say a name. Hold: paste or say a list."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg></button>
+
+    <!-- Save, Delete and Clear (above the mic), smaller and icon only -->
+    <button id="save-btn-float" class="fab fab-sm" onclick="saveCurrentRoute()" aria-label="Save" title="Save route"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v5h8V3M7 21v-7h10v7"/></svg></button>
+    <button id="delete-btn-float" class="fab fab-sm" onclick="openDeleteRoutesModal()" aria-label="Delete saved routes" title="Delete saved routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+    <button id="clear-btn-float" class="fab fab-sm" onclick="clearAllJobs()" aria-label="Clear the list" title="Clear the list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
 
     <!-- List Button (below Share Button) -->
     <button id="list-btn-bottom" class="fab" onclick="openContactListModal()" aria-label="List" title="Contact list"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="18" rx="2.5"/><path d="M9 3.5h6v3H9zM9 11h6M9 15h6"/></svg></button>
@@ -6601,9 +6590,9 @@
                     : { n: listStopCount(kept[d.key]), changed: !!(kept[d.key] && kept[d.key].listChanged) };
                 let status = 'none', meta = '';
                 if (pendingRouteSaves[d.key]) { status = 'unsent'; meta = 'not sent'; }
-                else if (local.changed && local.n > 0) { status = 'changed'; meta = local.n + ' not saved'; }
+                else if (local.changed && local.n > 0) { status = 'changed'; meta = String(local.n); }
                 else if (route && route.stops && isSameDay(route.timestamp)) { status = 'sent'; meta = '✓ ' + Object.keys(route.stops).length; }
-                else if (draft && draft.stops) { status = 'draft'; meta = 'unfinished'; }
+                else if (draft && draft.stops) { status = 'draft'; meta = 'draft'; }
                 else if (route && route.stops) { status = 'old'; meta = formatSavedTime(route.timestamp); }
                 const titles = {
                     changed: `${local.n} stops on this phone, not saved yet`,
