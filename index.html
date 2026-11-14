@@ -1139,7 +1139,7 @@
             </div>
 
             <!-- Saved Routes Pills - Collapsible -->
-            <!-- Hidden: the driver buttons above show each driver's saved route (hold a button to open or delete it) -->
+            <!-- Hidden: the driver buttons above show each driver's saved route (tap a button to open it; delete with the Delete button) -->
             <div class="saved-wrap" hidden>
                 <button id="toggle-saved-routes-btn">
                     <span class="saved-label"><span class="saved-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>All Saved Routes <span id="saved-routes-count-badge" style="display:none;">0</span></span>
@@ -5183,7 +5183,7 @@
             });
         }
         // Opens a driver's saved route (or unfinished list) as their list, asking first when that
-        // would replace stops on this phone. Used by the driver buttons' hold menu.
+        // would replace stops on this phone. Used by the hidden saved-route pills.
         async function openSavedForDriver(key, isDraft) {
             // The route opens as this driver's list. Another driver's list on screen is kept on
             // this phone, so only this driver's own list can be replaced: ask first if it has stops.
@@ -6278,7 +6278,7 @@
         applyFormScale(appSettings.formScale);
         applyStopPanelCollapsed(appSettings.addPanelCollapsed);
         setupFormResize();
-        setupDriverHold();
+        setupDriverBarNoMenu();
         function persistSettingsCache() {
             try { localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(appSettings)); } catch (e) {}
         }
@@ -6614,7 +6614,7 @@
                     old: `Last route saved ${formatSavedTime(route && route.timestamp)}, nothing saved today`,
                     none: 'Nothing saved yet'
                 };
-                const title = titles[status] + '. Hold for saved routes.';
+                const title = titles[status] + '. Tap to open their route.';
                 const picked = d.key === currentDriver;
                 return `<button type="button" class="driver-btn status-${status}${picked ? ' is-picked' : ''}" data-key="${escapeHtml(d.key)}" aria-pressed="${picked}" title="${escapeHtml(title)}" onclick="tapDriverButton(${jsArg(d.key)})"><span class="driver-btn-name">${escapeHtml(d.label)}</span>${meta ? `<span class="driver-btn-meta">${escapeHtml(meta)}</span>` : ''}</button>`;
             }).join('') + '<button type="button" class="driver-btn is-new" onclick="addDriverFromBar()" title="Add a new driver">+ New</button>';
@@ -6647,10 +6647,15 @@
         // screen stays kept under its own driver. Stops added before any driver was picked go with
         // the driver tapped. Nothing is sent to the database until Save.
         let switchingDriver = false;
-        let driverHoldUntil = 0; // a hold opens the menu; the tap that ends it is ignored
+        // If nothing is kept on this phone for them, their saved route opens (one tap, no hold menu).
         async function tapDriverButton(key) {
-            if (Date.now() < driverHoldUntil) return;
-            if (switchingDriver || key === currentDriver) return;
+            if (switchingDriver) return;
+            if (key === currentDriver) {
+                // Their list on screen is empty: open their saved route
+                const onScreen = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').length;
+                if (onScreen === 0 && savedStopCount(key) > 0) loadSavedRoute(key);
+                return;
+            }
             switchingDriver = true;
             try { await switchToDriver(key); } finally { switchingDriver = false; }
         }
@@ -6686,64 +6691,20 @@
             const draft = draftRoutesCache && draftRoutesCache[key];
             // Nothing kept on this phone for them, but an unfinished list saved: carry on with it
             if (!kept && draft && draft.stops) { showListOnScreen(null); loadDraftRoute(key); return; }
+            // Nothing on this phone for them, but a saved route: open it
+            if (listStopCount(kept) === 0 && savedStopCount(key) > 0) { showListOnScreen(null); loadSavedRoute(key); return; }
             showListOnScreen(kept);
             if (listStopCount(kept) === 0) warnSentToday(key);
         }
-        // Hold a driver button: their saved route and unfinished list (open, see the list, delete).
-        // This replaces the All Saved Routes section.
-        async function driverSavedMenu(key) {
-            const label = driverLabel(key);
-            const route = savedRoutesCache && savedRoutesCache[key];
-            const draft = draftRoutesCache && draftRoutesCache[key];
-            const n = x => x && x.stops ? Object.keys(x.stops).length : 0;
-            const items = [];
-            if (route && route.stops) {
-                items.push([`Open saved route (${n(route)} stops, ${formatSavedTime(route.timestamp)})`, () => openSavedForDriver(key, false)]);
-                items.push(['Show saved route list', () => openContactListForRoute(key, false)]);
-            }
-            if (draft && draft.stops) {
-                items.push([`Open unfinished list (${n(draft)} stops)`, () => openSavedForDriver(key, true)]);
-                items.push(['Show unfinished list', () => openContactListForRoute(key, true)]);
-            }
-            if (route && route.stops) items.push(['Delete saved route', async () => {
-                if (await showConfirmModal(`Delete ${label}'s saved route? Route Helper won't have it any more.`)) db.ref('developer/route_planner/saved_routes/' + key).remove().catch(err => showAlertModal("Error deleting route: " + err.message));
-            }]);
-            if (draft && draft.stops) items.push(['Delete unfinished list', async () => {
-                if (await showConfirmModal(`Delete ${label}'s unfinished list?`)) db.ref(DRAFT_ROUTES_PATH + '/' + key).remove().catch(err => showAlertModal("Error deleting route: " + err.message));
-            }]);
-            if (items.length === 0) { showToast(`${label} has no saved route yet.`); return; }
-            const i = await showChoiceModal(label, items.map(x => x[0]));
-            if (i === null || i === undefined || !items[i]) return;
-            items[i][1]();
-        }
-        function setupDriverHold() {
+        // The phone's own long-press menu doesn't open on a driver button (there's no hold action)
+        function setupDriverBarNoMenu() {
             const bar = document.getElementById('driver-bar');
-            if (!bar) return;
-            let timer = null, startX = 0, startY = 0;
-            const cancel = () => { clearTimeout(timer); timer = null; };
-            const open = key => { cancel(); driverHoldUntil = Date.now() + 700; driverSavedMenu(key); };
-            bar.addEventListener('pointerdown', e => {
-                const btn = e.target.closest('.driver-btn[data-key]');
-                if (!btn) return;
-                startX = e.clientX; startY = e.clientY;
-                cancel();
-                timer = setTimeout(() => open(btn.dataset.key), 550);
-            });
-            bar.addEventListener('pointermove', e => { if (timer && (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10)) cancel(); });
-            ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => bar.addEventListener(t, cancel));
-            // Right-click, or the phone's own long-press menu
-            bar.addEventListener('contextmenu', e => {
-                const btn = e.target.closest('.driver-btn[data-key]');
-                if (!btn) return;
-                e.preventDefault();
-                if (Date.now() < driverHoldUntil) return; // the hold already opened it
-                open(btn.dataset.key);
-            });
+            if (bar) bar.addEventListener('contextmenu', e => { if (e.target.closest('.driver-btn[data-key]')) e.preventDefault(); });
         }
         function warnSentToday(key) {
             const route = savedRoutesCache && savedRoutesCache[key];
             if (route && route.stops && isSameDay(route.timestamp) && getContactListDriver() !== key) {
-                showToast(`${driverLabel(key)} already has a route sent today (${savedStopCount(key)} stops, ${formatSavedTime(route.timestamp)}). Saving will replace it. Open it from Saved Routes to change it.`, false, { duration: 7000 });
+                showToast(`${driverLabel(key)} already has a route sent today (${savedStopCount(key)} stops, ${formatSavedTime(route.timestamp)}). Saving will replace it.`, false, { duration: 7000 });
             }
         }
         // ---------- BRANDON TIME ----------
