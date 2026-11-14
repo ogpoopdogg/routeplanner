@@ -218,6 +218,16 @@
         #stop-panel .flex-row { gap: 8px; margin-bottom: 8px; }
         #stop-panel input { min-height: 42px; padding: 9px 14px; }
         #stop-panel #f-address { padding-right: 44px; }
+        .stop-panel-toggle {
+            flex: 0 0 auto; display: grid; place-items: center; width: 42px; min-height: 42px; padding: 0; cursor: pointer;
+            color: var(--muted); background: var(--input-bg); border: 1px solid var(--border-strong); border-radius: 12px;
+            transition: color .15s, border-color .15s, transform .15s;
+        }
+        .stop-panel-toggle:active { transform: scale(.94); }
+        .stop-panel-toggle:hover { color: var(--accent); border-color: var(--accent); }
+        /* Folded away: only ADD TO ROUTE shows */
+        #stop-panel.collapsed #stop-panel-body .flex-row, #stop-panel.collapsed #stop-panel-grip { display: none; }
+        #stop-panel.collapsed { padding-bottom: 10px; }
         #stop-panel .btn-add { min-height: 46px; padding: 11px 20px; margin-top: 0; }
         .route-controls { margin: 10px 0 0; }
         .route-controls .action-row { margin-top: 0; }
@@ -1079,6 +1089,7 @@
                     <div id="suggestions" class="suggestions-box"></div>
                     <div onclick="resetFormFields()" class="suggestion-reset">RESET</div>
                 </div>
+                <button type="button" id="stop-panel-toggle" class="stop-panel-toggle" onclick="toggleStopPanel()" aria-label="Collapse" title="Fold away (only ADD TO ROUTE shows)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 15 12 9 18 15"/></svg></button>
             </div>
             <div class="flex-row">
                 <div class="input-wrap" style="flex: 0.7; position: relative;">
@@ -1094,8 +1105,8 @@
                     <div id="city-suggestions" class="suggestions-box"></div>
                 </div>
             </div>
-            <!-- Most-used customers in the last 30 days: one tap adds the stop -->
-            <button class="btn-add" onclick="addJob()">ADD TO ROUTE</button>
+            <!-- Folded away: only this button shows, and tapping it opens the panel again -->
+            <button class="btn-add" onclick="onAddButtonClick()">ADD TO ROUTE</button>
             <!-- CREATE ROUTE button removed from main page; only on map -->
           </div>
           <!-- Drag up or down to make the whole panel smaller or bigger. Double-tap: normal size. -->
@@ -2184,7 +2195,7 @@
                 return;
             }
             if (routeState.isFinalized) {
-                const addBtn = document.querySelector('button[onclick="addJob()"]');
+                const addBtn = document.querySelector('#stop-panel .btn-add');
                 const addBtnOriginalText = addBtn ? addBtn.textContent : 'ADD TO ROUTE';
                 if (addBtn) { addBtn.disabled = true; addBtn.textContent = 'Geocoding…'; }
                 const geocoder = new google.maps.Geocoder();
@@ -6246,6 +6257,30 @@
                 applyFormScale(s); save(s);
             });
         }
+        // ---------- FOLD AWAY THE STOP PANEL ----------
+        // The arrow at the top right folds the panel down to just ADD TO ROUTE; tapping that opens it again.
+        // Saved in Settings (developer/route_planner/settings/addPanelCollapsed).
+        function applyStopPanelCollapsed(collapsed) {
+            const panel = document.getElementById('stop-panel');
+            if (!panel) return;
+            panel.classList.toggle('collapsed', !!collapsed);
+            const btn = document.getElementById('stop-panel-toggle');
+            if (btn) btn.setAttribute('aria-label', collapsed ? 'Expand' : 'Collapse');
+        }
+        function setStopPanelCollapsed(collapsed) {
+            collapsed = !!collapsed;
+            applyStopPanelCollapsed(collapsed);
+            if (appSettings.addPanelCollapsed !== collapsed) writeSetting('addPanelCollapsed', collapsed);
+        }
+        function toggleStopPanel() {
+            const panel = document.getElementById('stop-panel');
+            setStopPanelCollapsed(!(panel && panel.classList.contains('collapsed')));
+        }
+        function onAddButtonClick() {
+            const panel = document.getElementById('stop-panel');
+            if (panel && panel.classList.contains('collapsed')) { setStopPanelCollapsed(false); return; }
+            addJob();
+        }
         function normalizeSettings(raw) {
             raw = (raw && typeof raw === 'object') ? raw : {};
             const gas = Number(raw.gasStopMinutes);
@@ -6265,7 +6300,9 @@
                 emailTo: typeof raw.emailTo === 'string' ? raw.emailTo : DEFAULT_EMAIL_TO,
                 emailSubject: typeof raw.emailSubject === 'string' && raw.emailSubject.trim() ? raw.emailSubject : DEFAULT_EMAIL_SUBJECT,
                 // Size of the stop panel, picked by dragging its handle (1 = normal)
-                formScale: isFinite(Number(raw.formScale)) && Number(raw.formScale) >= FORM_SCALE_MIN && Number(raw.formScale) <= FORM_SCALE_MAX ? Number(raw.formScale) : 1
+                formScale: isFinite(Number(raw.formScale)) && Number(raw.formScale) >= FORM_SCALE_MIN && Number(raw.formScale) <= FORM_SCALE_MAX ? Number(raw.formScale) : 1,
+                // Stop panel folded away (only ADD TO ROUTE shows). Kept in the database so clearing the phone doesn't lose it.
+                addPanelCollapsed: raw.addPanelCollapsed === true
             };
         }
         let appSettings = (() => {
@@ -6273,6 +6310,7 @@
             catch (e) { return normalizeSettings(null); }
         })();
         applyFormScale(appSettings.formScale);
+        applyStopPanelCollapsed(appSettings.addPanelCollapsed);
         setupFormResize();
         setupDriverHold();
         function persistSettingsCache() {
@@ -6282,6 +6320,7 @@
             const before = appSettings;
             appSettings = normalizeSettings(raw);
             if (!formScaleDragging) applyFormScale(appSettings.formScale);
+            applyStopPanelCollapsed(appSettings.addPanelCollapsed);
             if (appSettings.theme && appSettings.theme !== (document.body.classList.contains('light-mode') ? 'light' : 'dark')) applyTheme(appSettings.theme);
             const shopMoved = JSON.stringify(before.shop) !== JSON.stringify(appSettings.shop);
             if (shopMoved) onShopSettingsChanged();
