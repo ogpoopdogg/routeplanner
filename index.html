@@ -962,7 +962,10 @@
         .multi-row.is-missing .multi-row-heard { color: #ef4444; }
         .multi-row-name { font-weight: 700; font-size: 14px; }
         /* Teach the mic pop-up */
+        /* Pinned to the top of the screen so the customer suggestions show above the phone keyboard */
+        #voice-learn-overlay { align-items: flex-start; padding-top: calc(env(safe-area-inset-top, 0px) + 12px); overflow-y: auto; }
         .vl-box { position: relative; max-width: 400px; padding: 22px 20px 18px; animation: pop-in .28s var(--spring); }
+        .vl-field .suggestions-box { max-height: 190px; overflow-y: auto; z-index: 5; background: var(--bg-2); backdrop-filter: none; -webkit-backdrop-filter: none; }
         .vl-close { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--card-2); color: var(--muted); font-size: 15px; cursor: pointer; }
         .vl-close:hover { color: var(--text); }
         .vl-head { display: flex; align-items: center; gap: 12px; margin: 0 40px 18px 0; }
