@@ -185,7 +185,7 @@
            ========================================================================== */
         .page { padding: 20px; width: 100%; max-width: 760px; margin: 0 auto; }
         /* Room at the bottom so the last stops can scroll up clear of the floating buttons on the right */
-        body .page { padding-bottom: calc(390px + env(safe-area-inset-bottom, 0px)); }
+        body .page { padding-bottom: calc(322px + env(safe-area-inset-bottom, 0px)); }
         .panel {
             position: relative; background: linear-gradient(180deg, var(--card-2), var(--card)); border-radius: var(--r-lg); padding: 18px;
             border: 1px solid var(--border); box-shadow: var(--shadow-soft), var(--hairline);
@@ -472,10 +472,9 @@
         .fab:hover { transform: translateY(-3px); border-color: var(--accent-ring); box-shadow: 0 22px 40px -14px rgba(0,0,0,0.8), 0 0 0 4px var(--accent-soft); }
         .fab:hover svg { transform: scale(1.1); }
         .fab:active { transform: scale(.92); transition-duration: .08s; }
-        #share-btn-bottom { bottom: 84px; animation-delay: .2s; }
         #list-btn-bottom { bottom: 16px; }
         /* Mic above Share: say customer names to add them to the route */
-        #mic-btn-bottom { bottom: 152px; color: #60a5fa; border: 2px solid #3b82f6; box-shadow: 0 16px 34px -12px rgba(0,0,0,0.75), 0 0 0 3px rgba(59,130,246,0.18), 0 0 18px -4px rgba(59,130,246,0.6); animation-delay: .3s; }
+        #mic-btn-bottom { bottom: 84px; color: #60a5fa; border: 2px solid #3b82f6; box-shadow: 0 16px 34px -12px rgba(0,0,0,0.75), 0 0 0 3px rgba(59,130,246,0.18), 0 0 18px -4px rgba(59,130,246,0.6); animation-delay: .3s; }
         #mic-btn-bottom svg { stroke: #60a5fa !important; }
         #mic-btn-bottom:hover { border-color: #60a5fa; box-shadow: 0 22px 40px -14px rgba(0,0,0,0.8), 0 0 0 4px rgba(59,130,246,0.25), 0 0 22px -4px rgba(59,130,246,0.7); }
         body.light-mode #mic-btn-bottom { color: #2563eb; border-color: #2563eb; box-shadow: 0 16px 34px -14px rgba(15,23,42,0.35), 0 0 0 3px rgba(37,99,235,0.15); }
@@ -485,10 +484,10 @@
         /* Save / Delete / Clear: smaller floating buttons above the mic (80% of the others), icon only */
         .fab.fab-sm { width: 45px; height: 45px; right: 21.5px; border-radius: 14px; }
         .fab.fab-sm svg { width: 20px; height: 20px; }
-        #save-btn-float { bottom: 330px; color: #60a5fa; border-color: rgba(59,130,246,0.55); animation-delay: .35s; }
-        #delete-btn-float { bottom: 275px; color: #fb923c; border-color: rgba(249,115,22,0.55); animation-delay: .4s; }
-        #clear-btn-float { bottom: 220px; color: #f87171; border-color: rgba(239,68,68,0.55); animation-delay: .45s; }
-        #map-fab { bottom: 385px; overflow: hidden; animation-delay: .5s; background: url('//mt.google.com/vt/lyrs=m&x=235&y=348&z=10') center/cover, linear-gradient(135deg, #1e3a5f, #0f2a20); }
+        #save-btn-float { bottom: 262px; color: #60a5fa; border-color: rgba(59,130,246,0.55); animation-delay: .35s; }
+        #delete-btn-float { bottom: 207px; color: #fb923c; border-color: rgba(249,115,22,0.55); animation-delay: .4s; }
+        #clear-btn-float { bottom: 152px; color: #f87171; border-color: rgba(239,68,68,0.55); animation-delay: .45s; }
+        #map-fab { bottom: 317px; overflow: hidden; animation-delay: .5s; background: url('//mt.google.com/vt/lyrs=m&x=235&y=348&z=10') center/cover, linear-gradient(135deg, #1e3a5f, #0f2a20); }
         #map-fab::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.35)); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }
         #map-fab svg { position: relative; z-index: 1; color: #fff; stroke: #fff !important; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7)); }
         body.light-mode #map-fab { background: url('//mt.google.com/vt/lyrs=m&x=235&y=348&z=10') center/cover, linear-gradient(135deg, #cfe3ff, #d7f0de); }
@@ -1086,6 +1085,9 @@
                 <rect x="8" y="2.5" width="6" height="11" rx="3"/><path d="M4.5 10.5a6.5 6.5 0 0 0 13 0M11 17v4"/><path d="M19.5 3.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z" fill="currentColor" stroke="none"/>
             </svg>
         </button>
+        <button id="share-btn" class="map-btn" onclick="shareRoute()" aria-label="Share" title="Share route">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </button>
         <button id="settings-btn" class="map-btn" onclick="openSettings()" aria-label="Settings" title="Settings">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
         </button>
@@ -1443,9 +1445,6 @@
     <button id="install-btn">Install App</button>
 
     <!-- Share Button (bottom-right) -->
-    <button id="share-btn-bottom" class="fab" onclick="shareRoute()" aria-label="Share" title="Share route">
-        <svg viewBox="0 0 24 24" width="28" height="28" stroke="white" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-    </button>
 
     <!-- Mic Button (above Share Button): starts listening for customer names straight away -->
     <button id="mic-btn-bottom" class="fab" onclick="quickVoiceAdd()" aria-label="Say a customer name to add it. Hold to paste or say a list." title="Tap: say a name. Hold: paste or say a list."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg></button>
