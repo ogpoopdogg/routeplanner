@@ -190,8 +190,8 @@
            FORM CARD
            ========================================================================== */
         .page { padding: 20px; width: 100%; max-width: 760px; margin: 0 auto; }
-        /* Room at the bottom so the last stops can scroll up clear of the floating buttons on the right */
-        body .page { padding-bottom: calc(390px + env(safe-area-inset-bottom, 0px)); }
+        /* Room at the bottom so the last stops can scroll up clear of the bottom bar */
+        body .page { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
         .panel {
             position: relative; background: linear-gradient(180deg, var(--card-2), var(--card)); border-radius: var(--r-lg); padding: 18px;
             border: 1px solid var(--border); box-shadow: var(--shadow-soft), var(--hairline);
@@ -490,27 +490,33 @@
         .fab:hover { transform: translateY(-3px); border-color: var(--accent-ring); box-shadow: 0 22px 40px -14px rgba(0,0,0,0.8), 0 0 0 4px var(--accent-soft); }
         .fab:hover svg { transform: scale(1.1); }
         .fab:active { transform: scale(.92); transition-duration: .08s; }
-        #share-btn-bottom { bottom: 84px; animation-delay: .2s; }
-        #list-btn-bottom { bottom: 16px; }
+        /* Bottom bar holding all the round buttons, so they never sit over the list */
+        #fab-dock {
+            position: fixed; left: 0; right: 0; bottom: 0; z-index: 1001; display: flex; justify-content: space-between; gap: 8px;
+            padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px)); max-width: 760px; margin: 0 auto;
+            background: var(--header-bg); backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%);
+            border-top: 1px solid var(--border-strong);
+        }
+        #fab-dock .fab { position: relative; right: auto; bottom: auto; flex: 0 1 52px; width: 52px; height: 48px; border-radius: 12px; }
+        #fab-dock .fab svg { width: 22px; height: 22px; }
+        #share-btn-bottom { animation-delay: .1s; }
         /* Mic above Share: say customer names to add them to the route */
-        #mic-btn-bottom { bottom: 152px; color: #60a5fa; border: 2px solid #3b82f6; box-shadow: 0 16px 34px -12px rgba(0,0,0,0.75), 0 0 0 3px rgba(59,130,246,0.18), 0 0 18px -4px rgba(59,130,246,0.6); animation-delay: .3s; }
+        #mic-btn-bottom { color: #60a5fa; border: 2px solid #3b82f6; box-shadow: 0 16px 34px -12px rgba(0,0,0,0.75), 0 0 0 3px rgba(59,130,246,0.18), 0 0 18px -4px rgba(59,130,246,0.6); animation-delay: .3s; }
         #mic-btn-bottom svg { stroke: #60a5fa !important; }
         #mic-btn-bottom:hover { border-color: #60a5fa; box-shadow: 0 22px 40px -14px rgba(0,0,0,0.8), 0 0 0 4px rgba(59,130,246,0.25), 0 0 22px -4px rgba(59,130,246,0.7); }
         body.light-mode #mic-btn-bottom { color: #2563eb; border-color: #2563eb; box-shadow: 0 16px 34px -14px rgba(15,23,42,0.35), 0 0 0 3px rgba(37,99,235,0.15); }
         body.light-mode #mic-btn-bottom svg { stroke: #2563eb !important; }
         #mic-btn-bottom.is-listening, body.light-mode #mic-btn-bottom.is-listening { color: #fff; border-color: rgba(239,68,68,0.7); background: linear-gradient(180deg, #f87171, #ef4444 60%, #dc2626); animation: mic-pulse-glow 1s ease-in-out infinite; }
         #mic-btn-bottom.is-listening svg, body.light-mode #mic-btn-bottom.is-listening svg { stroke: #fff !important; }
-        /* Save / Delete / Clear: smaller floating buttons above the mic (80% of the others), icon only */
-        .fab.fab-sm { width: 45px; height: 45px; right: 21.5px; border-radius: 14px; }
-        .fab.fab-sm svg { width: 20px; height: 20px; }
-        #save-btn-float { bottom: 220px; color: #60a5fa; border-color: rgba(59,130,246,0.55); animation-delay: .35s; }
-        #delete-btn-float { bottom: 275px; color: #fb923c; border-color: rgba(249,115,22,0.55); animation-delay: .4s; }
-        #clear-btn-float { bottom: 330px; color: #f87171; border-color: rgba(239,68,68,0.55); animation-delay: .45s; }
+        /* Save / Delete / Clear: in the bottom bar, coloured like before */
+        #save-btn-float { color: #60a5fa; border-color: rgba(59,130,246,0.55); animation-delay: .35s; }
+        #delete-btn-float { color: #fb923c; border-color: rgba(249,115,22,0.55); animation-delay: .4s; }
+        #clear-btn-float { color: #f87171; border-color: rgba(239,68,68,0.55); animation-delay: .45s; }
         body.light-mode #save-btn-float { color: #1d4ed8; }
         body.light-mode #delete-btn-float { color: #c2410c; }
         body.light-mode #clear-btn-float { color: #b91c1c; }
         #install-btn {
-            display: none; position: fixed; right: 16px; bottom: 15px; z-index: 1002; min-height: 46px; padding: 12px 18px; border-radius: 14px; cursor: pointer;
+            display: none; position: fixed; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); z-index: 1002; min-height: 46px; padding: 12px 18px; border-radius: 14px; cursor: pointer;
             font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #fff; border: 1px solid rgba(255,255,255,0.15);
             background: linear-gradient(180deg, #3b82f6, #2563eb); box-shadow: 0 14px 30px -12px rgba(37,99,235,0.8), inset 0 1px 0 rgba(255,255,255,0.3);
             animation: pop-in .4s var(--spring);
@@ -1404,21 +1410,17 @@
     <!-- Install App Button -->
     <button id="install-btn">Install App</button>
 
-    <!-- Share Button (bottom-right) -->
-    <button id="share-btn-bottom" class="fab" onclick="shareRoute()" aria-label="Share" title="Share route">
+    <!-- The buttons along the bottom: List, Share, Mic, Save, Delete, Clear (they never cover the list) -->
+    <nav id="fab-dock" aria-label="Actions">
+        <button id="list-btn-bottom" class="fab" onclick="openContactListModal()" aria-label="List" title="Contact list"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="18" rx="2.5"/><path d="M9 3.5h6v3H9zM9 11h6M9 15h6"/></svg></button>
+        <button id="share-btn-bottom" class="fab" onclick="shareRoute()" aria-label="Share" title="Share route">
         <svg viewBox="0 0 24 24" width="28" height="28" stroke="white" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
     </button>
-
-    <!-- Mic Button (above Share Button): starts listening for customer names straight away -->
-    <button id="mic-btn-bottom" class="fab" onclick="quickVoiceAdd()" aria-label="Say a customer name to add it. Hold to paste or say a list." title="Tap: say a name. Hold: paste or say a list."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg></button>
-
-    <!-- Save, Delete and Clear (above the mic), smaller and icon only -->
-    <button id="save-btn-float" class="fab fab-sm" onclick="saveCurrentRoute()" aria-label="Save" title="Save route"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v5h8V3M7 21v-7h10v7"/></svg></button>
-    <button id="delete-btn-float" class="fab fab-sm" onclick="openDeleteRoutesModal()" aria-label="Delete saved routes" title="Delete saved routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
-    <button id="clear-btn-float" class="fab fab-sm" onclick="clearAllJobs()" aria-label="Clear the list" title="Clear the list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
-
-    <!-- List Button (below Share Button) -->
-    <button id="list-btn-bottom" class="fab" onclick="openContactListModal()" aria-label="List" title="Contact list"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="18" rx="2.5"/><path d="M9 3.5h6v3H9zM9 11h6M9 15h6"/></svg></button>
+        <button id="mic-btn-bottom" class="fab" onclick="quickVoiceAdd()" aria-label="Say a customer name to add it. Hold to paste or say a list." title="Tap: say a name. Hold: paste or say a list."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg></button>
+        <button id="save-btn-float" class="fab" onclick="saveCurrentRoute()" aria-label="Save" title="Save route"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v5h8V3M7 21v-7h10v7"/></svg></button>
+        <button id="delete-btn-float" class="fab" onclick="openDeleteRoutesModal()" aria-label="Delete saved routes" title="Delete saved routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+        <button id="clear-btn-float" class="fab" onclick="clearAllJobs()" aria-label="Clear the list" title="Clear the list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </nav>
 
     <!-- Scripts -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
