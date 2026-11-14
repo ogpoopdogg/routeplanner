@@ -143,9 +143,6 @@
         .map-btn:hover { transform: translateY(-1px); border-color: var(--accent-ring); box-shadow: var(--shadow-lift), 0 0 0 3px var(--accent-soft); }
         .map-btn:hover svg { transform: scale(1.08); }
         .map-btn:active { transform: scale(.94); transition-duration: .08s; }
-        #map-btn { background: url('//mt.google.com/vt/lyrs=m&x=235&y=348&z=10') center/cover, linear-gradient(135deg, #1e3a5f, #0f2a20); }
-        #map-btn::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.35)); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }
-        .map-btn-glow { border-color: var(--accent) !important; animation: soft-pulse 2s ease-in-out infinite; }
         /* ETA: spin the icon, not the whole button */
 
         /* ==========================================================================
@@ -355,15 +352,6 @@
         .stops-head::before { content: ""; width: 4px; height: 16px; border-radius: 4px; background: linear-gradient(180deg, var(--accent-2), var(--accent-deep)); box-shadow: 0 0 10px var(--accent-ring); }
         #stop-counter { border: 1px solid var(--accent-ring); background: var(--accent-soft); color: var(--accent); font-weight: 800; padding: 2px 9px; border-radius: 999px; font-size: 12px; letter-spacing: 0; font-variant-numeric: tabular-nums; }
         #job-list { display: flex; flex-direction: column; gap: 4px; }
-        .make-route-main {
-            width: 100%; min-height: 48px; margin: 0 0 12px; display: flex; align-items: center; justify-content: center; gap: 9px; cursor: pointer;
-            font-family: inherit; font-weight: 800; font-size: 14px; letter-spacing: .12em; text-transform: uppercase; color: #fff; border: none; border-radius: var(--r);
-            background: linear-gradient(180deg, #a78bfa, #8b5cf6 50%, #7c3aed); box-shadow: 0 12px 28px -12px rgba(124,58,237,0.85), inset 0 1px 0 rgba(255,255,255,0.3);
-        }
-        .make-route-main[hidden] { display: none; }
-        .make-route-main svg { width: 18px; height: 18px; flex-shrink: 0; }
-        .make-route-main.is-made { color: var(--text); background: var(--card-2); border: 1px solid rgba(139,92,246,0.55); box-shadow: none; }
-        .make-route-main:active { transform: scale(.98); }
         .job-item {
             -webkit-touch-callout: none;
             display: flex; align-items: center; gap: 6px; padding: 6px 4px 6px 4px; border-radius: 12px; cursor: pointer; position: relative;
@@ -500,6 +488,13 @@
         #save-btn-float { bottom: 220px; color: #60a5fa; border-color: rgba(59,130,246,0.55); animation-delay: .35s; }
         #delete-btn-float { bottom: 275px; color: #fb923c; border-color: rgba(249,115,22,0.55); animation-delay: .4s; }
         #clear-btn-float { bottom: 330px; color: #f87171; border-color: rgba(239,68,68,0.55); animation-delay: .45s; }
+        #map-fab { bottom: 385px; overflow: hidden; animation-delay: .5s; background: url('//mt.google.com/vt/lyrs=m&x=235&y=348&z=10') center/cover, linear-gradient(135deg, #1e3a5f, #0f2a20); }
+        #map-fab::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.35)); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }
+        #map-fab svg { position: relative; z-index: 1; color: #fff; stroke: #fff !important; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7)); }
+        body.light-mode #map-fab { background: url('//mt.google.com/vt/lyrs=m&x=235&y=348&z=10') center/cover, linear-gradient(135deg, #cfe3ff, #d7f0de); }
+        /* Stops waiting for a route: glows like the mic until the route is made */
+        #map-fab.is-glowing { border: 2px solid #3b82f6; box-shadow: 0 16px 34px -12px rgba(0,0,0,0.75), 0 0 0 3px rgba(59,130,246,0.18), 0 0 18px -4px rgba(59,130,246,0.6); }
+        body.light-mode #map-fab.is-glowing { border-color: #2563eb; box-shadow: 0 16px 34px -14px rgba(15,23,42,0.35), 0 0 0 3px rgba(37,99,235,0.15); }
         body.light-mode #save-btn-float { color: #1d4ed8; }
         body.light-mode #delete-btn-float { color: #c2410c; }
         body.light-mode #clear-btn-float { color: #b91c1c; }
@@ -706,7 +701,6 @@
         body.light-mode .shiny-text { background-image: linear-gradient(100deg, #b07800 0%, #d99a00 30%, #f5b400 50%, #d99a00 70%, #8a5e00 100%); }
         body.light-mode header { box-shadow: 0 10px 30px -22px rgba(15,23,42,0.4); }
         body.light-mode .map-btn { background: linear-gradient(180deg, #fff, #f3f4f7); }
-        body.light-mode #map-btn { background: url('//mt.google.com/vt/lyrs=m&x=235&y=348&z=10') center/cover, linear-gradient(135deg, #cfe3ff, #d7f0de); }
         body.light-mode .fab { box-shadow: 0 16px 34px -14px rgba(15,23,42,0.35), var(--hairline); }
         body.light-mode .job-number.has-note { color: #fff; }
         body.light-mode #toggle-saved-routes-btn, body.light-mode .panel, body.light-mode #job-list-container, body.light-mode #eta-display { background: var(--card); }
@@ -1092,7 +1086,6 @@
                 <rect x="8" y="2.5" width="6" height="11" rx="3"/><path d="M4.5 10.5a6.5 6.5 0 0 0 13 0M11 17v4"/><path d="M19.5 3.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z" fill="currentColor" stroke="none"/>
             </svg>
         </button>
-        <button id="map-btn" class="map-btn" onclick="openMap()" aria-label="Map" title="Open map"></button>
         <button id="settings-btn" class="map-btn" onclick="openSettings()" aria-label="Settings" title="Settings">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
         </button>
@@ -1162,9 +1155,6 @@
                 ROUTE STOPS
                 <span id="stop-counter" style="display:none;"></span>
             </h3>
-            <button type="button" id="make-route-main" class="make-route-main" onclick="makeRouteFromMain()" hidden>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"/></svg><span id="make-route-label">Make route</span>
-            </button>
             <div id="job-list"></div>
         </div>
     </div>
@@ -1463,6 +1453,7 @@
     <!-- Save, Delete and Clear (above the mic), smaller and icon only -->
     <button id="save-btn-float" class="fab fab-sm" onclick="saveCurrentRoute()" aria-label="Save" title="Save route"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v5h8V3M7 21v-7h10v7"/></svg></button>
     <button id="delete-btn-float" class="fab fab-sm" onclick="openDeleteRoutesModal()" aria-label="Delete saved routes" title="Delete saved routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+    <button id="map-fab" class="fab" onclick="makeRouteFromMain()" aria-label="Map. Tap to make the route" title="Map: tap to make the route"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4L3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></svg></button>
     <button id="clear-btn-float" class="fab fab-sm" onclick="clearAllJobs()" aria-label="Clear the list" title="Clear the list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
 
     <!-- List Button (below Share Button) -->
@@ -2358,8 +2349,6 @@
                 if (activePolyline) { activePolyline.setMap(null); activePolyline = null; }
                 Object.values(mapMarkers).forEach(m => m.setMap(null));
                 mapMarkers = {};
-                const mapBtn = document.getElementById('map-btn');
-                if (mapBtn) mapBtn.classList.remove('map-btn-glow');
                 // Update list
                 renderList();
                 updateCreateRouteButton();
@@ -2395,8 +2384,6 @@
                 if (activePolyline) { activePolyline.setMap(null); activePolyline = null; }
                 Object.values(mapMarkers).forEach(m => m.setMap(null));
                 mapMarkers = {};
-                const mapBtn = document.getElementById('map-btn');
-                if (mapBtn) mapBtn.classList.remove('map-btn-glow');
                 // Render list without numbers
                 renderList(); // this will render simple list
                 // Update counter
@@ -3540,7 +3527,7 @@
         // tap the pins in the order the driver should go. The stops aren't put in order automatically.
         function makeRouteFromMain() {
             const pendingIds = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup');
-            if (pendingIds.length === 0) { showAlertModal("Add some stops first."); return; }
+            if (pendingIds.length === 0) { openMap(); return; } // nothing to route yet: just show the map
             openMap(true);
             startCreateRoute(); // asks first if a made route would be replaced
         }
@@ -4456,13 +4443,11 @@
         }
 
         function updateMakeRouteButton() {
-            const btn = document.getElementById('make-route-main');
+            const btn = document.getElementById('map-fab');
             if (!btn) return;
             const count = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').length;
-            btn.hidden = count === 0;
             const made = routeState.isFinalized && routeState.order.length > 0;
-            document.getElementById('make-route-label').textContent = made ? 'Make route again' : 'Make route';
-            btn.classList.toggle('is-made', made);
+            btn.classList.toggle('is-glowing', count > 0 && !made);
         }
         function updateCreateRouteButton() {
             updateMakeRouteButton();
