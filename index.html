@@ -147,9 +147,6 @@
         #map-btn::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.35)); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }
         .map-btn-glow { border-color: var(--accent) !important; animation: soft-pulse 2s ease-in-out infinite; }
         /* ETA: spin the icon, not the whole button */
-        .map-btn.eta-spin { animation: none; border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(34,211,238,0.18); }
-        .map-btn.eta-spin svg { animation: spin 1s linear infinite; color: var(--cyan); }
-        .eta-spin { animation: spin 1s linear infinite; }
 
         /* ==========================================================================
            LOGIN (always dark, branded)
@@ -964,9 +961,41 @@
         .multi-row.is-missing { border-color: rgba(239,68,68,0.45); }
         .multi-row.is-missing .multi-row-heard { color: #ef4444; }
         .multi-row-name { font-weight: 700; font-size: 14px; }
-        .voice-learn-row { padding: 8px 10px; border-radius: 11px; background: var(--card-2); border: 1px solid var(--border); }
-        .voice-learn-name { font-weight: 800; font-size: 14px; margin-bottom: 6px; }
-        .voice-learn-heard { display: flex; flex-wrap: wrap; gap: 6px; }
+        /* Teach the mic pop-up */
+        .vl-box { position: relative; max-width: 400px; padding: 22px 20px 18px; animation: pop-in .28s var(--spring); }
+        .vl-close { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--card-2); color: var(--muted); font-size: 15px; cursor: pointer; }
+        .vl-close:hover { color: var(--text); }
+        .vl-head { display: flex; align-items: center; gap: 12px; margin: 0 40px 18px 0; }
+        .vl-badge { flex: 0 0 auto; width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; color: #fff;
+            background: linear-gradient(180deg, #60a5fa, #2563eb); box-shadow: 0 10px 24px -10px rgba(37,99,235,0.9), inset 0 1px 0 rgba(255,255,255,0.35); }
+        .vl-badge svg { width: 24px; height: 24px; }
+        .vl-title { font-size: 19px; font-weight: 800; letter-spacing: -0.01em; color: var(--text); }
+        .vl-sub { margin-top: 2px; font-size: 13px; color: var(--muted); }
+        .vl-label { display: block; margin: 14px 0 8px; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+        .vl-field { position: relative; }
+        .vl-field input { width: 100%; }
+        .vl-field .suggestions-box { top: 100%; left: 0; right: 0; }
+        .vl-record-wrap { display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 16px; background: var(--input-bg); border: 1px solid var(--border); }
+        .vl-record { flex: 0 0 auto; width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: #fff;
+            border: 2px solid rgba(147,197,253,0.6); background: linear-gradient(180deg, #3b82f6, #1d4ed8);
+            box-shadow: 0 12px 26px -12px rgba(37,99,235,0.9), 0 0 0 5px rgba(59,130,246,0.14); transition: transform .15s var(--spring); }
+        .vl-record svg { width: 28px; height: 28px; }
+        .vl-record:active { transform: scale(.93); }
+        .vl-record.is-listening { border-color: rgba(254,202,202,0.7); background: linear-gradient(180deg, #f87171, #dc2626); animation: vl-ring 1.2s ease-out infinite; }
+        @keyframes vl-ring { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.55); } 100% { box-shadow: 0 0 0 18px rgba(239,68,68,0); } }
+        .vl-record-label { font-size: 15px; font-weight: 700; color: var(--text); }
+        .vl-status { margin: 12px 0 0; padding: 10px 12px; border-radius: 12px; font-size: 13.5px; font-weight: 600; line-height: 1.4;
+            background: rgba(59,130,246,0.12); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3); }
+        .vl-status.is-ok { background: rgba(34,197,94,0.12); color: #4ade80; border-color: rgba(34,197,94,0.35); }
+        .vl-status.is-error { background: rgba(239,68,68,0.12); color: #f87171; border-color: rgba(239,68,68,0.35); }
+        body.light-mode .vl-status { color: #1d4ed8; } body.light-mode .vl-status.is-ok { color: #15803d; } body.light-mode .vl-status.is-error { color: #b91c1c; }
+        .vl-known { margin-top: 12px; }
+        .vl-known-title { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+        .vl-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+        .vl-chip { display: inline-flex; align-items: center; gap: 4px; padding: 5px 6px 5px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; color: var(--text); background: var(--card-2); border: 1px solid var(--border-strong); }
+        .vl-chip button { width: 20px; height: 20px; border-radius: 50%; border: none; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; }
+        .vl-chip button:hover { color: #ef4444; background: rgba(239,68,68,0.12); }
+        .vl-tip { margin: 14px 0 0; font-size: 12px; line-height: 1.45; color: var(--faint); }
     </style>
 </head>
 <body>
@@ -1051,15 +1080,10 @@
         </div>
     </div>
     <div class="header-actions">
-        <!-- ETA button (clock) -->
-        <button id="eta-btn" class="map-btn" onclick="calculateETAOnDemand()" aria-label="Calculate ETA" title="Calculate ETA and distance">
-            <svg viewBox="0 0 24 24" width="20" height="20" stroke="white" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-                <line x1="12" y1="2" x2="12" y2="4"/>
-                <line x1="12" y1="20" x2="12" y2="22"/>
-                <line x1="2" y1="12" x2="4" y2="12"/>
-                <line x1="20" y1="12" x2="22" y2="12"/>
+        <!-- Teach the mic (voice learner) -->
+        <button id="voice-learn-open" class="map-btn" onclick="openVoiceLearner()" aria-label="Teach the mic" title="Teach the mic a customer's name">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="8" y="2.5" width="6" height="11" rx="3"/><path d="M4.5 10.5a6.5 6.5 0 0 0 13 0M11 17v4"/><path d="M19.5 3.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z" fill="currentColor" stroke="none"/>
             </svg>
         </button>
         <button id="map-btn" class="map-btn" onclick="openMap()" aria-label="Map" title="Open map"></button>
@@ -1356,16 +1380,6 @@
                 <p class="settings-help" style="margin-top:6px;">{date} in the subject becomes the route date.</p>
             </div>
             <div class="settings-section">
-                <h4>Voice learner</h4>
-                <p class="settings-help">For a customer the mic gets wrong: pick the customer, tap Record and say the name the way you normally do. Everything the phone thought it heard is saved for that customer, so saying it again finds them. Record a few times for best results.</p>
-                <div class="settings-add" style="position:relative;">
-                    <input type="text" id="voice-learn-name" placeholder="Customer name" autocomplete="off" oninput="voiceLearnSuggest(this.value)" onblur="setTimeout(() => { document.getElementById('voice-learn-suggest').style.display = 'none'; }, 200)">
-                    <button type="button" id="voice-learn-btn" class="dialog-btn ok" onclick="voiceLearnRecord()">Record</button>
-                    <div id="voice-learn-suggest" class="suggestions-box" style="top:100%; left:0; right:0;"></div>
-                </div>
-                <p id="voice-learn-status" class="settings-help" style="margin-top:8px;" hidden></p>
-            </div>
-            <div class="settings-section">
                 <h4>Warnings when adding a stop</h4>
                 <label class="settings-toggle"><input type="checkbox" id="settings-warn-duplicate" onchange="saveSettingsField('warnDuplicate', this.checked)">The customer is already on this list</label>
                 <label class="settings-toggle"><input type="checkbox" id="settings-warn-other" onchange="saveSettingsField('warnOtherRoute', this.checked)">The customer is on another driver's saved route</label>
@@ -1377,6 +1391,34 @@
     </div>
 
     <!-- Add several customers at once: say the names or paste a list -->
+    <div id="voice-learn-overlay" class="sheet-overlay" onpointerdown="voiceLearnDownOnBackdrop = (event.target === this)" onclick="if (event.target === this && voiceLearnDownOnBackdrop) closeVoiceLearner()">
+        <div class="dialog-panel vl-box" role="dialog" aria-modal="true" aria-labelledby="vl-title">
+            <button type="button" class="vl-close" onclick="closeVoiceLearner()" aria-label="Close">✕</button>
+            <div class="vl-head">
+                <div class="vl-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg></div>
+                <div>
+                    <div id="vl-title" class="vl-title">Teach the mic</div>
+                    <div class="vl-sub">For a customer the mic keeps getting wrong</div>
+                </div>
+            </div>
+            <label class="vl-label" for="voice-learn-name">1 · Customer</label>
+            <div class="vl-field">
+                <input type="text" id="voice-learn-name" placeholder="Start typing a customer name" autocomplete="off" oninput="voiceLearnSuggest(this.value)" onblur="setTimeout(() => { document.getElementById('voice-learn-suggest').style.display = 'none'; }, 200)">
+                <div id="voice-learn-suggest" class="suggestions-box"></div>
+            </div>
+            <label class="vl-label">2 · Say their name</label>
+            <div class="vl-record-wrap">
+                <button type="button" id="voice-learn-btn" class="vl-record" onclick="voiceLearnRecord()" aria-label="Record">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg>
+                </button>
+                <div id="voice-learn-btn-label" class="vl-record-label">Tap to record</div>
+            </div>
+            <p id="voice-learn-status" class="vl-status" hidden></p>
+            <div id="voice-learn-known" class="vl-known" hidden></div>
+            <p class="vl-tip">Record 2 or 3 times. Everything the phone hears is saved for this customer, so the mic finds them next time.</p>
+        </div>
+    </div>
+
     <div id="multi-add-overlay" class="sheet-overlay" onpointerdown="multiAddDownOnBackdrop = (event.target === this)" onclick="if (event.target === this && multiAddDownOnBackdrop) closeMultiAdd()">
         <div class="dialog-panel multi-add-box" role="dialog" aria-modal="true" aria-labelledby="multi-add-title">
             <div class="static-note-header">
@@ -3035,9 +3077,6 @@
                 showAlertModal("No stops assigned.");
                 return;
             }
-            const etaBtn = document.getElementById('eta-btn');
-            etaBtn.disabled = true;
-            etaBtn.classList.add('eta-spin');
             etaCalculating = true;
 
             try {
@@ -3104,8 +3143,6 @@
                 showAlertModal("Error calculating ETA.");
             } finally {
                 etaCalculating = false;
-                etaBtn.disabled = false;
-                etaBtn.classList.remove('eta-spin');
                 // The order changed while it was working: work it out again for the new order
                 if (etaRecalcWanted) { etaRecalcWanted = false; calculateETAOnDemand({ quiet: true }); }
             }
@@ -6393,23 +6430,55 @@
         function closeSettings() {
             document.getElementById('settings-overlay').classList.remove('is-open');
         }
-        // ---------- VOICE LEARNER (Settings) ----------
+        // ---------- VOICE LEARNER (pop-up from the header button) ----------
         // The phone's speech engine can't be taught a voice. What can be done: record the customer's name,
         // keep every way the phone wrote it down (its top guesses), and send those words straight to that
         // customer from then on. Saved in developer/route_planner/voice_aliases (heard words -> customer).
         let voiceLearnRec = null;
+        let voiceLearnDownOnBackdrop = false;
+        function openVoiceLearner() {
+            listenVoiceAliases();
+            voiceLearnStatus('');
+            renderVoiceLearnKnown();
+            document.getElementById('voice-learn-overlay').classList.add('is-open');
+            setTimeout(() => { const el = document.getElementById('voice-learn-name'); if (el && !el.value) el.focus(); }, 60);
+        }
+        function closeVoiceLearner() {
+            if (voiceLearnRec) { try { voiceLearnRec.stop(); } catch (e) {} }
+            document.getElementById('voice-learn-overlay').classList.remove('is-open');
+        }
+        function voiceLearnPick(name) {
+            document.getElementById('voice-learn-name').value = name;
+            document.getElementById('voice-learn-suggest').style.display = 'none';
+            renderVoiceLearnKnown();
+        }
+        // What the mic already knows for the picked customer, with a ✕ to forget a phrase
+        function renderVoiceLearnKnown() {
+            const box = document.getElementById('voice-learn-known');
+            const name = findContactKey(document.getElementById('voice-learn-name').value.trim());
+            const heard = name ? Object.keys(voiceAliases).filter(h => voiceAliases[h] === name) : [];
+            box.hidden = heard.length === 0;
+            box.innerHTML = heard.length ? `<div class="vl-known-title">Already taught</div><div class="vl-chips">${heard.map(h => `<span class="vl-chip">${escapeHtml(h)}<button type="button" aria-label="Forget ${escapeHtml(h)}" data-heard="${escapeHtml(h)}" onclick="forgetVoiceAlias(this.dataset.heard)">✕</button></span>`).join('')}</div>` : '';
+        }
+        function forgetVoiceAlias(heard) {
+            if (!heard || /[.#$\[\]\/]/.test(heard)) return;
+            delete voiceAliases[heard];
+            db.ref(VOICE_ALIASES_PATH + '/' + heard).remove().catch(err => voiceLearnStatus('Could not remove: ' + err.message, true));
+            renderVoiceLearnKnown();
+        }
         function voiceLearnSuggest(val) {
             const box = document.getElementById('voice-learn-suggest');
             const matches = matchList(val, Object.keys(addressData), 6);
             if (matches.length === 0) { box.style.display = 'none'; return; }
-            box.innerHTML = matches.map(n => `<div class="suggestion-item" data-name="${escapeHtml(n)}" onclick="document.getElementById('voice-learn-name').value = this.dataset.name; document.getElementById('voice-learn-suggest').style.display = 'none';">${escapeHtml(n)}</div>`).join('');
+            box.innerHTML = matches.map(n => `<div class="suggestion-item" data-name="${escapeHtml(n)}" onmousedown="event.preventDefault()" onclick="voiceLearnPick(this.dataset.name)">${escapeHtml(n)}</div>`).join('');
             box.style.display = 'block';
         }
         function voiceLearnStatus(text, isError) {
             const el = document.getElementById('voice-learn-status');
             el.hidden = !text;
             el.textContent = text || '';
-            el.style.color = isError ? '#ef4444' : '';
+            el.classList.toggle('is-error', !!isError);
+            el.classList.toggle('is-ok', !isError && /^Saved/.test(text || ''));
         }
         function voiceLearnRecord() {
             if (voiceLearnRec) { try { voiceLearnRec.stop(); } catch (e) {} return; }
@@ -6426,8 +6495,10 @@
             rec.interimResults = false;
             rec.maxAlternatives = 5;
             const btn = document.getElementById('voice-learn-btn');
-            btn.textContent = 'Stop';
-            voiceLearnStatus(`Listening... say "${name}"`);
+            const label = document.getElementById('voice-learn-btn-label');
+            btn.classList.add('is-listening');
+            label.textContent = 'Listening… tap to stop';
+            voiceLearnStatus('');
             let got = false;
             rec.onresult = ev => {
                 const r = ev.results[0];
@@ -6439,16 +6510,17 @@
                 const updates = {};
                 unique.forEach(h => { updates[h] = name; voiceAliases[h] = name; });
                 db.ref(VOICE_ALIASES_PATH).update(updates)
-                    .then(() => voiceLearnStatus(`Saved. Saying "${name}" with the mic should now find them.`))
+                    .then(() => { voiceLearnStatus(`Saved. Saying "${name}" with the mic should now find them.`); renderVoiceLearnKnown(); })
                     .catch(err => voiceLearnStatus('Could not save: ' + err.message, true));
             };
             rec.onerror = ev => { if (ev && ev.error === 'not-allowed') voiceLearnStatus('The microphone is blocked for this page. Allow it in the browser settings.', true); };
             rec.onend = () => {
                 if (voiceLearnRec === rec) voiceLearnRec = null;
-                btn.textContent = 'Record';
-                if (!got && !document.getElementById('voice-learn-status').style.color) voiceLearnStatus("Didn't hear anything. Tap Record and try again.", true);
+                btn.classList.remove('is-listening');
+                label.textContent = 'Tap to record';
+                if (!got && !document.getElementById('voice-learn-status').classList.contains('is-error')) voiceLearnStatus("Didn't hear anything. Tap the mic and try again.", true);
             };
-            try { rec.start(); } catch (e) { voiceLearnRec = null; btn.textContent = 'Record'; }
+            try { rec.start(); } catch (e) { voiceLearnRec = null; btn.classList.remove('is-listening'); label.textContent = 'Tap to record'; }
         }
         function renderSettings() {
             const rows = document.getElementById('settings-driver-rows');
@@ -6875,7 +6947,7 @@
                 }
                 resetFormFields();
                 // No captions: the stops just appear. Only a name it couldn't match gets a message.
-                if (missing.length) showToast(`Couldn't find "${missing.join('", "')}". Teach it in Settings > Voice learner.`, true, { duration: 6000 });
+                if (missing.length) showToast(`Couldn't find "${missing.join('", "')}". Teach it with the mic button at the top.`, true, { duration: 6000 });
             };
             rec.onresult = ev => {
                 if (finished) return;
