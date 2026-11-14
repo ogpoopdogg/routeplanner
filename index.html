@@ -218,7 +218,6 @@
         #stop-panel .flex-row { gap: 8px; margin-bottom: 8px; }
         #stop-panel input { min-height: 42px; padding: 9px 14px; }
         #stop-panel #f-address { padding-right: 44px; }
-        #stop-panel .frequent-row { margin: 0 -2px 8px; }
         #stop-panel .btn-add { min-height: 46px; padding: 11px 20px; margin-top: 0; }
         .route-controls { margin: 10px 0 0; }
         .route-controls .action-row { margin-top: 0; }
@@ -941,17 +940,7 @@
             .details-edit-btn { top: 14px; right: 14px; width: 42px; height: 42px; }
         }
 
-        /* ---------- FREQUENT CUSTOMERS, ADD SEVERAL ---------- */
-        .frequent-row { display: flex; gap: 6px; overflow-x: auto; margin: 2px -2px 10px; padding: 2px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-        .frequent-row::-webkit-scrollbar { display: none; }
-        .frequent-row[hidden] { display: none; }
-        .frequent-chip {
-            flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; max-width: 220px; min-height: 36px; padding: 6px 12px; cursor: pointer;
-            font-family: inherit; font-size: 13px; font-weight: 700; color: var(--text); background: var(--input-bg);
-            border: 1px solid var(--border-strong); border-radius: 999px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-        .frequent-chip::before { content: "+"; font-weight: 900; color: var(--active-green); }
-        .frequent-chip:active { transform: scale(.95); border-color: var(--active-green); }
+        /* ---------- ADD SEVERAL ---------- */
         .multi-add-box { max-width: 480px; width: 100%; max-height: calc(100vh - 32px); overflow-y: auto; }
         .multi-add-input { display: flex; gap: 8px; align-items: stretch; }
         .multi-add-input textarea { flex: 1; min-width: 0; min-height: 84px; resize: vertical; font-family: inherit; font-size: 15px; }
@@ -1106,7 +1095,6 @@
                 </div>
             </div>
             <!-- Most-used customers in the last 30 days: one tap adds the stop -->
-            <div id="frequent-row" class="frequent-row" hidden></div>
             <button class="btn-add" onclick="addJob()">ADD TO ROUTE</button>
             <!-- CREATE ROUTE button removed from main page; only on map -->
           </div>
@@ -1694,8 +1682,6 @@
                 takeTypesFromSavedRoutes();
                 // Once per page load, a few seconds in: drop Google coordinates older than 30 days
                 if (!geoPruneScheduled) { geoPruneScheduled = true; setTimeout(pruneOldRouteGeo, 5000); }
-                // Most-used customers: once at start, then again if the page stays open past an hour
-                if (!frequentLoadedAt || Date.now() - frequentLoadedAt > 60 * 60 * 1000) { frequentLoadedAt = Date.now(); setTimeout(loadFrequentCustomers, 1500); }
             });
             // Listen for unfinished lists
             db.ref(DRAFT_ROUTES_PATH).on('value', snap => {
@@ -2488,7 +2474,6 @@
             updateMakeRouteButton();
             // A stop is being dragged: redraw once it's dropped, so the card isn't pulled out of the finger
             if (dragState) { dragRenderPending = true; return; }
-            renderFrequentRow();
             if (isOrderingMode || routeState.isFinalized) {
                 renderOrderingList();
                 return;
@@ -6551,7 +6536,6 @@
             currentDriver = key || '';
             try { if (currentDriver) localStorage.setItem(CURRENT_DRIVER_KEY, currentDriver); else localStorage.removeItem(CURRENT_DRIVER_KEY); } catch (e) {}
             updateDriverChip();
-            renderFrequentRow(); // each driver's own most-used customers
         }
         // The driver buttons above the stop form. Today's status on each: route sent today (with its
         // stop count), not sent yet, unfinished list, or nothing yet today. The picked driver is yellow.
@@ -6775,73 +6759,6 @@
             Object.keys(route.stops).forEach(id => { if (!ids.includes(id)) ids.push(id); });
             const names = ids.map((id, i) => (i + 1) + ') ' + (route.stops[id].name || 'No name'));
             showContactList(names);
-        }
-
-        // ---------- FREQUENT CUSTOMERS ----------
-        // The 8 customers added most in the last 30 days (from route history), shown as buttons under the
-        // form: the picked driver's own most-used first, then the most-used of every driver. Shown as
-        // buttons under the form. One tap adds the stop. Customers already on the list are left out.
-        const FREQUENT_MAX = 8;
-        const FREQUENT_DAYS = 30;
-        let frequentCustomers = [];
-        // The same per driver: driver key -> names, most-added first, from that driver's own saved routes.
-        // The picked driver's buttons come from their list first, then the overall list fills the rest.
-        let frequentByDriver = {};
-        let frequentLoadedAt = 0;
-        async function loadFrequentCustomers() {
-            frequentLoadedAt = Date.now();
-            const since = String(Date.now() - FREQUENT_DAYS * 24 * 60 * 60 * 1000);
-            const drivers = Array.from(new Set(Object.keys(appSettings.drivers || {}).concat(Object.keys(savedRoutesCache || {}))))
-                .filter(k => k && !/[.#$\[\]\/]/.test(k));
-            const counts = {};
-            const perDriver = {};
-            await Promise.all(drivers.map(driver =>
-                db.ref('developer/route_planner/route_history/' + driver).orderByKey().startAt(since).once('value').then(snap => {
-                    snap.forEach(save => {
-                        const stops = (save.val() || {}).stops || {};
-                        const seen = {};
-                        const mine = perDriver[driver] || (perDriver[driver] = {});
-                        Object.values(stops).forEach(st => {
-                            const name = st && String(st.name || '').trim();
-                            const key = name && name.toLowerCase();
-                            if (!key || seen[key]) return;
-                            seen[key] = true; // once per saved route
-                            if (!counts[key]) counts[key] = { name, n: 0 };
-                            counts[key].n++;
-                            if (!mine[key]) mine[key] = { name, n: 0 };
-                            mine[key].n++;
-                        });
-                    });
-                }).catch(err => console.warn('Route history not readable for ' + driver + ':', err))
-            ));
-            frequentCustomers = Object.values(counts)
-                .sort((a, b) => (b.n - a.n) || a.name.localeCompare(b.name))
-                .slice(0, FREQUENT_MAX + 12) // a few spare, for when some are already on the list
-                .map(c => c.name);
-            frequentByDriver = {};
-            Object.keys(perDriver).forEach(driver => {
-                frequentByDriver[driver] = Object.values(perDriver[driver])
-                    .sort((a, b) => (b.n - a.n) || a.name.localeCompare(b.name))
-                    .slice(0, FREQUENT_MAX + 12)
-                    .map(c => c.name);
-            });
-            renderFrequentRow();
-        }
-        function renderFrequentRow() {
-            const row = document.getElementById('frequent-row');
-            if (!row) return;
-            const onList = new Set(Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').map(id => String(jobs[id].name || '').trim().toLowerCase()));
-            // Only customers still in the address book (matched the same way as everywhere else)
-            const mine = (currentDriver && frequentByDriver[currentDriver]) || [];
-            const show = mine.concat(frequentCustomers).map(findContactKey).filter(name => name && !onList.has(name.toLowerCase()))
-                .filter((name, i, all) => all.indexOf(name) === i).slice(0, FREQUENT_MAX);
-            row.hidden = show.length === 0;
-            row.innerHTML = show.map(name => `<button type="button" class="frequent-chip" title="Add ${escapeHtml(name)}" onclick="addFrequentCustomer(this.dataset.name)" data-name="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('');
-        }
-        function addFrequentCustomer(name) {
-            if (!addressData[name]) return;
-            selectClient(name);
-            addJob();
         }
 
         // ---------- ADD SEVERAL STOPS (voice or paste) ----------
