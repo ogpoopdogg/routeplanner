@@ -1167,8 +1167,8 @@
     <div id="map-modal">
         <button id="close-map-btn" class="close-map" onclick="closeMap()">✕</button>
         <button id="reset-driver-view-btn" onclick="resetMapView()" style="display:none;">← BACK</button>
-        <!-- CREATE ROUTE button inside map -->
-        <button id="create-route-map" class="create-route-btn map-modal-btn" onclick="startCreateRoute()">CREATE ROUTE</button>
+        <!-- RE-CREATE button inside map (the Map button makes the first route) -->
+        <button id="create-route-map" class="create-route-btn map-modal-btn" onclick="startCreateRoute()" title="Start the route over">RE-CREATE</button>
         <button id="auto-optimize-btn" class="create-route-btn map-modal-btn" onclick="autoOptimizeFromFirstStop()">AUTO-OPTIMIZE</button>
         <div id="map-stop-counter"></div>
         <div id="calculating-route-indicator">Calculating route...</div>
@@ -3523,11 +3523,13 @@
         }
 
         // ---------- MAKE ROUTE (main page) ----------
-        // Opens the map and starts building the route by hand (same as the map's CREATE ROUTE button):
+        // The Map button. Opens the map and starts building the route by hand (the map's RE-CREATE button starts over):
         // tap the pins in the order the driver should go. The stops aren't put in order automatically.
         function makeRouteFromMain() {
             const pendingIds = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup');
             if (pendingIds.length === 0) { openMap(); return; } // nothing to route yet: just show the map
+            // Route already made: just show it. Re-create on the map starts over.
+            if (routeState.isFinalized && routeState.order.length > 0) { openMap(); return; }
             openMap(true);
             startCreateRoute(); // asks first if a made route would be replaced
         }
