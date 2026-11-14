@@ -897,7 +897,7 @@
         .driver-btn.status-unsent .driver-btn-meta { color: #ef4444; opacity: 1; }
         .driver-btn.is-picked { color: var(--accent-ink); background: linear-gradient(180deg, #ffe066, #f5c518 60%, #e2ac00); border-color: rgba(160,110,0,0.7); box-shadow: 0 6px 16px -8px rgba(245,197,24,0.8); }
         .driver-btn.is-picked .driver-btn-meta { color: var(--accent-ink); }
-        .driver-btn.is-empty { color: var(--accent); border-style: dashed; border-color: var(--accent-ring); font-weight: 700; }
+        .driver-btn.is-new { color: var(--accent); background: transparent; border-style: dashed; border-color: var(--accent); font-weight: 800; }
         .driver-chip {
             display: inline-flex; align-items: center; gap: 6px; max-width: 60%; min-height: 34px; padding: 6px 12px; cursor: pointer;
             font-family: inherit; font-size: 13px; font-weight: 800; color: var(--text); background: var(--card-2);
@@ -6566,7 +6566,7 @@
             // A driver picked earlier who isn't ticked in Settings any more still shows, so it's clear who's picked
             if (currentDriver && !list.some(d => d.key === currentDriver)) list.unshift({ key: currentDriver, label: driverLabel(currentDriver) });
             if (list.length === 0) {
-                bar.innerHTML = '<button type="button" class="driver-btn is-empty" onclick="openSettings()">Add your drivers in Settings</button>';
+                bar.innerHTML = '<button type="button" class="driver-btn is-new" onclick="addDriverFromBar()" title="Add a new driver">+ New driver</button>';
                 return;
             }
             const kept = readDriverLists();
@@ -6593,7 +6593,31 @@
                 const title = titles[status] + '. Hold for saved routes.';
                 const picked = d.key === currentDriver;
                 return `<button type="button" class="driver-btn status-${status}${picked ? ' is-picked' : ''}" data-key="${escapeHtml(d.key)}" aria-pressed="${picked}" title="${escapeHtml(title)}" onclick="tapDriverButton(${jsArg(d.key)})"><span class="driver-btn-name">${escapeHtml(d.label)}</span>${meta ? `<span class="driver-btn-meta">${escapeHtml(meta)}</span>` : ''}</button>`;
-            }).join('');
+            }).join('') + '<button type="button" class="driver-btn is-new" onclick="addDriverFromBar()" title="Add a new driver">+ New</button>';
+        }
+        // "+ New" asks for a name and adds that driver to Settings for good (same as adding it there),
+        // then picks them.
+        let addingDriver = false;
+        async function addDriverFromBar() {
+            if (addingDriver) return;
+            addingDriver = true;
+            try {
+                const typed = await showPromptModal("New driver's name:", '');
+                const name = (typed || '').trim();
+                if (!name) return;
+                if (/[.#$\[\]\/]/.test(name)) { showToast("A driver name can't contain: . # $ [ ] /", true); return; }
+                const key = driverKeyFor(name);
+                const existing = appSettings.drivers[key];
+                if (existing) {
+                    if (existing.enabled === false) writeSetting('drivers/' + key + '/enabled', true);
+                    showToast(`${driverLabel(key)} is already on the list.`);
+                } else {
+                    writeSetting('drivers/' + key, { name: name.charAt(0).toUpperCase() + name.slice(1), enabled: true });
+                    showToast(`${driverLabel(key)} added.`);
+                }
+                updateDriverChip();
+                if (key !== currentDriver) await tapDriverButton(key);
+            } finally { addingDriver = false; }
         }
         // Tapping a driver shows that driver's list, kept on this phone (empty if none). The list on
         // screen stays kept under its own driver. Stops added before any driver was picked go with
