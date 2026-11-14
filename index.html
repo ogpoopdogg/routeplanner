@@ -185,7 +185,7 @@
            ========================================================================== */
         .page { padding: 20px; width: 100%; max-width: 760px; margin: 0 auto; }
         /* Room at the bottom so the last stops can scroll up clear of the floating buttons on the right */
-        body .page { padding-bottom: calc(322px + env(safe-area-inset-bottom, 0px)); }
+        body .page { padding-bottom: calc(439.5px + env(safe-area-inset-bottom, 0px)); }
         .panel {
             position: relative; background: linear-gradient(180deg, var(--card-2), var(--card)); border-radius: var(--r-lg); padding: 18px;
             border: 1px solid var(--border); box-shadow: var(--shadow-soft), var(--hairline);
@@ -472,9 +472,9 @@
         .fab:hover { transform: translateY(-3px); border-color: var(--accent-ring); box-shadow: 0 22px 40px -14px rgba(0,0,0,0.8), 0 0 0 4px var(--accent-soft); }
         .fab:hover svg { transform: scale(1.1); }
         .fab:active { transform: scale(.92); transition-duration: .08s; }
-        #list-btn-bottom { bottom: 16px; }
+        #list-btn-bottom { bottom: 133.5px; }
         /* Mic above Share: say customer names to add them to the route */
-        #mic-btn-bottom { bottom: 84px; color: #60a5fa; border: 2px solid #3b82f6; box-shadow: 0 16px 34px -12px rgba(0,0,0,0.75), 0 0 0 3px rgba(59,130,246,0.18), 0 0 18px -4px rgba(59,130,246,0.6); animation-delay: .3s; }
+        #mic-btn-bottom { bottom: 201.5px; color: #60a5fa; border: 2px solid #3b82f6; box-shadow: 0 16px 34px -12px rgba(0,0,0,0.75), 0 0 0 3px rgba(59,130,246,0.18), 0 0 18px -4px rgba(59,130,246,0.6); animation-delay: .3s; }
         #mic-btn-bottom svg { stroke: #60a5fa !important; }
         #mic-btn-bottom:hover { border-color: #60a5fa; box-shadow: 0 22px 40px -14px rgba(0,0,0,0.8), 0 0 0 4px rgba(59,130,246,0.25), 0 0 22px -4px rgba(59,130,246,0.7); }
         body.light-mode #mic-btn-bottom { color: #2563eb; border-color: #2563eb; box-shadow: 0 16px 34px -14px rgba(15,23,42,0.35), 0 0 0 3px rgba(37,99,235,0.15); }
@@ -484,10 +484,10 @@
         /* Save / Delete / Clear: smaller floating buttons above the mic (80% of the others), icon only */
         .fab.fab-sm { width: 45px; height: 45px; right: 21.5px; border-radius: 14px; }
         .fab.fab-sm svg { width: 20px; height: 20px; }
-        #save-btn-float { bottom: 262px; color: #60a5fa; border-color: rgba(59,130,246,0.55); animation-delay: .35s; }
-        #delete-btn-float { bottom: 207px; color: #fb923c; border-color: rgba(249,115,22,0.55); animation-delay: .4s; }
-        #clear-btn-float { bottom: 152px; color: #f87171; border-color: rgba(239,68,68,0.55); animation-delay: .45s; }
-        #map-fab { bottom: 317px; overflow: hidden; animation-delay: .5s; background: url('//mt.google.com/vt/lyrs=m&x=235&y=348&z=10') center/cover, linear-gradient(135deg, #1e3a5f, #0f2a20); }
+        #save-btn-float { bottom: 379.5px; color: #60a5fa; border-color: rgba(59,130,246,0.55); animation-delay: .35s; }
+        #delete-btn-float { bottom: 324.5px; color: #fb923c; border-color: rgba(249,115,22,0.55); animation-delay: .4s; }
+        #clear-btn-float { bottom: 269.5px; color: #f87171; border-color: rgba(239,68,68,0.55); animation-delay: .45s; }
+        #map-fab { bottom: 434.5px; overflow: hidden; animation-delay: .5s; background: url('//mt.google.com/vt/lyrs=m&x=235&y=348&z=10') center/cover, linear-gradient(135deg, #1e3a5f, #0f2a20); }
         #map-fab::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.35)); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }
         #map-fab svg { position: relative; z-index: 1; color: #fff; stroke: #fff !important; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7)); }
         body.light-mode #map-fab { background: url('//mt.google.com/vt/lyrs=m&x=235&y=348&z=10') center/cover, linear-gradient(135deg, #cfe3ff, #d7f0de); }
