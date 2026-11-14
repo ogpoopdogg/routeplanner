@@ -218,7 +218,6 @@
         #stop-panel .flex-row { gap: 8px; margin-bottom: 8px; }
         #stop-panel input { min-height: 42px; padding: 9px 14px; }
         #stop-panel #f-address { padding-right: 44px; }
-        #stop-panel .frequent-row { margin: 0 -2px 8px; }
         #stop-panel .btn-add { min-height: 46px; padding: 11px 20px; margin-top: 0; }
         .route-controls { margin: 10px 0 0; }
         .route-controls .action-row { margin-top: 0; }
@@ -621,7 +620,7 @@
         #auto-optimize-btn { bottom: 40px; color: #fff; background: linear-gradient(180deg, #a78bfa, #8b5cf6 50%, #7c3aed); box-shadow: 0 12px 28px -10px rgba(124,58,237,0.85), inset 0 1px 0 rgba(255,255,255,0.3); }
         #auto-optimize-btn:hover { filter: brightness(1.08); }
         #auto-optimize-btn.optimized { background: linear-gradient(180deg, #34d399, #10b981 55%, #059669); box-shadow: 0 0 0 3px rgba(16,185,129,0.25), 0 0 22px rgba(16,185,129,0.8); }
-        #map-stop-counter { position: fixed; bottom: 86px; left: 50%; transform: translateX(-50%); z-index: 3005; display: none; padding: 8px 18px; border-radius: 999px; font-weight: 800; font-size: 13.5px; letter-spacing: .02em; font-variant-numeric: tabular-nums; color: #fff; background: rgba(10,14,22,0.78); border: 1px solid rgba(255,255,255,0.18); animation: rise-in .3s var(--ease); }
+        #map-stop-counter { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 14px); left: 0; right: 0; margin: 0 auto; width: fit-content; /* centred without transform: its rise-in animation uses transform */ z-index: 3005; display: none; padding: 8px 18px; border-radius: 999px; font-weight: 800; font-size: 13.5px; letter-spacing: .02em; font-variant-numeric: tabular-nums; color: #fff; background: rgba(10,14,22,0.78); border: 1px solid rgba(255,255,255,0.18); animation: rise-in .3s var(--ease); }
         #undo-assignment-btn, #finish-early-btn { position: fixed; bottom: 20px; z-index: 3005; display: none; cursor: pointer; padding: 11px 16px; border-radius: 14px; font-weight: 800; font-size: 13px; letter-spacing: .04em; color: #fff; transition: transform .2s var(--spring), filter .2s; }
         #undo-assignment-btn { left: 20px; align-items: center; gap: 7px; background: rgba(10,14,22,0.78); border: 1px solid rgba(255,255,255,0.22); }
         #finish-early-btn { right: 20px; background: linear-gradient(180deg, rgba(52,211,153,0.92), rgba(16,185,129,0.92)); border: 1px solid rgba(255,255,255,0.25); }
@@ -897,7 +896,7 @@
         .driver-btn.status-unsent .driver-btn-meta { color: #ef4444; opacity: 1; }
         .driver-btn.is-picked { color: var(--accent-ink); background: linear-gradient(180deg, #ffe066, #f5c518 60%, #e2ac00); border-color: rgba(160,110,0,0.7); box-shadow: 0 6px 16px -8px rgba(245,197,24,0.8); }
         .driver-btn.is-picked .driver-btn-meta { color: var(--accent-ink); }
-        .driver-btn.is-empty { color: var(--accent); border-style: dashed; border-color: var(--accent-ring); font-weight: 700; }
+        .driver-btn.is-new { color: var(--accent); background: transparent; border-style: dashed; border-color: var(--accent); font-weight: 800; }
         .driver-chip {
             display: inline-flex; align-items: center; gap: 6px; max-width: 60%; min-height: 34px; padding: 6px 12px; cursor: pointer;
             font-family: inherit; font-size: 13px; font-weight: 800; color: var(--text); background: var(--card-2);
@@ -941,17 +940,7 @@
             .details-edit-btn { top: 14px; right: 14px; width: 42px; height: 42px; }
         }
 
-        /* ---------- FREQUENT CUSTOMERS, ADD SEVERAL ---------- */
-        .frequent-row { display: flex; gap: 6px; overflow-x: auto; margin: 2px -2px 10px; padding: 2px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-        .frequent-row::-webkit-scrollbar { display: none; }
-        .frequent-row[hidden] { display: none; }
-        .frequent-chip {
-            flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; max-width: 220px; min-height: 36px; padding: 6px 12px; cursor: pointer;
-            font-family: inherit; font-size: 13px; font-weight: 700; color: var(--text); background: var(--input-bg);
-            border: 1px solid var(--border-strong); border-radius: 999px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-        .frequent-chip::before { content: "+"; font-weight: 900; color: var(--active-green); }
-        .frequent-chip:active { transform: scale(.95); border-color: var(--active-green); }
+        /* ---------- ADD SEVERAL ---------- */
         .multi-add-box { max-width: 480px; width: 100%; max-height: calc(100vh - 32px); overflow-y: auto; }
         .multi-add-input { display: flex; gap: 8px; align-items: stretch; }
         .multi-add-input textarea { flex: 1; min-width: 0; min-height: 84px; resize: vertical; font-family: inherit; font-size: 15px; }
@@ -1106,7 +1095,6 @@
                 </div>
             </div>
             <!-- Most-used customers in the last 30 days: one tap adds the stop -->
-            <div id="frequent-row" class="frequent-row" hidden></div>
             <button class="btn-add" onclick="addJob()">ADD TO ROUTE</button>
             <!-- CREATE ROUTE button removed from main page; only on map -->
           </div>
@@ -1694,8 +1682,6 @@
                 takeTypesFromSavedRoutes();
                 // Once per page load, a few seconds in: drop Google coordinates older than 30 days
                 if (!geoPruneScheduled) { geoPruneScheduled = true; setTimeout(pruneOldRouteGeo, 5000); }
-                // Most-used customers: once at start, then again if the page stays open past an hour
-                if (!frequentLoadedAt || Date.now() - frequentLoadedAt > 60 * 60 * 1000) { frequentLoadedAt = Date.now(); setTimeout(loadFrequentCustomers, 1500); }
             });
             // Listen for unfinished lists
             db.ref(DRAFT_ROUTES_PATH).on('value', snap => {
@@ -2488,7 +2474,6 @@
             updateMakeRouteButton();
             // A stop is being dragged: redraw once it's dropped, so the card isn't pulled out of the finger
             if (dragState) { dragRenderPending = true; return; }
-            renderFrequentRow();
             if (isOrderingMode || routeState.isFinalized) {
                 renderOrderingList();
                 return;
@@ -6551,7 +6536,6 @@
             currentDriver = key || '';
             try { if (currentDriver) localStorage.setItem(CURRENT_DRIVER_KEY, currentDriver); else localStorage.removeItem(CURRENT_DRIVER_KEY); } catch (e) {}
             updateDriverChip();
-            renderFrequentRow(); // each driver's own most-used customers
         }
         // The driver buttons above the stop form. Today's status on each: route sent today (with its
         // stop count), not sent yet, unfinished list, or nothing yet today. The picked driver is yellow.
@@ -6566,7 +6550,7 @@
             // A driver picked earlier who isn't ticked in Settings any more still shows, so it's clear who's picked
             if (currentDriver && !list.some(d => d.key === currentDriver)) list.unshift({ key: currentDriver, label: driverLabel(currentDriver) });
             if (list.length === 0) {
-                bar.innerHTML = '<button type="button" class="driver-btn is-empty" onclick="openSettings()">Add your drivers in Settings</button>';
+                bar.innerHTML = '<button type="button" class="driver-btn is-new" onclick="addDriverFromBar()" title="Add a new driver">+ New driver</button>';
                 return;
             }
             const kept = readDriverLists();
@@ -6593,7 +6577,31 @@
                 const title = titles[status] + '. Hold for saved routes.';
                 const picked = d.key === currentDriver;
                 return `<button type="button" class="driver-btn status-${status}${picked ? ' is-picked' : ''}" data-key="${escapeHtml(d.key)}" aria-pressed="${picked}" title="${escapeHtml(title)}" onclick="tapDriverButton(${jsArg(d.key)})"><span class="driver-btn-name">${escapeHtml(d.label)}</span>${meta ? `<span class="driver-btn-meta">${escapeHtml(meta)}</span>` : ''}</button>`;
-            }).join('');
+            }).join('') + '<button type="button" class="driver-btn is-new" onclick="addDriverFromBar()" title="Add a new driver">+ New</button>';
+        }
+        // "+ New" asks for a name and adds that driver to Settings for good (same as adding it there),
+        // then picks them.
+        let addingDriver = false;
+        async function addDriverFromBar() {
+            if (addingDriver) return;
+            addingDriver = true;
+            try {
+                const typed = await showPromptModal("New driver's name:", '');
+                const name = (typed || '').trim();
+                if (!name) return;
+                if (/[.#$\[\]\/]/.test(name)) { showToast("A driver name can't contain: . # $ [ ] /", true); return; }
+                const key = driverKeyFor(name);
+                const existing = appSettings.drivers[key];
+                if (existing) {
+                    if (existing.enabled === false) writeSetting('drivers/' + key + '/enabled', true);
+                    showToast(`${driverLabel(key)} is already on the list.`);
+                } else {
+                    writeSetting('drivers/' + key, { name: name.charAt(0).toUpperCase() + name.slice(1), enabled: true });
+                    showToast(`${driverLabel(key)} added.`);
+                }
+                updateDriverChip();
+                if (key !== currentDriver) await tapDriverButton(key);
+            } finally { addingDriver = false; }
         }
         // Tapping a driver shows that driver's list, kept on this phone (empty if none). The list on
         // screen stays kept under its own driver. Stops added before any driver was picked go with
@@ -6751,73 +6759,6 @@
             Object.keys(route.stops).forEach(id => { if (!ids.includes(id)) ids.push(id); });
             const names = ids.map((id, i) => (i + 1) + ') ' + (route.stops[id].name || 'No name'));
             showContactList(names);
-        }
-
-        // ---------- FREQUENT CUSTOMERS ----------
-        // The 8 customers added most in the last 30 days (from route history), shown as buttons under the
-        // form: the picked driver's own most-used first, then the most-used of every driver. Shown as
-        // buttons under the form. One tap adds the stop. Customers already on the list are left out.
-        const FREQUENT_MAX = 8;
-        const FREQUENT_DAYS = 30;
-        let frequentCustomers = [];
-        // The same per driver: driver key -> names, most-added first, from that driver's own saved routes.
-        // The picked driver's buttons come from their list first, then the overall list fills the rest.
-        let frequentByDriver = {};
-        let frequentLoadedAt = 0;
-        async function loadFrequentCustomers() {
-            frequentLoadedAt = Date.now();
-            const since = String(Date.now() - FREQUENT_DAYS * 24 * 60 * 60 * 1000);
-            const drivers = Array.from(new Set(Object.keys(appSettings.drivers || {}).concat(Object.keys(savedRoutesCache || {}))))
-                .filter(k => k && !/[.#$\[\]\/]/.test(k));
-            const counts = {};
-            const perDriver = {};
-            await Promise.all(drivers.map(driver =>
-                db.ref('developer/route_planner/route_history/' + driver).orderByKey().startAt(since).once('value').then(snap => {
-                    snap.forEach(save => {
-                        const stops = (save.val() || {}).stops || {};
-                        const seen = {};
-                        const mine = perDriver[driver] || (perDriver[driver] = {});
-                        Object.values(stops).forEach(st => {
-                            const name = st && String(st.name || '').trim();
-                            const key = name && name.toLowerCase();
-                            if (!key || seen[key]) return;
-                            seen[key] = true; // once per saved route
-                            if (!counts[key]) counts[key] = { name, n: 0 };
-                            counts[key].n++;
-                            if (!mine[key]) mine[key] = { name, n: 0 };
-                            mine[key].n++;
-                        });
-                    });
-                }).catch(err => console.warn('Route history not readable for ' + driver + ':', err))
-            ));
-            frequentCustomers = Object.values(counts)
-                .sort((a, b) => (b.n - a.n) || a.name.localeCompare(b.name))
-                .slice(0, FREQUENT_MAX + 12) // a few spare, for when some are already on the list
-                .map(c => c.name);
-            frequentByDriver = {};
-            Object.keys(perDriver).forEach(driver => {
-                frequentByDriver[driver] = Object.values(perDriver[driver])
-                    .sort((a, b) => (b.n - a.n) || a.name.localeCompare(b.name))
-                    .slice(0, FREQUENT_MAX + 12)
-                    .map(c => c.name);
-            });
-            renderFrequentRow();
-        }
-        function renderFrequentRow() {
-            const row = document.getElementById('frequent-row');
-            if (!row) return;
-            const onList = new Set(Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').map(id => String(jobs[id].name || '').trim().toLowerCase()));
-            // Only customers still in the address book (matched the same way as everywhere else)
-            const mine = (currentDriver && frequentByDriver[currentDriver]) || [];
-            const show = mine.concat(frequentCustomers).map(findContactKey).filter(name => name && !onList.has(name.toLowerCase()))
-                .filter((name, i, all) => all.indexOf(name) === i).slice(0, FREQUENT_MAX);
-            row.hidden = show.length === 0;
-            row.innerHTML = show.map(name => `<button type="button" class="frequent-chip" title="Add ${escapeHtml(name)}" onclick="addFrequentCustomer(this.dataset.name)" data-name="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('');
-        }
-        function addFrequentCustomer(name) {
-            if (!addressData[name]) return;
-            selectClient(name);
-            addJob();
         }
 
         // ---------- ADD SEVERAL STOPS (voice or paste) ----------
