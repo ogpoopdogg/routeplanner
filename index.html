@@ -1308,7 +1308,7 @@
                 <div class="detail-row">
                     <span class="category-label">Weight</span>
                     <div class="weight-wrap">
-                        <input type="number" id="weight-input" class="weight-input" min="0" max="9999" inputmode="numeric">
+                        <input type="number" id="weight-input" class="weight-input" min="0" max="9999" step="0.1" inputmode="decimal">
                         <span class="weight-label">LBS</span>
                     </div>
                 </div>
@@ -2027,6 +2027,7 @@
                 isOrderingMode: !!isOrderingMode,
                 etaTotalMinutes: etaTotalMinutes || 0,
                 etaTotalKm: etaTotalKm || 0,
+                etaKey: etaKey || '',
                 startTime: routeState.startTime || null,
                 listChanged: !!listChanged,
                 loadedDraftKey: loadedDraftKey || null,
@@ -2066,6 +2067,7 @@
             isOrderingMode = !routeState.isFinalized && !!list.isOrderingMode && routeState.order.length > 0;
             etaTotalMinutes = Number(list.etaTotalMinutes) || 0;
             etaTotalKm = Number(list.etaTotalKm) || 0;
+            etaKey = typeof list.etaKey === 'string' ? list.etaKey : '';
             listChanged = !!list.listChanged;
             loadedDraftKey = list.loadedDraftKey || null;
             localTypeEdits = list.localTypeEdits || {};
@@ -2283,7 +2285,7 @@
                 const addBtnOriginalText = addBtn ? addBtn.textContent : 'ADD TO ROUTE';
                 if (addBtn) { addBtn.disabled = true; addBtn.textContent = 'Geocoding…'; }
                 const geocoder = new google.maps.Geocoder();
-                geocoder.geocode({ address: address + ', ' + city, region: 'ca' }, (results, status) => {
+                const placeGeocodedStop = (results, status) => {
                     if (addBtn) { addBtn.disabled = false; addBtn.textContent = addBtnOriginalText; }
                     if (status !== 'OK' || results.length === 0) {
                         showAlertModal("Could not locate address – stop not added.");
@@ -2319,6 +2321,13 @@
                     }).catch(err => {
                         updateConnectivityBanner();
                         showAlertModal("Couldn't reach the server for this stop (connection issue). It's saved on this device and will keep syncing automatically.");
+                    });
+                };
+                // Waits for the address lookup, so whoever called addJob (the mic) knows the stop is in
+                await new Promise(done => {
+                    setTimeout(done, 20000); // never wait forever for Google
+                    geocoder.geocode({ address: address + ', ' + city, region: 'ca' }, (results, status) => {
+                        try { placeGeocodedStop(results, status); } finally { done(); }
                     });
                 });
                 return;
@@ -2382,16 +2391,32 @@
                     updateRoute();
                 }
                 localJobs.ref(`${id}`).remove();
-                // If in ordering mode, also remove from routeState if assigned
-                if (routeState.assignedIndices[id]) {
-                    delete routeState.assignedIndices[id];
-                    const idx = routeState.order.indexOf(id);
+                // A numbered stop: take it out of the route order and number the rest again
+                // (1, 2, 3... with no gap), so the next pin tapped can't get a number already used.
+                const idx = routeState.order.indexOf(id);
+                if (routeState.assignedIndices[id] || idx !== -1) {
                     if (idx !== -1) routeState.order.splice(idx, 1);
-                    // Recalculate numbering? We'll just update.
-                    updateRoute();
+                    renumberRouteOrder();
+                    if (routeState.order.length === 0 && routeState.isFinalized) {
+                        routeState.isFinalized = false;
+                        routeState.autoOptimized = false;
+                        etaTotalMinutes = 0;
+                        etaTotalKm = 0;
+                        etaKey = '';
+                    }
+                    updateRoute(); // redraws the route line from the new order
+                    scheduleAutoETA(); // and works the route time out again
                 }
                 forgetVoiceForStop(id);
             }
+        }
+
+        // Numbers every stop in the route order 1, 2, 3... (stops not in the order keep no number)
+        function renumberRouteOrder() {
+            const numbers = {};
+            routeState.order = routeState.order.filter(id => jobs[id]);
+            routeState.order.forEach((id, i) => { numbers[id] = i + 1; });
+            routeState.assignedIndices = numbers;
         }
 
         async function clearAllJobs() {
@@ -2986,7 +3011,7 @@
                 piece_qty: parseInt(document.getElementById('piece-display').textContent) || 0,
                 envelope_qty: parseInt(document.getElementById('envelope-display').textContent) || 0,
                 skid_qty: parseInt(document.getElementById('skid-display').textContent) || 0,
-                weight_lbs: weightInputEl ? (parseInt(weightInputEl.value) || 0) : 0,
+                weight_lbs: weightInputEl ? readWeight(weightInputEl.value) : 0,
                 other_details: otherInputEl ? (otherInputEl.value || '') : ''
             };
             previewEl.textContent = buildDetailsPreviewString(vals);
@@ -3054,12 +3079,18 @@
                 });
             }
         });
+        // Weight in lbs as typed, decimals kept (12.5), to one decimal place, 0 to 9999
+        function readWeight(text) {
+            const n = parseFloat(String(text == null ? '' : text).replace(',', '.'));
+            if (!isFinite(n) || n <= 0) return 0;
+            return Math.min(9999, Math.round(n * 10) / 10);
+        }
         function saveDetailsFromModal() {
             if (!currentDetailsJobId) return;
             // Get weight and other text
-            const weightVal = parseInt(document.getElementById('weight-input').value) || 0;
+            const weightVal = readWeight(document.getElementById('weight-input').value);
             const otherVal = document.getElementById('other-input').value;
-            detailsData.weight_lbs = Math.min(9999, Math.max(0, weightVal));
+            detailsData.weight_lbs = weightVal;
             detailsData.other_details = otherVal;
             // Update job in Firebase
             const updates = {};
@@ -3117,6 +3148,9 @@
                 return;
             }
             etaCalculating = true;
+            let etaDone;
+            etaRunning = new Promise(r => { etaDone = r; });
+            const keyNow = etaOrderKey(); // the route this time is for
 
             try {
                 // Build waypoints from routeState.order
@@ -3173,6 +3207,7 @@
                     }
                     etaTotalMinutes = totalDurationSeconds / 60;
                     etaTotalKm = totalDistanceMeters / 1000;
+                    etaKey = keyNow;
                     updateETADisplay();
                 } else {
                     showAlertModal("Could not calculate ETA.");
@@ -3182,9 +3217,30 @@
                 showAlertModal("Error calculating ETA.");
             } finally {
                 etaCalculating = false;
+                etaDone();
                 // The order changed while it was working: work it out again for the new order
                 if (etaRecalcWanted) { etaRecalcWanted = false; calculateETAOnDemand({ quiet: true }); }
             }
+        }
+        // The route an ETA was worked out for: the stops in order with their map spots, the shop,
+        // and whether the route goes back to the shop. A different key means the ETA is out of date.
+        let etaKey = '';
+        let etaRunning = Promise.resolve();
+        function etaOrderKey() {
+            const stops = routeState.order.map(id => {
+                const j = jobs[id];
+                return id + '@' + (j && typeof j.lat === 'number' ? j.lat.toFixed(6) + ',' + j.lng.toFixed(6) : (j ? `${j.pickup_location}, ${j.city}` : ''));
+            });
+            const s = shopPoint();
+            return stops.join('|') + '#' + s.lat.toFixed(6) + ',' + s.lng.toFixed(6) + '#' + (appSettings.returnToShop ? 'back' : 'oneway');
+        }
+        // Before saving: waits for an ETA still being worked out, then works it out again only if
+        // it is missing or was for a different route (no extra Google request when it's current).
+        async function ensureCurrentETA() {
+            clearTimeout(etaAutoTimer);
+            for (let i = 0; etaCalculating && i < 5; i++) await etaRunning;
+            if (etaCalculating) return;
+            if (etaTotalMinutes === 0 || etaKey !== etaOrderKey()) await calculateETAOnDemand({ quiet: true });
         }
         // Works out the ETA a moment after the route is made or changed (several quick changes = one request).
         let etaRecalcWanted = false;
@@ -3953,10 +4009,37 @@
             return Math.sqrt(dLat * dLat + dLng * dLng);
         }
         async function insertStopIntoFinalizedRoute(newId) {
+            if (!placeStopInOrder(newId)) return;
+            routeState.autoOptimized = false;
+            // Show the number immediately, before the Directions calls below.
+            renderList();
+            if (map) updateMapMarkersForOrdering();
+            updateUI();
+
+            // Rebuild the route line from the new order (getDrivingPath caches by
+            // coordinates, so only the new legs hit the Directions API).
+            const indicator = document.getElementById('calculating-route-indicator');
+            if (indicator) indicator.style.display = 'block';
+            try {
+                await updateForwardRoute();
+                await fetchReturnRoute();
+            } catch (err) {
+                console.warn("Route redraw failed during insertion:", err);
+            }
+
+            if (map) updatePolyline();
+            if (indicator) indicator.style.display = 'none';
+            updateAutoOptimizeButtonVisual();
+            scheduleAutoETA();
+            updateUI();
+        }
+        // Puts a stop into the route order where it adds the least driving (straight-line), and
+        // numbers the route 1, 2, 3... again. false if it can't be placed (no map spot, or already in).
+        function placeStopInOrder(newId) {
             const origin = shopPoint();
             const order = routeState.order;
             const newJob = jobs[newId];
-            if (!newJob || !newJob.lat || !newJob.lng || order.includes(newId)) return;
+            if (!newJob || !newJob.lat || !newJob.lng || order.includes(newId)) return false;
             const newPoint = { lat: newJob.lat, lng: newJob.lng };
 
             // Drop any order entry whose stop no longer exists (e.g. removed by another
@@ -3992,28 +4075,35 @@
             const newAssigned = {};
             order.forEach((id, idx) => { newAssigned[id] = idx + 1; });
             routeState.assignedIndices = newAssigned;
+            return true;
+        }
+        // Before a save: stops with no number go into the route (each where it adds the least
+        // driving; one that can't be found on the map goes last), and the route counts as made.
+        async function placeUnnumberedStops(ids) {
+            await ensureAllJobsGeocoded();
+            ids.forEach(id => {
+                if (!jobs[id] || routeState.order.includes(id)) return;
+                if (!placeStopInOrder(id)) { routeState.order.push(id); renumberRouteOrder(); }
+            });
+            routeState.isFinalized = true;
             routeState.autoOptimized = false;
-            // Show the number immediately, before the Directions calls below.
+            if (isOrderingMode) { isOrderingMode = false; stopPulsingAll(); }
+            markListChanged();
             renderList();
             if (map) updateMapMarkersForOrdering();
             updateUI();
-
-            // Rebuild the route line from the new order (getDrivingPath caches by
-            // coordinates, so only the new legs hit the Directions API).
-            const indicator = document.getElementById('calculating-route-indicator');
-            if (indicator) indicator.style.display = 'block';
-            try {
-                await updateForwardRoute();
-                await fetchReturnRoute();
-            } catch (err) {
-                console.warn("Route redraw failed during insertion:", err);
+            if (map) {
+                try { await updateForwardRoute(); await fetchReturnRoute(); } catch (err) { console.warn('Route redraw failed:', err); }
+                updatePolyline();
             }
-
-            if (map) updatePolyline();
-            if (indicator) indicator.style.display = 'none';
-            updateAutoOptimizeButtonVisual();
-            scheduleAutoETA();
-            updateUI();
+        }
+        // The list on screen is still exactly what a save sent: the same stops, in the same
+        // order, with the same details.
+        function listMatchesSaved(stopsObj, order) {
+            const ids = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup');
+            if (ids.length !== Object.keys(stopsObj).length || !ids.every(id => stopsObj[id])) return false;
+            if (routeState.order.join('|') !== order.join('|')) return false;
+            return ids.every(id => JSON.stringify(savedStopFromJob(jobs[id])) === JSON.stringify(stopsObj[id]));
         }
 
         // ---------- AUTO-OPTIMIZE ----------
@@ -4264,17 +4354,40 @@
 
         // AUTO-OPTIMIZE asks which stop is first, then puts the rest in order from that stop on, so the
         // route starts in the right direction. Pins already tapped in CREATE ROUTE count as the start.
+        // A route that's already made (every stop numbered) is optimized again the same way: pick the
+        // first stop and the rest are put in order from there. If it fails, the route stays as it was.
         async function autoOptimizeFromFirstStop() {
             const pendingIds = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup');
             const tapped = Object.keys(routeState.assignedIndices || {}).filter(id => jobs[id]);
-            if (pendingIds.length >= 2 && tapped.length === 0) {
+            const allNumbered = routeState.isFinalized && pendingIds.every(id => routeState.assignedIndices[id]);
+            if (pendingIds.length >= 2 && (tapped.length === 0 || allNumbered)) {
                 const ids = pendingIds.slice().sort((a, b) => String(jobs[a].name || '').localeCompare(String(jobs[b].name || '')));
-                const i = await showChoiceModal('Which stop is first? The rest are put in order from there.', ids.map(id => jobs[id].name || jobs[id].address || 'No name'));
+                const question = allNumbered
+                    ? 'Optimize this route again? Which stop is first? The rest are put in order from there.'
+                    : 'Which stop is first? The rest are put in order from there.';
+                const i = await showChoiceModal(question, ids.map(id => jobs[id].name || jobs[id].address || 'No name'));
                 if (i === null || i === undefined || !ids[i]) return;
                 const first = ids[i];
+                const before = {
+                    order: routeState.order.slice(), assignedIndices: Object.assign({}, routeState.assignedIndices),
+                    isFinalized: routeState.isFinalized, autoOptimized: routeState.autoOptimized, isOrderingMode: isOrderingMode
+                };
                 if (!isOrderingMode && !routeState.isFinalized) { isOrderingMode = true; }
                 routeState.order = [first];
                 routeState.assignedIndices = { [first]: 1 };
+                const ok = await autoOptimizeRoute();
+                if (!ok) {
+                    // Not optimized (cancelled or Google failed): put the route back as it was
+                    routeState.order = before.order;
+                    routeState.assignedIndices = before.assignedIndices;
+                    routeState.isFinalized = before.isFinalized;
+                    routeState.autoOptimized = before.autoOptimized;
+                    isOrderingMode = before.isOrderingMode;
+                    renderList();
+                    if (map) { updateMapMarkersForOrdering(); redrawRouteFromCurrentState(); }
+                    updateUI();
+                }
+                return ok;
             }
             return autoOptimizeRoute();
         }
@@ -4406,9 +4519,11 @@
                         : `Route planned around opening times. ${hoursPlan.earlyCount} stop${hoursPlan.earlyCount === 1 ? '' : 's'} can't be reached open, so ${hoursPlan.earlyCount === 1 ? 'it is' : 'they are'} as late as possible and shown in red.`,
                         hoursPlan.earlyCount > 0, { duration: 7000 });
                 }
+                return true;
             } catch (err) {
                 console.warn("Auto-optimize failed:", err);
                 showAlertModal("Auto-optimize failed. Please try again.");
+                return false;
             } finally {
                 if (indicator) indicator.style.display = 'none';
                 if (optimizeBtn) optimizeBtn.disabled = false;
@@ -4967,15 +5082,35 @@
                 // Route not made yet: save the list as it is, to finish later.
                 return saveUnfinishedList(onWriting);
             }
+            // Copies, so later changes to the list on screen don't change what this save sent
+            order = order.slice();
+            assignedIndices = Object.assign({}, assignedIndices);
 
             if (order.length === 0) {
                 showAlertModal("No stops to save.");
                 return;
             }
 
-            // The ETA is worked out when the route is made. If it still isn't there (no
-            // connection then), work it out now without asking.
-            if (etaTotalMinutes === 0) await calculateETAOnDemand({ quiet: true });
+            // Stops with no number (after Finish Early, or pins not tapped yet) would be left out
+            // of the driver's route, then cleared off the list. Ask first; they can go in the route.
+            const unnumbered = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup' && !routeState.assignedIndices[id]);
+            if (unnumbered.length > 0) {
+                const n = unnumbered.length;
+                const names = unnumbered.map(id => jobs[id].name || 'No name');
+                const shown = names.slice(0, 4).join(', ') + (n > 4 ? ` and ${n - 4} more` : '');
+                const choice = await showChoiceModal(
+                    `${n} stop${n === 1 ? ' has' : 's have'} no number yet (${shown}), so ${n === 1 ? 'it' : 'they'} wouldn't go to the driver.`,
+                    [`Put ${n === 1 ? 'it' : 'them'} in the route, then save`] // Cancel goes back
+                );
+                if (choice !== 0) return;
+                await placeUnnumberedStops(unnumbered);
+                order = routeState.order.slice();
+                assignedIndices = Object.assign({}, routeState.assignedIndices);
+            }
+
+            // The ETA is worked out when the route is made or changed. If it isn't there yet, is
+            // still being worked out, or is for an older version of the route, get it now.
+            await ensureCurrentETA();
 
             const username = await askDriverForSave();
             if (!username) return;
@@ -5071,10 +5206,19 @@
                     persistRouteSaveCache();
                     renderSavedPills(savedRoutesCache || {});
                     updateConnectivityBanner();
-                    showToast(`Saved ${label}'s route.`);
                     // The route is made and sent, so this driver's unfinished list is done with.
                     if (draftRoutesCache[username]) db.ref(DRAFT_ROUTES_PATH + '/' + username).remove().catch(err => console.warn('Unfinished list cleanup failed:', err));
-                    clearWorkingList(username);
+                    // A save sent with no signal can land much later. Stops added or changed on this
+                    // driver's list since then weren't in it, so the list is only cleared when it is
+                    // still exactly what was saved.
+                    const sameList = currentDriver !== username || listMatchesSaved(stopsObj, order);
+                    if (sameList) {
+                        showToast(`Saved ${label}'s route.`);
+                        clearWorkingList(username);
+                    } else {
+                        markListChanged();
+                        showToast(`Saved ${label}'s route. Stops added or changed since are still on the list: save again to send them.`, false, { duration: 7000 });
+                    }
                     return true;
                 })
                 .catch(err => {
@@ -5328,6 +5472,7 @@
                 // so the list doesn't flash empty and nothing waits on the server.
                 localJobs.ref('').set(stopsObj)
                     .catch(err => showAlertModal("Error loading saved route: " + err.message));
+                etaKey = etaTotalMinutes > 0 ? etaOrderKey() : '';
 
                 // Clear any auto-optimized polyline
                 if (activePolyline) activePolyline.setMap(null);
@@ -5549,7 +5694,13 @@
                 } else if (isOrderingMode && routeState.order.length > 0) {
                     currentOrder = routeState.order;
                 }
-                if (currentOrder.length > 0) {
+                // The list on screen is a saved route that's ticked above, unchanged: don't list it twice
+                const sameAsTicked = currentOrder.length > 0 && !listChanged && keys.some(key => {
+                    const r = savedData[key];
+                    const ids = r && r.stops && !Array.isArray(r.stops) ? Object.keys(r.stops) : [];
+                    return ids.length === currentOrder.length && currentOrder.every(id => r.stops[id]);
+                });
+                if (currentOrder.length > 0 && !sameAsTicked) {
                     const currentStops = [];
                     currentOrder.forEach(id => {
                         const job = jobs[id];
@@ -5855,6 +6006,7 @@
                     isOrderingMode: isOrderingMode,
                     etaTotalMinutes: etaTotalMinutes,
                     etaTotalKm: etaTotalKm,
+                    etaKey: etaKey || '',
                     startTime: routeState.startTime || null
                 }));
             } catch (e) {}
@@ -5871,6 +6023,7 @@
                 isOrderingMode = !saved.isFinalized && !!saved.isOrderingMode;
                 etaTotalMinutes = Number(saved.etaTotalMinutes) || 0;
                 etaTotalKm = Number(saved.etaTotalKm) || 0;
+                etaKey = typeof saved.etaKey === 'string' ? saved.etaKey : '';
                 routeState.startTime = typeof saved.startTime === 'string' ? saved.startTime : null;
             } catch (e) {}
         }
@@ -6546,9 +6699,14 @@
                 const r = ev.results[0];
                 if (!r) return;
                 const heard = Array.from({ length: r.length }, (_, k) => r[k] && normName(r[k].transcript)).filter(h => h && h.length <= 80);
-                const unique = Array.from(new Set(heard)).filter(h => h !== normName(name));
+                const unique = Array.from(new Set(heard)).filter(h => canTeachVoice(h, name));
                 got = true;
-                if (unique.length === 0) { voiceLearnStatus(`Saved. The phone already hears "${name}" correctly.`); return; }
+                if (unique.length === 0) {
+                    const other = heard.map(h => customerIndex().exact[h]).find(n => n && n !== name);
+                    if (other) voiceLearnStatus(`The phone heard "${other}", another customer, so nothing was taught. Try saying it again.`, true);
+                    else voiceLearnStatus(`Saved. The phone already hears "${name}" correctly.`);
+                    return;
+                }
                 const updates = {};
                 unique.forEach(h => { updates[h] = name; voiceAliases[h] = name; });
                 db.ref(VOICE_ALIASES_PATH).update(updates)
@@ -6925,7 +7083,8 @@
         // - Otherwise the phone's final guess is matched (sound-alike too) as soon as it arrives.
         function quickVoiceAdd() {
             const btn = document.getElementById('mic-btn-bottom');
-            if (Date.now() < micHoldUntil) { btn.classList.remove('is-listening'); return; } // the hold opened the list sheet instead
+            // The hold opened the list sheet instead (also ignores a tap the phone sends when a long hold ends)
+            if (micHeld || Date.now() < micHoldUntil) { btn.classList.remove('is-listening'); return; }
             if (quickVoiceRec) { try { quickVoiceRec.stop(); } catch (e) {} return; }
             listenVoiceAliases();
             const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -6953,8 +7112,8 @@
                     if (r.pick && addressData[r.pick]) {
                         selectClient(r.pick);
                         await addJob();
-                        log.push({ said: r.heard, added: r.pick, stop: lastAddedStopFor(r.pick) });
-                    } else log.push({ said: r.heard, added: '' });
+                        log.push({ said: r.said || r.heard, teach: r.noTeach ? '' : r.heard, added: r.pick, stop: lastAddedStopFor(r.pick) });
+                    } else log.push({ said: r.said || r.heard, teach: r.noTeach ? '' : r.heard, added: '' });
                 }
                 logVoice(log, 'tap');
                 resetFormFields();
@@ -6990,6 +7149,7 @@
         }
         // Hold the mic button: the "Add several stops" sheet (paste or say a list of names, check them, add)
         let micHoldUntil = 0;
+        let micHeld = false; // the finger is still down after a hold opened the list sheet
         (function setupMicHold() {
             const btn = document.getElementById('mic-btn-bottom');
             if (!btn) return;
@@ -7004,11 +7164,16 @@
                     btn.classList.add('is-listening');
                     if (navigator.vibrate) { try { navigator.vibrate(12); } catch (err) {} }
                 }
-                timer = setTimeout(() => { timer = null; micHoldUntil = Date.now() + 700; unlight(); openMultiAdd(false); }, 550);
+                timer = setTimeout(() => { timer = null; micHeld = true; micHoldUntil = Date.now() + 700; unlight(); openMultiAdd(false); }, 550);
             });
+            // However long the hold, the tap that comes with lifting the finger is ignored
+            const endHold = () => { if (micHeld) { micHeld = false; micHoldUntil = Date.now() + 700; } };
+            // The finger (or mouse) may be lifted over the sheet that opened, not the button
+            document.addEventListener('pointerup', endHold, true);
+            document.addEventListener('pointercancel', endHold, true);
             // If no tap follows (finger slid off, page scrolled), go back to normal.
-            btn.addEventListener('pointerup', () => { cancel(); setTimeout(unlight, 600); });
-            btn.addEventListener('pointercancel', () => { cancel(); unlight(); });
+            btn.addEventListener('pointerup', () => { cancel(); endHold(); setTimeout(unlight, 600); });
+            btn.addEventListener('pointercancel', () => { cancel(); endHold(); unlight(); });
             btn.addEventListener('pointerleave', cancel);
             btn.addEventListener('contextmenu', e => e.preventDefault());
         })();
@@ -7022,6 +7187,13 @@
             return !idx.startsLonger[norm];
         }
 
+        // Heard words may be taught as meaning this customer: not empty or too long, not the customer's
+        // own name, and never another customer's whole name (that customer would be lost to the mic).
+        function canTeachVoice(heard, name) {
+            if (!heard || heard.length > 80 || heard === normName(name)) return false;
+            const owner = customerIndex().exact[heard];
+            return !owner || owner === name;
+        }
         function stopMultiAddListening() {
             if (multiAddRecognition) { try { multiAddRecognition.stop(); } catch (e) {} }
         }
@@ -7160,7 +7332,7 @@
             const names = idx.byLength;
             const exact = idx.exact;
             const rows = [];
-            const addRow = (heard, pick, kind, options) => rows.push({ heard, pick, kind, options: options || (pick ? [pick] : []), on: kind !== 'missing' });
+            const addRow = (heard, pick, kind, options, extra) => rows.push(Object.assign({ heard, pick, kind, options: options || (pick ? [pick] : []), on: kind !== 'missing' }, extra || {}));
             const aliasFor = norm => (voiceAliases[norm] && addressData[voiceAliases[norm]]) ? voiceAliases[norm] : null;
             text.split(/[\n,;]+|\b(?:next|then)\b/i).map(t => t.trim()).filter(Boolean).forEach(piece => {
                 const norm = normName(piece);
@@ -7177,7 +7349,9 @@
                     found.push({ at, name: x.name });
                     rest = rest.slice(0, at + 1) + '#'.repeat(x.norm.length) + rest.slice(at + 1 + x.norm.length);
                 });
-                found.sort((a, b) => a.at - b.at).forEach(f => addRow(f.name, f.name, 'ok'));
+                // A name found inside a longer piece: "Said earlier" shows the whole piece that was said,
+                // and fixing it teaches nothing (the heard words are a customer's own name).
+                found.sort((a, b) => a.at - b.at).forEach(f => addRow(f.name, f.name, 'ok', null, { said: piece, noTeach: true }));
                 // Words left over: the closest customer, to check
                 const leftover = rest.split(' ').filter(w => w && !/^#+$/.test(w) && w !== 'and');
                 if (leftover.length > 0 && (found.length === 0 || leftover.join('').length >= 3)) {
@@ -7218,8 +7392,8 @@
             // Remember what was heard for any name that needed checking or picking
             multiAddRows.forEach(r => {
                 const heard = normName(r.heard);
-                if (!r.on || !r.pick || !addressData[r.pick] || r.kind === 'ok' || !heard || heard.length > 80) return;
-                if (heard === normName(r.pick)) return;
+                if (!r.on || !r.pick || !addressData[r.pick] || r.kind === 'ok' || r.noTeach) return;
+                if (!canTeachVoice(heard, r.pick)) return;
                 voiceAliases[heard] = r.pick;
                 db.ref(VOICE_ALIASES_PATH + '/' + heard).set(r.pick).catch(err => console.warn('Voice alias not saved:', err));
             });
@@ -7230,9 +7404,9 @@
                 if (r.on && r.pick && addressData[r.pick]) {
                     selectClient(r.pick);
                     await addJob();
-                    log.push({ said: r.heard, added: r.pick, stop: lastAddedStopFor(r.pick) });
+                    log.push({ said: r.said || r.heard, teach: r.noTeach ? '' : r.heard, added: r.pick, stop: lastAddedStopFor(r.pick) });
                 } else if (!r.pick) {
-                    log.push({ said: r.heard, added: '' }); // not found: kept so it can be fixed later
+                    log.push({ said: r.said || r.heard, teach: r.noTeach ? '' : r.heard, added: '' }); // not found: kept so it can be fixed later
                 }
             }
             logVoice(log, 'list');
@@ -7263,6 +7437,8 @@
                 if (!said) return;
                 const key = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
                 voiceLog[key] = { said: said, added: e.added || '', stop: e.stop || '', at: Date.now() + (n++), how: how };
+                // The words to teach when this entry is fixed ('' = teach nothing)
+                if (typeof e.teach === 'string') voiceLog[key].teach = e.teach.trim().slice(0, 200);
             });
             saveVoiceLog();
         }
@@ -7431,12 +7607,13 @@
                     localJobs.ref(`${stopId}`).update(update)
                         .then(() => {
                             if (!spot && typeof google !== 'undefined' && google.maps && google.maps.Geocoder) {
-                                return geocodeJob(stopId).then(() => updateRoute())
+                                return geocodeJob(stopId).then(() => { updateRoute(); scheduleAutoETA(); })
                                     .catch(() => showToast(`Couldn't find "${address}, ${city}" on the map. Check the customer's address.`, true, { duration: 8000 }));
                             }
                         })
                         .catch(err => console.warn('Stop update failed:', err));
                     updateRoute();
+                    scheduleAutoETA(); // the stop moved, so the route time changes
                 }
             } else {
                 selectClient(name);
@@ -7445,8 +7622,8 @@
                 stopId = lastAddedStopFor(name) || null;
             }
             // Teach the mic: what was said means this customer (shared with Route Helper).
-            const heard = normName(e.said);
-            if (heard && heard.length <= 80 && heard !== normName(name)) {
+            const heard = normName(typeof e.teach === 'string' ? e.teach : e.said);
+            if (canTeachVoice(heard, name)) {
                 voiceAliases[heard] = name;
                 db.ref(VOICE_ALIASES_PATH + '/' + heard).set(name).catch(err => console.warn('Voice alias not saved:', err));
             }
