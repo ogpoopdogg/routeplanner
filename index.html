@@ -478,8 +478,33 @@
         #mic-btn-bottom:hover { border-color: #60a5fa; box-shadow: 0 22px 40px -14px rgba(0,0,0,0.8), 0 0 0 4px rgba(59,130,246,0.25), 0 0 22px -4px rgba(59,130,246,0.7); }
         body.light-mode #mic-btn-bottom { color: #2563eb; border-color: #2563eb; box-shadow: 0 16px 34px -14px rgba(15,23,42,0.35), 0 0 0 3px rgba(37,99,235,0.15); }
         body.light-mode #mic-btn-bottom svg { stroke: #2563eb !important; }
-        #mic-btn-bottom.is-listening, body.light-mode #mic-btn-bottom.is-listening { color: #fff; border-color: rgba(239,68,68,0.7); background: linear-gradient(180deg, #f87171, #ef4444 60%, #dc2626); animation: mic-pulse-glow 1s ease-in-out infinite; }
-        #mic-btn-bottom.is-listening svg, body.light-mode #mic-btn-bottom.is-listening svg { stroke: #fff !important; }
+        /* Listening: lights up at once (the moment the finger touches it) - a quick pop, a bright
+           sky-blue fill with a white mic, a big blue glow, and soft glow waves going out from it.
+           Same as Route Helper. No red, and no hard ring lines (only blurred glows). pop-in stays
+           first in the animation list so it doesn't play again when listening stops. */
+        #mic-btn-bottom { transition: transform .25s var(--spring), box-shadow 0.12s ease-out, background 0.12s ease-out, color 0.12s, border-color 0.12s; }
+        #mic-btn-bottom svg { position: relative; z-index: 1; }
+        #mic-btn-bottom.is-listening, body.light-mode #mic-btn-bottom.is-listening {
+            scale: 1.2; color: #fff; border-color: #bae6fd;
+            background: radial-gradient(circle at 50% 35%, #7dd3fc 0%, #38bdf8 45%, #2563eb 100%);
+            box-shadow: 0 0 0 5px rgba(56,189,248,0.35), 0 0 34px 10px rgba(56,189,248,0.75), 0 0 70px 18px rgba(37,99,235,0.45);
+            animation: pop-in .5s var(--spring) .25s both, mic-press-pop 0.18s cubic-bezier(.3,1.6,.5,1) both, mic-press-glow 0.9s ease-in-out 0.18s infinite;
+        }
+        #mic-btn-bottom.is-listening svg, body.light-mode #mic-btn-bottom.is-listening svg { stroke: #fff !important; filter: drop-shadow(0 0 6px rgba(255,255,255,0.9)); }
+        /* Soft glow waves (blurred, so there's no line) */
+        #mic-btn-bottom.is-listening::before, #mic-btn-bottom.is-listening::after {
+            content: ""; position: absolute; inset: -6px; border-radius: 22px; pointer-events: none; z-index: 0;
+            background: radial-gradient(circle closest-side, rgba(56,189,248,0.55), rgba(56,189,248,0.25) 55%, rgba(56,189,248,0) 100%);
+            filter: blur(6px); animation: mic-press-wave 1.1s ease-out infinite;
+        }
+        #mic-btn-bottom.is-listening::after { animation-delay: 0.55s; }
+        @keyframes mic-press-pop { 0% { scale: 1; } 60% { scale: 1.3; } 100% { scale: 1.2; } }
+        @keyframes mic-press-glow { 50% { box-shadow: 0 0 0 7px rgba(56,189,248,0.28), 0 0 44px 14px rgba(56,189,248,0.9), 0 0 90px 24px rgba(37,99,235,0.5); } }
+        @keyframes mic-press-wave { 0% { transform: scale(0.9); opacity: 0.9; } 100% { transform: scale(2.1); opacity: 0; } }
+        @media (prefers-reduced-motion: reduce) {
+            #mic-btn-bottom.is-listening, body.light-mode #mic-btn-bottom.is-listening { animation: none; }
+            #mic-btn-bottom.is-listening::before, #mic-btn-bottom.is-listening::after { animation: none; opacity: 0.5; }
+        }
         /* Save / Delete / Clear: smaller floating buttons above the mic (80% of the others), icon only */
         .fab.fab-sm { width: 45px; height: 45px; right: 21.5px; border-radius: 14px; }
         .fab.fab-sm svg { width: 20px; height: 20px; }
@@ -943,7 +968,31 @@
             background: linear-gradient(180deg, #ffe066, #f5c518 60%, #e2ac00);
         }
         .multi-add-mic svg { width: 26px; height: 26px; }
-        .multi-add-mic.is-listening { color: #fff; background: linear-gradient(180deg, #f87171, #ef4444 60%, #dc2626); animation: mic-pulse-glow 1s ease-in-out infinite; }
+        .multi-add-mic.is-listening { color: #fff; background: radial-gradient(circle at 50% 35%, #7dd3fc, #38bdf8 45%, #2563eb); box-shadow: 0 0 0 4px rgba(56,189,248,0.3), 0 0 26px 6px rgba(56,189,248,0.7); }
+        /* Said earlier: what the mic heard and what it added, to fix any it got wrong */
+        .said-earlier { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--border); }
+        .said-earlier[hidden] { display: none; }
+        .said-earlier-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+        .said-earlier-head > span:first-child { font-size: 13px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+        .said-earlier-sub { font-size: 12px; color: var(--muted); }
+        .said-earlier-list { display: flex; flex-direction: column; gap: 8px; }
+        .said-row { padding: 9px 10px; border-radius: 12px; background: var(--card-2); border: 1px solid var(--border); }
+        .said-row.is-missing { border-color: rgba(239,68,68,0.45); }
+        .said-row.is-fixed { border-color: rgba(34,197,94,0.5); }
+        .said-line { display: flex; align-items: baseline; gap: 8px; font-size: 13px; color: var(--card-text); }
+        .said-line b, .said-fix b { flex-shrink: 0; width: 46px; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+        .said-text { flex: 1; min-width: 0; font-style: italic; color: var(--text); overflow-wrap: anywhere; }
+        .said-when { flex-shrink: 0; font-size: 11px; color: var(--faint); }
+        .said-fix { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+        .said-fix select, .said-fix input { flex: 1; min-width: 0; min-height: 40px; padding: 6px 10px; font-family: inherit; font-size: 14px; font-weight: 700; }
+        .said-row.is-missing .said-fix select { color: #ef4444; }
+        .said-btn { flex: 0 0 auto; width: 40px; height: 40px; min-height: 0; display: grid; place-items: center; padding: 0; border-radius: 11px; cursor: pointer; background: var(--card); border: 1px solid var(--border-strong); color: var(--card-text); }
+        .said-btn svg { width: 20px; height: 20px; }
+        .said-mic { color: #60a5fa; border: 2px solid #3b82f6; }
+        body.light-mode .said-mic { color: #2563eb; border-color: #2563eb; }
+        .said-mic.is-listening, body.light-mode .said-mic.is-listening { color: #fff; border-color: #bae6fd; background: radial-gradient(circle at 50% 35%, #7dd3fc, #38bdf8 45%, #2563eb); box-shadow: 0 0 0 4px rgba(56,189,248,0.3), 0 0 22px 4px rgba(56,189,248,0.7); }
+        .said-note { margin-top: 5px; font-size: 12px; color: #22c55e; }
+        .said-row.is-missing .said-note { color: #ef4444; }
         .multi-add-heard { margin-top: 8px; font-size: 13px; font-style: italic; color: var(--muted); }
         .multi-add-results { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
         .multi-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 11px; background: var(--card-2); border: 1px solid var(--border); }
@@ -1438,6 +1487,13 @@
                 <button type="button" class="dialog-btn cancel" onclick="closeMultiAdd()">Cancel</button>
                 <button type="button" id="multi-add-go" class="dialog-btn ok" onclick="confirmMultiAdd()" disabled>Add stops</button>
             </div>
+            <!-- Everything the mic added to this list: what was said, and what was added. Fix any
+                 it got wrong (say it again, or pick the right customer). -->
+            <div id="said-earlier" class="said-earlier" hidden>
+                <div class="said-earlier-head"><span>Said earlier</span><span class="said-earlier-sub">Fix any the mic got wrong</span></div>
+                <div id="said-earlier-list" class="said-earlier-list"></div>
+            </div>
+            <datalist id="said-customers"></datalist>
         </div>
     </div>
 
@@ -1487,6 +1543,7 @@
         const DRAFT_ROUTES_PATH = 'developer/route_planner/draft_routes';
         let draftRoutesCache = {};
         let jobs = {};              // The stops on the list now (kept on this phone, see localJobs)
+        let voiceLog = {};          // What the mic heard and added for this list (see SAID EARLIER)
         let addressData = {};        // From address_lookup
         let map, mapMarkers = {}, activePolyline = null;
         let autocompleteAddress;     // Google Places Autocomplete for address field
@@ -1974,6 +2031,7 @@
                 listChanged: !!listChanged,
                 loadedDraftKey: loadedDraftKey || null,
                 localTypeEdits: localTypeEdits || {},
+                voiceLog: voiceLog || {},
                 at: Date.now()
             };
         }
@@ -2011,6 +2069,7 @@
             listChanged = !!list.listChanged;
             loadedDraftKey = list.loadedDraftKey || null;
             localTypeEdits = list.localTypeEdits || {};
+            voiceLog = list.voiceLog && typeof list.voiceLog === 'object' ? list.voiceLog : {};
             forwardSegments = [];
             returnPath = null;
             clearRoutePolylines();
@@ -2041,12 +2100,13 @@
                     jobs = raw.jobs;
                     pendingJobIds = {};
                     (raw.pending || []).forEach(id => { if (jobs[id]) pendingJobIds[id] = true; });
+                    voiceLog = raw.voiceLog && typeof raw.voiceLog === 'object' ? raw.voiceLog : {};
                 }
             } catch (e) { /* corrupt or unavailable cache - start empty, Firebase fills it in */ }
         }
         function persistJobsCache() {
             try {
-                localStorage.setItem(JOBS_CACHE_KEY, JSON.stringify({ jobs: jobs, pending: Object.keys(pendingJobIds) }));
+                localStorage.setItem(JOBS_CACHE_KEY, JSON.stringify({ jobs: jobs, pending: Object.keys(pendingJobIds), voiceLog: voiceLog }));
             } catch (e) { /* localStorage unavailable - rendering still works, just not durable this session */ }
             persistDriverList();
         }
@@ -2306,7 +2366,11 @@
 
         async function deleteJob(id) {
             const name = jobs[id] && jobs[id].name;
-            if (await showConfirmModal(name ? `Delete "${name}" from the list?` : 'Delete this stop from the list?')) {
+            if (await showConfirmModal(name ? `Delete "${name}" from the list?` : 'Delete this stop from the list?')) removeJobNow(id);
+        }
+        // Takes a stop off the list (no asking). Its "Said earlier" mic entries go with it.
+        function removeJobNow(id) {
+            {
                 markListChanged();
                 // A stop that hasn't synced yet only lives in the local cache - drop it
                 // there too, or the pending-sync merge would put it right back.
@@ -2326,6 +2390,7 @@
                     // Recalculate numbering? We'll just update.
                     updateRoute();
                 }
+                forgetVoiceForStop(id);
             }
         }
 
@@ -2335,6 +2400,7 @@
                 // Clear unsynced stops locally too, so they can't be re-added by the pending-sync merge
                 pendingJobIds = {};
                 jobs = {};
+                voiceLog = {};
                 persistJobsCache();
                 updateConnectivityBanner();
                 localJobs.ref('').remove();
@@ -4805,6 +4871,7 @@
             // Clear all jobs from the route stops (local unsynced ones too)
             pendingJobIds = {};
             jobs = {};
+            voiceLog = {};
             persistJobsCache();
             updateConnectivityBanner();
             localJobs.ref('').remove();
@@ -5249,6 +5316,7 @@
 
                 // Set local jobs (this replaces any unsynced stops too)
                 jobs = {};
+                voiceLog = {};
                 Object.keys(stopsObj).forEach(id => {
                     jobs[id] = stopsObj[id];
                 });
@@ -5300,6 +5368,7 @@
                 setCurrentDriver(key);
                 const stopsObj = data.stops;
                 jobs = {};
+                voiceLog = {};
                 Object.keys(stopsObj).forEach(id => { jobs[id] = stopsObj[id]; });
                 pendingJobIds = {};
                 persistJobsCache();
@@ -6781,11 +6850,14 @@
             document.getElementById('multi-add-heard').hidden = true;
             multiAddRows = [];
             renderMultiAddRows();
+            renderSaidEarlier();
             document.getElementById('multi-add-overlay').classList.add('is-open');
+            requestMicWakeLock(); // keep the screen on while saying the stops
             const canListen = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
             document.getElementById('multi-add-mic').hidden = !canListen;
             if (listenNow && canListen) startMultiAddListening();
-            else setTimeout(() => document.getElementById('multi-add-text').focus(), 60);
+            // With a "Said earlier" list to look at, don't pop the keyboard up over it.
+            else if (visibleVoiceLog().length === 0) setTimeout(() => document.getElementById('multi-add-text').focus(), 60);
         }
         function closeMultiAdd() {
             stopMultiAddListening();
@@ -6825,6 +6897,7 @@
                 }
                 heardEl.hidden = !interim;
                 heardEl.textContent = interim ? 'Hearing: ' + interim : '';
+                requestMicWakeLock();
                 quiet();
                 scheduleMultiAddMatch();
             };
@@ -6851,12 +6924,12 @@
         //   A name that is also the start of a longer name ("AAA" and "AAA Bobcat") waits for the end.
         // - Otherwise the phone's final guess is matched (sound-alike too) as soon as it arrives.
         function quickVoiceAdd() {
-            if (Date.now() < micHoldUntil) return; // the hold opened the list sheet instead
+            const btn = document.getElementById('mic-btn-bottom');
+            if (Date.now() < micHoldUntil) { btn.classList.remove('is-listening'); return; } // the hold opened the list sheet instead
             if (quickVoiceRec) { try { quickVoiceRec.stop(); } catch (e) {} return; }
             listenVoiceAliases();
             const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!Ctor) { showToast('Voice input is not supported on this browser.', true); return; }
-            const btn = document.getElementById('mic-btn-bottom');
+            if (!Ctor) { btn.classList.remove('is-listening'); showToast('Voice input is not supported on this browser.', true); return; }
             const rec = new Ctor();
             quickVoiceRec = rec;
             rec.lang = 'en-CA';
@@ -6875,10 +6948,15 @@
                 const rows = matchSpokenNames(text);
                 const names = rows.filter(r => r.pick && addressData[r.pick]).map(r => r.pick);
                 const missing = rows.filter(r => !r.pick).map(r => r.heard);
-                for (const name of names) {
-                    selectClient(name);
-                    await addJob();
+                const log = [];
+                for (const r of rows) {
+                    if (r.pick && addressData[r.pick]) {
+                        selectClient(r.pick);
+                        await addJob();
+                        log.push({ said: r.heard, added: r.pick, stop: lastAddedStopFor(r.pick) });
+                    } else log.push({ said: r.heard, added: '' });
                 }
+                logVoice(log, 'tap');
                 resetFormFields();
                 // No captions: the stops just appear. Only a name it couldn't match gets a message.
                 if (missing.length) showToast(`Couldn't find "${missing.join('", "')}". Teach it with the mic button at the top.`, true, { duration: 6000 });
@@ -6894,6 +6972,7 @@
                     } else if (res[0]) interim.push(res[0].transcript);
                 }
                 finalText = parts.filter(Boolean).join(' ');
+                requestMicWakeLock();
                 if (interim.length === 0) { finish(finalText); return; }
                 // Still talking: add now if the words so far are a sure match
                 const soFar = (finalText + ' ' + interim.join(' ')).trim();
@@ -6902,6 +6981,7 @@
             rec.onerror = ev => { if (ev && ev.error === 'not-allowed') showToast('The microphone is blocked for this page. Allow it in the browser settings.', true); };
             rec.onend = () => { if (!finished) finish(finalText); };
             btn.classList.add('is-listening');
+            requestMicWakeLock();
             try {
                 rec.start();
                 // Nothing said in 7 s: stop
@@ -6915,8 +6995,21 @@
             if (!btn) return;
             let timer = null;
             const cancel = () => { clearTimeout(timer); timer = null; };
-            btn.addEventListener('pointerdown', () => { cancel(); timer = setTimeout(() => { timer = null; micHoldUntil = Date.now() + 700; openMultiAdd(false); }, 550); });
-            ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => btn.addEventListener(t, cancel));
+            // Lights up the moment the finger touches it (with a short buzz on Android), instead of
+            // waiting for the finger to lift. Listening itself starts on the tap (quickVoiceAdd).
+            const unlight = () => { if (!quickVoiceRec) btn.classList.remove('is-listening'); };
+            btn.addEventListener('pointerdown', () => {
+                cancel();
+                if (!quickVoiceRec) {
+                    btn.classList.add('is-listening');
+                    if (navigator.vibrate) { try { navigator.vibrate(12); } catch (err) {} }
+                }
+                timer = setTimeout(() => { timer = null; micHoldUntil = Date.now() + 700; unlight(); openMultiAdd(false); }, 550);
+            });
+            // If no tap follows (finger slid off, page scrolled), go back to normal.
+            btn.addEventListener('pointerup', () => { cancel(); setTimeout(unlight, 600); });
+            btn.addEventListener('pointercancel', () => { cancel(); unlight(); });
+            btn.addEventListener('pointerleave', cancel);
             btn.addEventListener('contextmenu', e => e.preventDefault());
         })();
         // Words that are a customer's whole name or a taught phrase, and not the start of a longer name
@@ -7130,14 +7223,271 @@
                 voiceAliases[heard] = r.pick;
                 db.ref(VOICE_ALIASES_PATH + '/' + heard).set(r.pick).catch(err => console.warn('Voice alias not saved:', err));
             });
+            const rowsNow = multiAddRows.slice();
             closeMultiAdd();
-            for (const name of chosen) {
-                selectClient(name);
-                await addJob();
+            const log = [];
+            for (const r of rowsNow) {
+                if (r.on && r.pick && addressData[r.pick]) {
+                    selectClient(r.pick);
+                    await addJob();
+                    log.push({ said: r.heard, added: r.pick, stop: lastAddedStopFor(r.pick) });
+                } else if (!r.pick) {
+                    log.push({ said: r.heard, added: '' }); // not found: kept so it can be fixed later
+                }
             }
+            logVoice(log, 'list');
             resetFormFields();
             showToast(`Added ${chosen.length} stop${chosen.length === 1 ? '' : 's'}.`);
         }
+
+        // ---------- SAID EARLIER (what the mic heard, and what it added) ----------
+        // Every stop added with the mic (a tap, or the hold-mic list) is written down with what was
+        // said: { said, added (customer name, '' if not found), stop (stop id if known), at, how,
+        // fixed, was }. Kept on this phone with the list it belongs to (voiceLog travels with the
+        // list, like the stops), and cleared with it. The hold-mic screen lists them newest first,
+        // so a wrong one can be fixed: say it again or pick the right customer. Fixing swaps the
+        // stop in place (same spot, same number) and teaches the mic (shared voice_aliases, so
+        // Route Helper learns it too). An entry goes away when its stop leaves the list.
+        let saidListening = null;
+        // The stop just added for this customer (addJob marks it), or '' if not known yet.
+        function lastAddedStopFor(name) {
+            const id = lastAddedJobId;
+            return id && jobs[id] && String(jobs[id].name || '').trim().toLowerCase() === String(name).trim().toLowerCase() ? id : '';
+        }
+        function saveVoiceLog() { persistJobsCache(); }
+        function logVoice(entries, how) {
+            if (!entries || !entries.length) return;
+            let n = 0;
+            entries.forEach(e => {
+                const said = String(e.said || '').trim().slice(0, 200);
+                if (!said) return;
+                const key = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+                voiceLog[key] = { said: said, added: e.added || '', stop: e.stop || '', at: Date.now() + (n++), how: how };
+            });
+            saveVoiceLog();
+        }
+        // The stop an entry belongs to: its own stop if still there, else a stop with that name.
+        function stopForLog(e) {
+            if (!e || !e.added) return null;
+            if (e.stop && jobs[e.stop]) return e.stop;
+            const want = String(e.added).trim().toLowerCase();
+            return Object.keys(jobs).find(id => jobs[id] && String(jobs[id].name || '').trim().toLowerCase() === want) || null;
+        }
+        function visibleVoiceLog() {
+            return Object.keys(voiceLog)
+                .filter(k => { const e = voiceLog[k]; return e && e.said && (!e.added || stopForLog(e)); })
+                .sort((a, b) => (Number(voiceLog[b].at) || 0) - (Number(voiceLog[a].at) || 0));
+        }
+        // A stop was taken off the list: its entries go too.
+        function forgetVoiceForStop(id) {
+            let gone = 0;
+            Object.keys(voiceLog).forEach(k => {
+                const e = voiceLog[k];
+                if (!e || !e.added || stopForLog(e)) return;
+                delete voiceLog[k];
+                gone++;
+            });
+            if (gone) saveVoiceLog();
+        }
+        function saidOptions(e) {
+            const words = normName(e.alt || e.said).split(' ');
+            const close = closestCustomers(words, 6).map(c => c.name);
+            const first = e.added && addressData[e.added] ? [e.added] : [];
+            return first.concat(close.filter(n => n !== e.added));
+        }
+        function renderSaidEarlier() {
+            const wrap = document.getElementById('said-earlier');
+            const list = document.getElementById('said-earlier-list');
+            if (!wrap || !list) return;
+            const keys = visibleVoiceLog();
+            wrap.hidden = keys.length === 0;
+            const dl = document.getElementById('said-customers');
+            if (dl && keys.length && dl.childElementCount !== Object.keys(addressData).length) {
+                dl.innerHTML = Object.keys(addressData).sort((a, b) => a.localeCompare(b)).map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
+            }
+            const micSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg>';
+            list.innerHTML = keys.map(k => {
+                const e = voiceLog[k];
+                const missing = !e.added;
+                const when = e.at ? new Date(Number(e.at)).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+                const opts = saidOptions(e);
+                const optHtml = (missing ? '<option value="" selected>Pick one</option>' : '')
+                    + opts.map(n => `<option value="${escapeHtml(n)}"${n === e.added ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('')
+                    + '<option value="__type">Type a name…</option>';
+                const note = e.fixed ? `Fixed${e.was ? ` (was ${escapeHtml(e.was)})` : ''}. The mic will know this next time.` : (missing ? 'Nothing was added for this one.' : '');
+                return `<div class="said-row${missing ? ' is-missing' : ''}${e.fixed ? ' is-fixed' : ''}" data-key="${escapeHtml(k)}">
+                    <div class="said-line"><b>Said</b><span class="said-text">“${escapeHtml(e.said)}”</span><span class="said-when">${escapeHtml(when)}</span></div>
+                    <div class="said-fix"><b>Added</b>
+                        <select aria-label="Customer added for this" onchange="saidPicked(this)">${optHtml}</select>
+                        <button type="button" class="said-btn said-mic" onclick="sayAgain(this.closest('.said-row').dataset.key, this)" aria-label="Say it again">${micSvg}</button>
+                        ${missing ? `<button type="button" class="said-btn" onclick="dismissSaid(this.closest('.said-row').dataset.key)" aria-label="Remove from this list">✕</button>` : ''}
+                    </div>
+                    ${note ? `<div class="said-note">${note}</div>` : ''}
+                </div>`;
+            }).join('');
+        }
+        function saidPicked(sel) {
+            const row = sel.closest('.said-row');
+            const key = row && row.dataset.key;
+            if (!key) return;
+            if (sel.value === '__type') {
+                // Swap the list for a box that suggests every customer as you type.
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.setAttribute('list', 'said-customers');
+                input.placeholder = 'Start typing a customer';
+                input.autocomplete = 'off';
+                const done = () => {
+                    const v = input.value.trim();
+                    const name = Object.keys(addressData).find(n => n.toLowerCase() === v.toLowerCase());
+                    if (name) fixSaid(key, name); else if (v) showToast(`"${v}" isn't one of your customers.`, true);
+                };
+                input.addEventListener('change', done);
+                input.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); } });
+                input.addEventListener('blur', () => setTimeout(() => { if (input.isConnected && !input.value.trim()) renderSaidEarlier(); }, 200));
+                sel.replaceWith(input);
+                input.focus();
+                return;
+            }
+            if (sel.value) fixSaid(key, sel.value);
+        }
+        function dismissSaid(key) {
+            delete voiceLog[key];
+            saveVoiceLog();
+            renderSaidEarlier();
+        }
+        // Say the name again for one entry: a sure match is used straight away, otherwise the
+        // list shows the closest customers to what was just said.
+        function sayAgain(key, btn) {
+            const e = voiceLog[key];
+            if (!e) return;
+            if (saidListening) { try { saidListening.stop(); } catch (err) {} return; }
+            const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!Ctor) { showToast('Voice input is not supported on this browser. Pick from the list instead.', true); return; }
+            listenVoiceAliases();
+            stopMultiAddListening();
+            const rec = new Ctor();
+            saidListening = rec;
+            rec.lang = 'en-CA';
+            rec.continuous = false;
+            rec.interimResults = false;
+            rec.maxAlternatives = 5;
+            let text = '';
+            rec.onresult = ev => {
+                const r = ev.results[ev.results.length - 1];
+                const guesses = Array.from({ length: r.length }, (_, k) => r[k] && r[k].transcript.trim()).filter(Boolean);
+                text = bestGuess(guesses);
+            };
+            rec.onerror = ev => { if (ev && ev.error === 'not-allowed') showToast('The microphone is blocked for this page. Allow it in the browser settings.', true); };
+            rec.onend = () => {
+                if (saidListening === rec) saidListening = null;
+                if (btn) btn.classList.remove('is-listening');
+                if (!text) { renderSaidEarlier(); showToast("Didn't hear a name. Tap the mic and try again."); return; }
+                const rows = matchSpokenNames(text);
+                const sure = rows.find(r => r.pick && r.kind === 'ok' && addressData[r.pick]);
+                if (sure) { fixSaid(key, sure.pick); return; }
+                e.alt = text; // show the customers closest to what was just said
+                renderSaidEarlier();
+                showToast(`Heard "${text}". Pick the right customer from the list.`, false, { duration: 6000 });
+            };
+            if (btn) btn.classList.add('is-listening');
+            requestMicWakeLock();
+            try { rec.start(); } catch (err) { saidListening = null; if (btn) btn.classList.remove('is-listening'); }
+        }
+        // Puts the right customer on the stop for this entry (same place and number), or adds it
+        // if nothing was added, then teaches the mic what was said.
+        async function fixSaid(key, name) {
+            const e = voiceLog[key];
+            const data = addressData[name];
+            if (!e || !data) { renderSaidEarlier(); return; }
+            if (name === e.added) { renderSaidEarlier(); return; }
+            const was = e.added || '';
+            let stopId = stopForLog(e);
+            if (stopId) {
+                const want = name.trim().toLowerCase();
+                const dup = Object.keys(jobs).find(id => id !== stopId && jobs[id] && jobs[id].status === 'pending_pickup' && String(jobs[id].name || '').trim().toLowerCase() === want);
+                if (dup) {
+                    if (!(await showConfirmModal(`"${name}" is already on the list. Remove the wrong stop "${was}"?`))) { renderSaidEarlier(); return; }
+                    // Point the entry at the right stop first, so removing the wrong stop keeps it.
+                    const wrongId = stopId;
+                    e.added = name; e.stop = dup;
+                    stopId = dup;
+                    removeJobNow(wrongId);
+                } else {
+                    // Same stop, new customer: name, address, city and map spot. With a saved spot
+                    // the stop goes straight there; otherwise the address is looked up again.
+                    const job = jobs[stopId];
+                    const spot = contactSpot(data);
+                    const address = String(data.address || '').trim(), city = String(data.city || '').trim();
+                    const update = { name: name, pickup_location: address, city: city,
+                        lat: spot ? spot.lat : null, lng: spot ? spot.lng : null, pinned: spot ? true : null };
+                    Object.keys(update).forEach(k => { if (update[k] === null) delete job[k]; else job[k] = update[k]; });
+                    markListChanged();
+                    persistJobsCache();
+                    // Pulse the changed stop, like a new one
+                    lastAddedJobId = stopId;
+                    if (lastAddedJobClearTimer) clearTimeout(lastAddedJobClearTimer);
+                    lastAddedJobClearTimer = setTimeout(() => { lastAddedJobId = null; lastAddedJobClearTimer = null; }, 3200);
+                    localJobs.ref(`${stopId}`).update(update)
+                        .then(() => {
+                            if (!spot && typeof google !== 'undefined' && google.maps && google.maps.Geocoder) {
+                                return geocodeJob(stopId).then(() => updateRoute())
+                                    .catch(() => showToast(`Couldn't find "${address}, ${city}" on the map. Check the customer's address.`, true, { duration: 8000 }));
+                            }
+                        })
+                        .catch(err => console.warn('Stop update failed:', err));
+                    updateRoute();
+                }
+            } else {
+                selectClient(name);
+                await addJob();
+                resetFormFields();
+                stopId = lastAddedStopFor(name) || null;
+            }
+            // Teach the mic: what was said means this customer (shared with Route Helper).
+            const heard = normName(e.said);
+            if (heard && heard.length <= 80 && heard !== normName(name)) {
+                voiceAliases[heard] = name;
+                db.ref(VOICE_ALIASES_PATH + '/' + heard).set(name).catch(err => console.warn('Voice alias not saved:', err));
+            }
+            Object.assign(e, { added: name, stop: stopId || '', fixed: true, was: was });
+            delete e.alt;
+            saveVoiceLog();
+            renderSaidEarlier();
+            showToast(was ? `Changed "${was}" to "${name}".` : `Added "${name}".`);
+        }
+
+        // ---------- KEEP THE SCREEN ON WHILE USING THE MIC ----------
+        // Like the contact list: while the hold-mic "Add several stops" screen is open or the mic
+        // is listening, the screen is kept on. Asked for again every 10 seconds and straight after
+        // the phone lets go, since the driver is talking, not touching the screen.
+        let micWakeLock = null;
+        let micWakeLockPending = false;
+        function micInUse() {
+            const sheet = document.getElementById('multi-add-overlay');
+            return !!((sheet && sheet.classList.contains('is-open')) || multiAddRecognition || quickVoiceRec || saidListening);
+        }
+        async function requestMicWakeLock() {
+            if (!('wakeLock' in navigator) || micWakeLock || micWakeLockPending || document.visibilityState !== 'visible') return;
+            micWakeLockPending = true;
+            try {
+                const lock = await navigator.wakeLock.request('screen');
+                micWakeLock = lock;
+                lock.addEventListener('release', () => {
+                    if (micWakeLock === lock) micWakeLock = null;
+                    if (micInUse()) setTimeout(requestMicWakeLock, 250);
+                });
+            } catch (err) {
+                micWakeLock = null;
+            } finally {
+                micWakeLockPending = false;
+            }
+        }
+        setInterval(() => {
+            if (micInUse()) requestMicWakeLock();
+            else if (micWakeLock) { const lock = micWakeLock; micWakeLock = null; lock.release().catch(() => {}); }
+        }, 10000);
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && micInUse()) requestMicWakeLock(); });
 
         // ---------- EDIT A CUSTOMER (address lookup) ----------
         // The same customer editor as Route Helper. Opened from the pencil in the name
