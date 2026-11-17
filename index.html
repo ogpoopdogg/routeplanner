@@ -7140,7 +7140,6 @@
                 runMultiAddMatch();
             };
             document.getElementById('multi-add-mic').classList.add('is-listening');
-            playMicChime();
             try { rec.start(); quiet(); } catch (e) { multiAddRecognition = null; document.getElementById('multi-add-mic').classList.remove('is-listening'); }
         }
         // ---------- MIC BUTTON: SAY IT, IT'S ADDED ----------
@@ -7148,31 +7147,6 @@
         // is matched to a customer (sound-alike and Voice learner included) and added to the route right
         // away. Names it can't match are listed in a message instead.
         let quickVoiceRec = null;
-        // A short soft beep when the mic starts listening. Made here, so it doesn't depend on the
-        // phone's own speech beep (which some phones and speech-app versions don't play).
-        let micChimeCtx = null;
-        function playMicChime() {
-            try {
-                const Ctx = window.AudioContext || window.webkitAudioContext;
-                if (!Ctx) return;
-                if (!micChimeCtx) micChimeCtx = new Ctx();
-                const ctx = micChimeCtx;
-                if (ctx.state === 'suspended') ctx.resume();
-                const t = ctx.currentTime + 0.01;
-                const gain = ctx.createGain();
-                gain.connect(ctx.destination);
-                gain.gain.setValueAtTime(0.0001, t);
-                gain.gain.exponentialRampToValueAtTime(0.18, t + 0.015);
-                gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
-                const osc = ctx.createOscillator();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(880, t);
-                osc.frequency.setValueAtTime(1320, t + 0.07);
-                osc.connect(gain);
-                osc.start(t);
-                osc.stop(t + 0.17);
-            } catch (e) {}
-        }
         // Mic button: listens and adds the stop the moment the name is recognised.
         // - While still listening, the words so far are checked against the address book. If they are a
         //   customer's whole name (or a phrase taught in the voice learner), the stop is added right
@@ -7242,7 +7216,6 @@
             rec.onend = () => { if (!finished) finish(finalText); };
             btn.classList.add('is-listening');
             requestMicWakeLock();
-            playMicChime();
             try {
                 rec.start();
                 // Nothing said in 7 s: stop
@@ -7673,7 +7646,6 @@
             };
             if (btn) btn.classList.add('is-listening');
             requestMicWakeLock();
-            playMicChime();
             try { rec.start(); } catch (err) { saidListening = null; if (btn) btn.classList.remove('is-listening'); }
         }
         // Puts the right customer on the stop for this entry (same place and number), or adds it
