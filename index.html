@@ -885,6 +885,24 @@
             backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%);
         }
         #app-toast.is-visible { display: block; animation: drop-in .25s var(--ease); }
+        /* Undo after adding a stop: a big button beside the mic for 2.5 s, the bar runs down */
+        #undo-add {
+            position: fixed; right: 82px; bottom: 201.5px; z-index: 1002; display: none; align-items: center; gap: 10px;
+            height: 56px; min-width: 132px; max-width: calc(100vw - 98px); padding: 0 18px 0 14px; overflow: hidden; cursor: pointer;
+            font-family: inherit; text-align: left; color: #fff; background: #f59e0b; border: 2px solid #fbbf24; border-radius: 18px;
+            box-shadow: 0 16px 34px -12px rgba(0,0,0,0.75), 0 0 0 3px rgba(245,158,11,0.22);
+            -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+        }
+        #undo-add.is-visible { display: flex; animation: pop-in .2s var(--spring) both; }
+        #undo-add:active { transform: scale(.95); }
+        #undo-add svg { flex: none; width: 26px; height: 26px; stroke: #fff; }
+        #undo-add .undo-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.1; }
+        #undo-add .undo-label { font-size: 18px; font-weight: 900; letter-spacing: .06em; }
+        #undo-add .undo-name { font-size: 11.5px; font-weight: 700; opacity: .92; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #undo-add .undo-bar { position: absolute; left: 0; bottom: 0; height: 4px; width: 100%; background: rgba(255,255,255,0.85); transform-origin: left; }
+        #undo-add.is-visible .undo-bar { animation: undo-run var(--undo-ms, 2500ms) linear both; }
+        @keyframes undo-run { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+        body.light-mode #undo-add { background: #d97706; border-color: #f59e0b; box-shadow: 0 16px 34px -14px rgba(15,23,42,0.35), 0 0 0 3px rgba(217,119,6,0.18); }
         #app-toast.is-error { color: #fff; background: rgba(220,38,38,0.92); border-color: rgba(255,255,255,0.2); }
         /* ---------- SETTINGS, DRIVER CHIP, PILL EXTRAS ---------- */
         .driver-bar { display: flex; gap: 4px; overflow-x: auto; margin: -4px -2px 12px; padding: 2px 2px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
@@ -1498,6 +1516,11 @@
     </div>
 
     <div id="app-toast" role="status" aria-live="polite"></div>
+    <button type="button" id="undo-add" aria-label="Undo the stop just added">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+        <span class="undo-text"><span class="undo-label">UNDO</span><span class="undo-name"></span></span>
+        <span class="undo-bar"></span>
+    </button>
 
     <!-- Install App Button -->
     <button id="install-btn">Install App</button>
@@ -2057,6 +2080,7 @@
         function showListOnScreen(list) {
             list = list || {};
             if (isOrderingMode) { isOrderingMode = false; stopPulsingAll(); }
+            hideUndoAdd();
             jobs = list.jobs && typeof list.jobs === 'object' ? list.jobs : {};
             pendingJobIds = {};
             routeState.order = Array.isArray(list.order) ? list.order.filter(id => jobs[id]) : [];
@@ -2214,6 +2238,53 @@
 
         // ---------- JOB MANAGEMENT ----------
         let addJobBusy = false;
+
+        // ---------- UNDO AFTER ADDING ----------
+        // Every stop added (typed, the mic, the hold-mic list) shows a big UNDO button beside the mic
+        // for 2.5 s. A tap takes the stop(s) straight off, no hold and no asking. Several stops added
+        // in one go (the hold-mic list) undo together; otherwise only the newest stop is undone.
+        const UNDO_ADD_MS = 2500;
+        let undoAddIds = [], undoAddTimer = null, undoBatch = null;
+        function noteStopAdded(id) {
+            if (!id) return;
+            if (undoBatch) { undoBatch.push(id); return; }
+            offerUndoAdd([id]);
+        }
+        // Collects every stop added until endUndoBatch(), so they undo as one
+        function startUndoBatch() { undoBatch = []; }
+        function endUndoBatch() { const ids = undoBatch || []; undoBatch = null; offerUndoAdd(ids); }
+        function offerUndoAdd(ids) {
+            ids = (ids || []).filter(id => jobs[id]);
+            if (!ids.length) return;
+            const btn = document.getElementById('undo-add');
+            if (!btn) return;
+            undoAddIds = ids;
+            const nameEl = btn.querySelector('.undo-name');
+            nameEl.textContent = ids.length === 1 ? String(jobs[ids[0]].name || '') : `${ids.length} stops`;
+            btn.setAttribute('aria-label', ids.length === 1 ? `Undo adding ${jobs[ids[0]].name || 'the stop'}` : `Undo adding ${ids.length} stops`);
+            btn.style.setProperty('--undo-ms', UNDO_ADD_MS + 'ms');
+            btn.classList.remove('is-visible');
+            void btn.offsetWidth; // restart the countdown bar
+            btn.classList.add('is-visible');
+            clearTimeout(undoAddTimer);
+            undoAddTimer = setTimeout(hideUndoAdd, UNDO_ADD_MS);
+        }
+        function hideUndoAdd() {
+            clearTimeout(undoAddTimer);
+            undoAddTimer = null;
+            undoAddIds = [];
+            const btn = document.getElementById('undo-add');
+            if (btn) btn.classList.remove('is-visible');
+        }
+        function undoLastAdd() {
+            const ids = undoAddIds.filter(id => jobs[id]);
+            hideUndoAdd();
+            if (!ids.length) return;
+            ids.forEach(id => { if (lastAddedJobId === id) lastAddedJobId = null; removeJobNow(id); });
+            renderList();
+            updateUI();
+        }
+        { const btn = document.getElementById('undo-add'); if (btn) btn.addEventListener('click', undoLastAdd); }
         async function addJob() {
             if (addJobBusy) return;
             const name = document.getElementById('f-name').value.trim();
@@ -2269,6 +2340,7 @@
                 resetFormFields();
                 markListChanged();
                 insertStopIntoFinalizedRoute(newId).catch(err => console.warn("Route insertion failed:", err));
+                noteStopAdded(newId);
                 newJobRef.set(newJob).then(() => {
                     delete pendingJobIds[newId];
                     persistJobsCache();
@@ -2312,6 +2384,7 @@
                     resetFormFields();
                     markListChanged();
                     insertStopIntoFinalizedRoute(newId).catch(err => console.warn("Route insertion failed:", err));
+                    noteStopAdded(newId);
 
                     newJobRef.set(newJob).then(() => {
                         delete pendingJobIds[newId];
@@ -2355,6 +2428,7 @@
             updateRoute();
             resetFormFields();
             markListChanged();
+            noteStopAdded(newJobRef.key);
 
             newJobRef.set(newJob).then(() => {
                 delete pendingJobIds[newJobRef.key];
@@ -2422,6 +2496,7 @@
         async function clearAllJobs() {
             if (await showConfirmModal("Clear all jobs?")) {
                 listIsClean();
+                hideUndoAdd();
                 // Clear unsynced stops locally too, so they can't be re-added by the pending-sync merge
                 pendingJobIds = {};
                 jobs = {};
@@ -7108,6 +7183,8 @@
                 const names = rows.filter(r => r.pick && addressData[r.pick]).map(r => r.pick);
                 const missing = rows.filter(r => !r.pick).map(r => r.heard);
                 const log = [];
+                startUndoBatch();
+                try {
                 for (const r of rows) {
                     if (r.pick && addressData[r.pick]) {
                         selectClient(r.pick);
@@ -7115,6 +7192,7 @@
                         log.push({ said: r.said || r.heard, teach: r.noTeach ? '' : r.heard, added: r.pick, stop: lastAddedStopFor(r.pick) });
                     } else log.push({ said: r.said || r.heard, teach: r.noTeach ? '' : r.heard, added: '' });
                 }
+                } finally { endUndoBatch(); }
                 logVoice(log, 'tap');
                 resetFormFields();
                 // No captions: the stops just appear. Only a name it couldn't match gets a message.
@@ -7400,6 +7478,8 @@
             const rowsNow = multiAddRows.slice();
             closeMultiAdd();
             const log = [];
+            startUndoBatch();
+            try {
             for (const r of rowsNow) {
                 if (r.on && r.pick && addressData[r.pick]) {
                     selectClient(r.pick);
@@ -7409,6 +7489,7 @@
                     log.push({ said: r.said || r.heard, teach: r.noTeach ? '' : r.heard, added: '' }); // not found: kept so it can be fixed later
                 }
             }
+            } finally { endUndoBatch(); }
             logVoice(log, 'list');
             resetFormFields();
             showToast(`Added ${chosen.length} stop${chosen.length === 1 ? '' : 's'}.`);
