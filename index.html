@@ -551,6 +551,8 @@
         .share-route-check-item:hover, .delete-route-check-item:hover { background: var(--card-2); }
         .share-route-check-item input[type="checkbox"], .delete-route-check-item input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; padding: 0; margin: 0; }
         .delete-route-check-item input[type="checkbox"] { accent-color: var(--red); }
+        .delete-select-all { border-bottom: 1px solid var(--border); border-radius: 9px 9px 0 0; margin-bottom: 4px; }
+        .delete-select-all label { font-weight: 800; }
         .share-route-check-item label, .delete-route-check-item label { font-size: 14px; font-weight: 600; color: var(--text); cursor: pointer; flex: 1; }
         #date-modal .date-box .date-actions, #delete-modal .delete-box .delete-actions { display: flex; gap: 10px; justify-content: stretch; flex-direction: row-reverse; }
         #date-modal .date-box button, #delete-modal .delete-box button { flex: 1; min-height: 46px; padding: 10px 18px; border: 1px solid transparent; border-radius: var(--r); font-weight: 800; cursor: pointer; font-size: 13px; letter-spacing: .06em; }
@@ -5321,16 +5323,17 @@
                     listContainer.innerHTML = '<div style="font-size:13px; color:#888;">No saved routes.</div>';
                     return;
                 }
-                let html = '';
+                // Everything starts ticked, with Select all at the top: untick only the ones to keep
+                let html = `<div class="delete-route-check-item delete-select-all"><input type="checkbox" id="delete-select-all" checked onchange="toggleDeleteSelectAll(this.checked)"><label for="delete-select-all">Select all</label></div>`;
                 keys.forEach(key => {
                     const route = savedData[key];
                     const label = (route && route.label) ? route.label : 'Unnamed';
-                    html += `<div class="delete-route-check-item"><input type="checkbox" id="delete-route-${escapeHtml(key)}" data-route-key="${escapeHtml(key)}"><label for="delete-route-${escapeHtml(key)}">${escapeHtml(label)}</label></div>`;
+                    html += `<div class="delete-route-check-item"><input type="checkbox" checked onchange="syncDeleteSelectAll()" id="delete-route-${escapeHtml(key)}" data-route-key="${escapeHtml(key)}"><label for="delete-route-${escapeHtml(key)}">${escapeHtml(label)}</label></div>`;
                 });
                 draftKeys.forEach(key => {
                     const route = draftData[key];
                     const label = ((route && route.label) ? route.label : key) + ' (unfinished)';
-                    html += `<div class="delete-route-check-item"><input type="checkbox" id="delete-draft-${escapeHtml(key)}" data-route-key="${escapeHtml(key)}" data-draft="1"><label for="delete-draft-${escapeHtml(key)}">${escapeHtml(label)}</label></div>`;
+                    html += `<div class="delete-route-check-item"><input type="checkbox" checked onchange="syncDeleteSelectAll()" id="delete-draft-${escapeHtml(key)}" data-route-key="${escapeHtml(key)}" data-draft="1"><label for="delete-draft-${escapeHtml(key)}">${escapeHtml(label)}</label></div>`;
                 });
                 listContainer.innerHTML = html;
             }).catch(err => {
@@ -5338,9 +5341,21 @@
             });
         }
 
+        // Select all ticks or unticks every route in the delete pop-up
+        function toggleDeleteSelectAll(on) {
+            document.querySelectorAll('#delete-routes-list input[data-route-key]').forEach(cb => { cb.checked = on; });
+        }
+        // Select all stays ticked only while every route is ticked
+        function syncDeleteSelectAll() {
+            const all = document.getElementById('delete-select-all');
+            if (!all) return;
+            const boxes = Array.from(document.querySelectorAll('#delete-routes-list input[data-route-key]'));
+            all.checked = boxes.length > 0 && boxes.every(cb => cb.checked);
+        }
+
         async function confirmDeleteRoutes() {
             const selectedKeys = [];
-            document.querySelectorAll('#delete-routes-list input[type="checkbox"]:checked').forEach(cb => {
+            document.querySelectorAll('#delete-routes-list input[data-route-key]:checked').forEach(cb => {
                 selectedKeys.push((cb.dataset.draft ? DRAFT_ROUTES_PATH : 'developer/route_planner/saved_routes') + '/' + cb.dataset.routeKey);
             });
             if (selectedKeys.length === 0) {
