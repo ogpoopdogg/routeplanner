@@ -933,6 +933,7 @@
         .driver-btn.status-unsent .driver-btn-meta { color: #ef4444; opacity: 1; }
         .driver-btn.is-picked { color: var(--accent-ink); background: linear-gradient(180deg, #ffe066, #f5c518 60%, #e2ac00); border-color: rgba(160,110,0,0.7); box-shadow: 0 6px 16px -8px rgba(245,197,24,0.8); }
         .driver-btn.is-picked .driver-btn-meta { color: var(--accent-ink); }
+        .driver-btn.is-move { flex: 0 0 auto; color: #000; background: var(--accent); border-color: var(--accent); font-weight: 800; }
         .driver-btn.is-new { flex: 0 0 auto; color: var(--accent); background: transparent; border-style: dashed; border-color: var(--accent); font-weight: 800; }
         .driver-chip {
             display: inline-flex; align-items: center; gap: 6px; max-width: 60%; min-height: 34px; padding: 6px 12px; cursor: pointer;
@@ -6933,7 +6934,11 @@
                 const picked = d.key === currentDriver;
                 const title = titles[status] + (picked && local.n > 0 ? '. Tap to move these stops to another driver.' : '. Tap to open their route.');
                 return `<button type="button" class="driver-btn status-${status}${picked ? ' is-picked' : ''}" data-key="${escapeHtml(d.key)}" aria-pressed="${picked}" title="${escapeHtml(title)}" onclick="tapDriverButton(${jsArg(d.key)})"><span class="driver-btn-name">${escapeHtml(d.label)}</span>${meta ? `<span class="driver-btn-meta">${escapeHtml(meta)}</span>` : ''}</button>`;
-            }).join('') + '<button type="button" class="driver-btn is-new" onclick="addDriverFromBar()" title="Add a new driver">+ New</button>';
+            }).join('')
+                // The picked driver has stops on screen: a Move button to put them on another driver
+                + (currentDriver && Object.keys(jobs).some(id => jobs[id] && jobs[id].status === 'pending_pickup')
+                    ? `<button type="button" class="driver-btn is-move" onclick="moveFromBar()" title="Move these stops to another driver">⇄ Move</button>` : '')
+                + '<button type="button" class="driver-btn is-new" onclick="addDriverFromBar()" title="Add a new driver">+ New</button>';
         }
         // "+ New" asks for a name and adds that driver to Settings for good (same as adding it there),
         // then picks them.
@@ -7016,6 +7021,11 @@
             if (listStopCount(kept) === 0 && savedStopCount(key) > 0) { showListOnScreen(null); loadSavedRoute(key); return; }
             showListOnScreen(kept);
             if (listStopCount(kept) === 0) warnSentToday(key);
+        }
+        async function moveFromBar() {
+            if (switchingDriver) return;
+            switchingDriver = true;
+            try { await moveStopsToAnotherDriver(); } finally { switchingDriver = false; }
         }
         // Tapping the picked (yellow) driver while their stops are on screen: move the whole list,
         // route and all, to another driver. For when stops went on the wrong driver's name.
