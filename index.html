@@ -6930,8 +6930,8 @@
                     old: `Last route saved ${formatSavedTime(route && route.timestamp)}, nothing saved today`,
                     none: 'Nothing saved yet'
                 };
-                const title = titles[status] + '. Tap to open their route.';
                 const picked = d.key === currentDriver;
+                const title = titles[status] + (picked && local.n > 0 ? '. Tap to move these stops to another driver.' : '. Tap to open their route.');
                 return `<button type="button" class="driver-btn status-${status}${picked ? ' is-picked' : ''}" data-key="${escapeHtml(d.key)}" aria-pressed="${picked}" title="${escapeHtml(title)}" onclick="tapDriverButton(${jsArg(d.key)})"><span class="driver-btn-name">${escapeHtml(d.label)}</span>${meta ? `<span class="driver-btn-meta">${escapeHtml(meta)}</span>` : ''}</button>`;
             }).join('') + '<button type="button" class="driver-btn is-new" onclick="addDriverFromBar()" title="Add a new driver">+ New</button>';
         }
@@ -6970,6 +6970,11 @@
                 // Their list on screen is empty: open their saved route
                 const onScreen = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').length;
                 if (onScreen === 0 && savedStopCount(key) > 0) loadSavedRoute(key);
+                // Stops on screen: offer to move them to another driver (picked the wrong one)
+                else if (onScreen > 0) {
+                    switchingDriver = true;
+                    try { await moveStopsToAnotherDriver(); } finally { switchingDriver = false; }
+                }
                 return;
             }
             switchingDriver = true;
@@ -7011,6 +7016,58 @@
             if (listStopCount(kept) === 0 && savedStopCount(key) > 0) { showListOnScreen(null); loadSavedRoute(key); return; }
             showListOnScreen(kept);
             if (listStopCount(kept) === 0) warnSentToday(key);
+        }
+        // Tapping the picked (yellow) driver while their stops are on screen: move the whole list,
+        // route and all, to another driver. For when stops went on the wrong driver's name.
+        async function moveStopsToAnotherDriver() {
+            const from = currentDriver;
+            if (!from) return;
+            const fromLabel = driverLabel(from);
+            const onScreen = Object.keys(jobs).filter(id => jobs[id] && jobs[id].status === 'pending_pickup').length;
+            if (onScreen === 0) return;
+            const others = tickedDrivers().filter(d => d.key !== from);
+            if (others.length === 0) { showToast('Add another driver first (+ New), then tap here to move the stops.'); return; }
+            const s = onScreen === 1 ? '' : 's';
+            const pick = await showChoiceModal(`Move the ${onScreen} stop${s} on ${fromLabel}'s list to:`, others.map(d => d.label));
+            if (pick === null || pick === undefined || !others[pick]) return;
+            const to = others[pick].key;
+            const toLabel = driverLabel(to);
+            const all = readDriverLists();
+            const theirs = listStopCount(all[to]);
+            let list = Object.assign(screenListSnapshot(), { listChanged: true, loadedDraftKey: null });
+            if (theirs > 0) {
+                const c = await showChoiceModal(`${toLabel} already has ${theirs} stop${theirs === 1 ? '' : 's'} on this phone.`,
+                    [onScreen === 1 ? `Add this stop to ${toLabel}'s list` : `Add these ${onScreen} to ${toLabel}'s list`]); // Cancel goes back
+                if (c !== 0) return;
+                const kept = all[to];
+                list = Object.assign({}, kept, { jobs: Object.assign({}, kept.jobs, list.jobs), listChanged: true });
+                // New stops aren't in a made route: back to an unnumbered list, make the route again
+                if (kept.isFinalized || (kept.order && kept.order.length) || routeState.order.length)
+                    Object.assign(list, { order: [], assignedIndices: {}, isFinalized: false, isOrderingMode: false, etaTotalMinutes: 0, etaTotalKm: 0, etaKey: '' });
+            }
+            // Did these stops already go to the database under the wrong name?
+            const route = savedRoutesCache && savedRoutesCache[from];
+            const sentToday = !!(route && route.stops && isSameDay(route.timestamp));
+            const draft = !!(draftRoutesCache && draftRoutesCache[from] && draftRoutesCache[from].stops);
+            // Move it on this phone first, so the list is safe whatever happens next
+            forgetDriverList(from);
+            setCurrentDriver(to);
+            showListOnScreen(list);
+            showToast(`Moved ${onScreen} stop${s} to ${toLabel}. Save to send it.` + (theirs > 0 ? ' Make the route again.' : ''), false, { duration: 5000 });
+            if (sentToday || draft) {
+                const what = sentToday ? `the route saved under ${fromLabel} today` : `${fromLabel}'s unfinished list`;
+                const del = await showChoiceModal(`Also delete ${what}?` + (sentToday ? ` ${fromLabel} can see it in Route Helper.` : ''),
+                    [`Yes, delete it`, `No, keep it`]);
+                if (del === 0) {
+                    const paths = [];
+                    if (sentToday) paths.push('developer/route_planner/saved_routes/' + from);
+                    if (draft) paths.push(DRAFT_ROUTES_PATH + '/' + from);
+                    Promise.all(paths.map(path => db.ref(path).remove()))
+                        .then(() => showToast(`Deleted ${what}.`))
+                        .catch(err => showAlertModal('Error deleting: ' + err.message));
+                }
+            }
+            warnSentToday(to);
         }
         // The phone's own long-press menu doesn't open on a driver button (there's no hold action)
         function setupDriverBarNoMenu() {
