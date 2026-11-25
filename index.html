@@ -2147,6 +2147,26 @@
                 }
             } catch (e) { pendingRouteSaves = {}; }
         }
+        // The database refuses a whole write, before sending anything, if any value in it is
+        // undefined, NaN or Infinity (e.g. a stop with a blank field, or a broken ETA distance).
+        // That refusal used to be swallowed, so a save only ever said "hasn't reached Route
+        // Helper yet". Blank values are dropped and broken numbers become 0 before writing.
+        function dbSafe(v) {
+            if (v === undefined || typeof v === 'function') return null;
+            if (typeof v === 'number') return isFinite(v) ? v : 0;
+            if (Array.isArray(v)) return v.map(x => { const c = dbSafe(x); return c === null ? '' : c; });
+            if (v && typeof v === 'object') {
+                if (v['.sv']) return v; // server timestamp
+                const out = {};
+                Object.keys(v).forEach(k => { const c = dbSafe(v[k]); if (c !== null) out[k] = c; });
+                return out;
+            }
+            return v;
+        }
+        // set() that hands back a failed promise instead of throwing when the database refuses the data
+        function safeSet(ref, value) {
+            try { return ref.set(dbSafe(value)); } catch (e) { return Promise.reject(e); }
+        }
         function persistRouteSaveCache() {
             try {
                 if (Object.keys(pendingRouteSaves).length > 0) localStorage.setItem(ROUTE_SAVE_PENDING_KEY, JSON.stringify(pendingRouteSaves));
@@ -2200,8 +2220,8 @@
                 const entry = pendingRouteSaves[key];
                 const { username, routeData, contactList } = entry;
                 try {
-                    await db.ref('developer/route_planner/saved_routes/' + username).set(routeData);
-                    if (contactList) db.ref('developer/route_planner/contact_lists/' + username).set(contactList).catch(err => console.warn('Contact list save failed:', err));
+                    await safeSet(db.ref('developer/route_planner/saved_routes/' + username), routeData);
+                    if (contactList) safeSet(db.ref('developer/route_planner/contact_lists/' + username), contactList).catch(err => console.warn('Contact list save failed:', err));
                     // Only clear it if no newer save for this driver replaced it meanwhile.
                     if (pendingRouteSaves[key] === entry) delete pendingRouteSaves[key];
                     persistRouteSaveCache();
@@ -3272,13 +3292,15 @@
                     let totalDurationSeconds = 0;
                     let totalDistanceMeters = 0;
                     if (route.legs) {
+                        // Google leaves a field out when it is zero (two stops at the same spot),
+                        // which used to make the total NaN, and the database then refused the save.
                         route.legs.forEach(leg => {
-                            totalDurationSeconds += parseFloat(leg.duration.replace('s', ''));
-                            totalDistanceMeters += parseFloat(leg.distanceMeters);
+                            totalDurationSeconds += parseFloat(String(leg.duration || '0').replace('s', '')) || 0;
+                            totalDistanceMeters += parseFloat(leg.distanceMeters) || 0;
                         });
                     } else {
-                        totalDurationSeconds = parseFloat(route.duration.replace('s', ''));
-                        totalDistanceMeters = parseFloat(route.distanceMeters);
+                        totalDurationSeconds = parseFloat(String(route.duration || '0').replace('s', '')) || 0;
+                        totalDistanceMeters = parseFloat(route.distanceMeters) || 0;
                     }
                     etaTotalMinutes = totalDurationSeconds / 60;
                     etaTotalKm = totalDistanceMeters / 1000;
@@ -5121,7 +5143,7 @@
                 if (!done) { showToast(`${label}'s unfinished list hasn't saved yet. Keep Route Planner open, it will save when the connection is back.`, true); kickConnection(); }
             }, 8000);
             if (onWriting) onWriting();
-            return db.ref(DRAFT_ROUTES_PATH + '/' + username).set(draft).then(() => {
+            return safeSet(db.ref(DRAFT_ROUTES_PATH + '/' + username), draft).then(() => {
                 done = true;
                 clearTimeout(slow);
                 // Stops added while it was saving are left on screen instead of being wiped.
@@ -5216,7 +5238,7 @@
 
             if (Object.keys(stopsObj).length === 0) return;
 
-            const routeData = {
+            const routeData = dbSafe({
                 label: label,
                 timestamp: Date.now(),
                 stops: stopsObj,
@@ -5227,7 +5249,7 @@
                 etaTotalKm: etaTotalKm,
                 driverUsername: username,
                 startTime: routeState.startTime || null
-            };
+            });
 
             // This driver's contact list (same lines as the List button), saved with the route
             const contactNames = getCurrentStopNames();
@@ -5251,7 +5273,7 @@
             }, 8000);
 
             // One list per driver: developer/route_planner/contact_lists/<driver>
-            db.ref('developer/route_planner/contact_lists/' + username).set(contactList).catch(err => console.warn('Contact list save failed:', err));
+            safeSet(db.ref('developer/route_planner/contact_lists/' + username), contactList).catch(err => console.warn('Contact list save failed:', err));
 
             // Dated copy for Route Watcher's Compare view: developer/route_planner/route_history/<driver>/<save time ms>.
             // saved_routes/<driver> below still holds only the latest route; this copy is never overwritten.
@@ -5270,12 +5292,12 @@
                         if (pathPoints.length > 1) historyEntry.path = google.maps.geometry.encoding.encodePath(pathPoints);
                     }
                 } catch (pathErr) { console.warn('Route history path skipped:', pathErr); }
-                db.ref('developer/route_planner/route_history/' + username + '/' + routeData.timestamp).set(historyEntry).catch(err => console.warn('Route history save failed:', err));
+                safeSet(db.ref('developer/route_planner/route_history/' + username + '/' + routeData.timestamp), historyEntry).catch(err => console.warn('Route history save failed:', err));
             } catch (histErr) { console.warn('Route history save failed:', histErr); }
 
             // Save under the username key
             onWriting();
-            return db.ref('developer/route_planner/saved_routes/' + username).set(routeData)
+            return safeSet(db.ref('developer/route_planner/saved_routes/' + username), routeData)
                 .then(() => {
                     if (pendingRouteSaves[username] === saveEntry) delete pendingRouteSaves[username];
                     persistRouteSaveCache();
@@ -5302,6 +5324,14 @@
                     // drop still gets retried automatically; a hard, repeatable
                     // rejection (e.g. a security-rule problem) will just keep
                     // failing quietly in the background until it's fixed.
+                    // Data the database refuses outright never sends, so don't leave it waiting
+                    // (that showed "hasn't reached Route Helper yet" and retried forever).
+                    if (!/permission|disconnect|network|offline/i.test(String(err && (err.code || err.message)))) {
+                        if (pendingRouteSaves[username] === saveEntry) delete pendingRouteSaves[username];
+                        persistRouteSaveCache();
+                        updateConnectivityBanner();
+                        renderSavedPills(savedRoutesCache || {});
+                    }
                     showAlertModal("Error saving route: " + err.message);
                     return false;
                 });
@@ -5320,7 +5350,11 @@
                 const draftData = draftSnap.val() || {};
                 const keys = Object.keys(savedData);
                 const draftKeys = Object.keys(draftData);
-                if (keys.length === 0 && draftKeys.length === 0) {
+                // Lists kept only on this phone (never saved, or a copy of a route that is gone).
+                // A driver with a saved route or unfinished list loses their phone list along with it.
+                const phoneLists = readDriverLists();
+                const phoneKeys = Object.keys(phoneLists).filter(k => listStopCount(phoneLists[k]) > 0 && !savedData[k] && !draftData[k]);
+                if (keys.length === 0 && draftKeys.length === 0 && phoneKeys.length === 0) {
                     listContainer.innerHTML = '<div style="font-size:13px; color:#888;">No saved routes.</div>';
                     return;
                 }
@@ -5335,6 +5369,11 @@
                     const route = draftData[key];
                     const label = ((route && route.label) ? route.label : key) + ' (unfinished)';
                     html += `<div class="delete-route-check-item"><input type="checkbox" checked onchange="syncDeleteSelectAll()" id="delete-draft-${escapeHtml(key)}" data-route-key="${escapeHtml(key)}" data-draft="1"><label for="delete-draft-${escapeHtml(key)}">${escapeHtml(label)}</label></div>`;
+                });
+                phoneKeys.forEach(key => {
+                    const n = listStopCount(phoneLists[key]);
+                    const label = `${driverLabel(key)} (not saved, ${n} stop${n === 1 ? '' : 's'} on this phone)`;
+                    html += `<div class="delete-route-check-item"><input type="checkbox" checked onchange="syncDeleteSelectAll()" id="delete-phone-${escapeHtml(key)}" data-route-key="${escapeHtml(key)}" data-phone="1"><label for="delete-phone-${escapeHtml(key)}">${escapeHtml(label)}</label></div>`;
                 });
                 listContainer.innerHTML = html;
             }).catch(err => {
@@ -5356,14 +5395,31 @@
 
         async function confirmDeleteRoutes() {
             const selectedKeys = [];
+            const drivers = new Set();
+            let picked = 0;
             document.querySelectorAll('#delete-routes-list input[data-route-key]:checked').forEach(cb => {
+                picked++;
+                drivers.add(cb.dataset.routeKey);
+                if (cb.dataset.phone) return; // only on this phone: nothing in the database
                 selectedKeys.push((cb.dataset.draft ? DRAFT_ROUTES_PATH : 'developer/route_planner/saved_routes') + '/' + cb.dataset.routeKey);
             });
-            if (selectedKeys.length === 0) {
+            if (picked === 0) {
                 showAlertModal("No routes selected.");
                 return;
             }
-            if (await showConfirmModal(`Delete ${selectedKeys.length} selected route(s)?`)) {
+            if (await showConfirmModal(`Delete ${picked} selected route(s)?`)) {
+                // Also clear what this phone keeps for those drivers: their list (it used to bring
+                // the deleted stops straight back) and any save still waiting to send (it would
+                // put the deleted route back in Route Helper once it went through).
+                drivers.forEach(key => {
+                    if (pendingRouteSaves[key]) delete pendingRouteSaves[key];
+                    if (currentDriver === key) clearWorkingList(key);
+                    else forgetDriverList(key);
+                });
+                persistRouteSaveCache();
+                updateConnectivityBanner();
+                updateDriverChip();
+                renderSavedPills(savedRoutesCache || {});
                 const promises = selectedKeys.map(path => db.ref(path).remove());
                 Promise.all(promises)
                     .then(() => {
